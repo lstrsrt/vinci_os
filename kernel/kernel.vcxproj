@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{3ea411bb-d4d3-4fda-9eb1-966ee5b08c15}</ProjectGuid>
+    <RootNamespace>kernel</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(SolutionDir)\bin\$(Configuration)\vdisk\EFI\BOOT\</OutDir>
+    <IntDir>$(ProjectDir)\int\$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+    <IncludePath>$(ProjectDir)\lib\;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(SolutionDir)\bin\$(Configuration)\vdisk\EFI\BOOT\</OutDir>
+    <IntDir>$(ProjectDir)\int\$(Configuration)\</IntDir>
+    <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
+    <IncludePath>$(ProjectDir)\lib\;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>__KERNEL__;_HAS_EXCEPTIONS=0;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <SupportJustMyCode>false</SupportJustMyCode>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <CompileAs />
+      <AdditionalOptions>/Zc:threadSafeInit- /source-charset:.1252 %(AdditionalOptions)</AdditionalOptions>
+      <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
+      <DisableSpecificWarnings>26495</DisableSpecificWarnings>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Native</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies />
+      <EntryPointSymbol>x64Entry</EntryPointSymbol>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <BaseAddress>0xFFFFFFFF80000000</BaseAddress>
+      <FixedBaseAddress>false</FixedBaseAddress>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <SpecifySectionAttributes>INIT,D;.CRT,D</SpecifySectionAttributes>
+    </Link>
+    <PostBuildEvent>
+      <Command>$(SolutionDir)\bin\$(Configuration)\copy_to_flash.cmd $(OutDir)\$(TargetName)$(TargetExt)</Command>
+      <Message>
+      </Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>false</SDLCheck>
+      <PreprocessorDefinitions>__KERNEL__;_HAS_EXCEPTIONS=0;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <ExceptionHandling>false</ExceptionHandling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <AdditionalOptions>/Zc:threadSafeInit- /source-charset:.1252 %(AdditionalOptions)</AdditionalOptions>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <Optimization>MaxSpeed</Optimization>
+      <OmitFramePointers>false</OmitFramePointers>
+      <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
+    </ClCompile>
+    <Link>
+      <SubSystem>Native</SubSystem>
+      <EnableCOMDATFolding>false</EnableCOMDATFolding>
+      <OptimizeReferences>false</OptimizeReferences>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <AdditionalDependencies />
+      <EntryPointSymbol>x64Entry</EntryPointSymbol>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
+      <BaseAddress>0xFFFFFFFF80000000</BaseAddress>
+      <FixedBaseAddress>false</FixedBaseAddress>
+      <SpecifySectionAttributes>INIT,D;.CRT,D</SpecifySectionAttributes>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="core\init.cc" />
+    <ClCompile Include="core\gfx\output.cc" />
+    <ClCompile Include="hw\acpi\acpi.cc" />
+    <ClCompile Include="hw\cmos\cmos.cc" />
+    <ClCompile Include="hw\cpu\intctrl.cc" />
+    <ClCompile Include="hw\cpu\x64.cc" />
+    <ClCompile Include="hw\ps2\keyboard.cc" />
+    <ClCompile Include="hw\ps2\ps2.cc" />
+    <ClCompile Include="hw\serial\serial.cc" />
+    <ClCompile Include="hw\timer\timer.cc" />
+    <ClCompile Include="lib\crt.cc" />
+    <ClCompile Include="lib\libc\mem.cc" />
+    <ClCompile Include="lib\libc\print.cc" />
+    <ClCompile Include="lib\libc\str.cc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common\mm.h" />
+    <ClInclude Include="common\pe64.h" />
+    <ClInclude Include="common\va.h" />
+    <ClInclude Include="core\gfx\font.h" />
+    <ClInclude Include="core\gfx\output.h" />
+    <ClInclude Include="core\gfx\ssfn.h" />
+    <ClInclude Include="hw\acpi\acpi.h" />
+    <ClInclude Include="hw\cmos\cmos.h" />
+    <ClInclude Include="hw\cpu\cpuid.h" />
+    <ClInclude Include="hw\cpu\isr.h" />
+    <ClInclude Include="hw\cpu\x64.h" />
+    <ClInclude Include="hw\ps2\keyboard.h" />
+    <ClInclude Include="hw\ps2\ps2.h" />
+    <ClInclude Include="hw\serial\serial.h" />
+    <ClInclude Include="hw\timer\timer.h" />
+    <ClInclude Include="lib\base.h" />
+    <ClInclude Include="lib\ec\array.h" />
+    <ClInclude Include="lib\ec\bitfield.h" />
+    <ClInclude Include="lib\ec\concepts.h" />
+    <ClInclude Include="lib\ec\const.h" />
+    <ClInclude Include="lib\ec\enums.h" />
+    <ClInclude Include="lib\ec\iterator.h" />
+    <ClInclude Include="lib\ec\util.h" />
+    <ClInclude Include="lib\libc\args.h" />
+    <ClInclude Include="lib\libc\mem.h" />
+    <ClInclude Include="lib\libc\print.h" />
+    <ClInclude Include="lib\libc\str.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="hw\cpu\cpu.asm" />
+    <MASM Include="hw\cpu\isr.asm" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+  </ImportGroup>
+</Project>
