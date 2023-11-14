@@ -19,7 +19,7 @@ namespace timer
             High = 1 << 5,
             LowHigh = 3 << 4
         };
-        GSTL_ENUM_BIT_OPS(Access);
+        EC_ENUM_BIT_OPS(Access);
 
         enum class Mode : u8
         {
@@ -30,19 +30,19 @@ namespace timer
             SwStrobe = 4 << 1,
             HwStrobe = 5 << 1
         };
-        GSTL_ENUM_BIT_OPS(Mode);
+        EC_ENUM_BIT_OPS(Mode);
 
         enum class Channel : u8
         {
             Zero, One, Two
         };
-        GSTL_ENUM_BIT_OPS(Channel);
+        EC_ENUM_BIT_OPS(Channel);
 
         enum class BcdBinary : u8
         {
             Binary, Bcd
         };
-        GSTL_ENUM_BIT_OPS(BcdBinary);
+        EC_ENUM_BIT_OPS(BcdBinary);
 
         namespace port
         {

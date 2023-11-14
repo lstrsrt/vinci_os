@@ -16,7 +16,7 @@ namespace serial
         TriggerLvl3 = 2 << 6,
         TriggerLvl4 = 3 << 6
     };
-    GSTL_ENUM_BIT_OPS(Fifo)
+    EC_ENUM_BIT_OPS(Fifo)
 
     enum class Line : u8
     {
@@ -39,7 +39,7 @@ namespace serial
 
         Dlab = 1 << 7
     };
-    GSTL_ENUM_BIT_OPS(Line)
+    EC_ENUM_BIT_OPS(Line)
 
     enum class Modem
     {
@@ -50,7 +50,7 @@ namespace serial
         Loopback = 1 << 4,
         AutoflowCtrl = 1 << 5
     };
-    GSTL_ENUM_BIT_OPS(Modem)
+    EC_ENUM_BIT_OPS(Modem)
 
     enum class LineStatus
     {

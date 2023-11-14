@@ -29,7 +29,7 @@ namespace x64
         CD = 1 << 30,
         PG = 1 << 31,
     };
-    GSTL_ENUM_BIT_OPS(Cr0)
+    EC_ENUM_BIT_OPS(Cr0)
 
     enum class Cr4 : u64
     {
@@ -59,7 +59,7 @@ namespace x64
         PKS = 1 << 24,
         UINTR = 1 << 25,
     };
-    GSTL_ENUM_BIT_OPS(Cr4)
+    EC_ENUM_BIT_OPS(Cr4)
 
     INLINE Cr0 ReadCr0()
     {

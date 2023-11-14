@@ -18,15 +18,15 @@ namespace ec
     template<class U = type> \
     constexpr type operator op(const type lhs, const U rhs) noexcept \
     { \
-        return static_cast<type>(gstl::to_underlying(lhs) op gstl::to_underlying(rhs)); \
+        return static_cast<type>(ec::to_underlying(lhs) op ec::to_underlying(rhs)); \
     } \
     template<class U = type> \
     inline type& operator op##=(type& lhs, const U rhs) noexcept \
     { \
-        return lhs = static_cast<type>(gstl::to_underlying(lhs) op gstl::to_underlying(rhs)); \
+        return lhs = static_cast<type>(ec::to_underlying(lhs) op ec::to_underlying(rhs)); \
     }
 
-#define GSTL_ENUM_BIT_OPS(type) \
+#define EC_ENUM_BIT_OPS(type) \
     ENUM_OPERATOR(type, &) \
     ENUM_OPERATOR(type, |) \
     ENUM_OPERATOR(type, ^) \
@@ -34,16 +34,16 @@ namespace ec
     ENUM_OPERATOR(type, <<) \
     constexpr type operator~(const type x) noexcept \
     { \
-        return static_cast<type>(~gstl::to_underlying(x)); \
+        return static_cast<type>(~ec::to_underlying(x)); \
     }
 
-#define GSTL_ENUM_MATH_OPS(type) \
+#define EC_ENUM_MATH_OPS(type) \
     ENUM_OPERATOR(type, +) \
     ENUM_OPERATOR(type, -) \
     ENUM_OPERATOR(type, *) \
     ENUM_OPERATOR(type, /)
 
-#define GSTL_ENUM_OPS(type) \
-    GSTL_ENUM_BIT_OPS(type) \
-    GSTL_ENUM_MATH_OPS(type)
+#define EC_ENUM_OPS(type) \
+    EC_ENUM_BIT_OPS(type) \
+    EC_ENUM_MATH_OPS(type)
 
