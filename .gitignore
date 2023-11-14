@@ -1,5 +1,8 @@
-bin/
+int/
+.vs/
 *.txt
+*.vhd
+*.pdb
 
 # Prerequisites
 *.d
