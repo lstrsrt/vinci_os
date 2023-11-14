@@ -1,0 +1,222 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="entry.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="efi\protocol\efi-acpitp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-dpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-fp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-gop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-lidpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-lip.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-pbcp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-sfsp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-stip.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-stop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\protocol\efi-vmpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\efi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\efi-bs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\efi-ct.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\efi-rs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\efi-st.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="efi\efi-time.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\adapterdebug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\eficonsplit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\efidbg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\efivar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\intload.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\legacyboot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\piflash64.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\protocol\vgaclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efibind.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\x86_64\efilibplat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\x86_64\efisetjmp_arch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\x86_64\pe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efi_nii.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efi_pxe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efiapi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\eficompiler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\eficon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\eficonex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efidebug.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efidef.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efidevp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efierr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efifs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efigpt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efiip.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efilib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efilink.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efinet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efipart.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efipciio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efipoint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efiprot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efipxebc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efirtlib.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efiser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efisetjmp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efishellintf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efishellparm.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efistdarg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efitcp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efiudp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\efiui.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\libsmbios.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\pci22.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="gnu-efi\romload.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mini-libc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="boot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cpp-uefi.hh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
