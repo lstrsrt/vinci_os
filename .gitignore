@@ -3,6 +3,7 @@ int/
 *.txt
 *.vhd
 *.pdb
+*.EFI
 
 # Prerequisites
 *.d
