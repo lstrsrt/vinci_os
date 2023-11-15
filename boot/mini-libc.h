@@ -94,32 +94,32 @@ bool utf8_to_ucs2_char(char16_t* ucs2, const char8_t* utf8, size_t& utf8_len)
     {
         *ucs2 = ( char16_t )unit[0];
     }
-    else if ((unit[0] & 0xE0) == 0xC0)
+    else if ((unit[0] & 0xe0) == 0xc0)
     {
-        if ((unit[1] & 0xC0) != 0x80)
+        if ((unit[1] & 0xc0) != 0x80)
             return false;
         utf8_len = 2;
-        *ucs2 = ( char16_t )((unit[0] & 0x1F) << 6 | (unit[1] & 0x3F));
+        *ucs2 = ( char16_t )((unit[0] & 0x1f) << 6 | (unit[1] & 0x3f));
     }
-    else if ((unit[0] & 0xF0) == 0xE0)
+    else if ((unit[0] & 0xf0) == 0xe0)
     {
-        if (((unit[1] & 0xC0) != 0x80) || ((unit[2] & 0xC0) != 0x80))
+        if (((unit[1] & 0xc0) != 0x80) || ((unit[2] & 0xc0) != 0x80))
             return false;
         utf8_len = 3;
-        *ucs2 = ( char16_t )((unit[0] & 0x0F) << 12 | (unit[1] & 0x3F) << 6 | (unit[2] & 0x3F));
+        *ucs2 = ( char16_t )((unit[0] & 0x0f) << 12 | (unit[1] & 0x3f) << 6 | (unit[2] & 0x3f));
     }
     // From here on, the character exceeds the UCS-2 range
-    else if ((unit[0] & 0xF8) == 0xF0)
+    else if ((unit[0] & 0xf8) == 0xf0)
     {
         utf8_len = 4;
         return false;
     }
-    else if ((unit[0] & 0xFC) == 0xF8)
+    else if ((unit[0] & 0xfc) == 0xf8)
     {
         utf8_len = 5;
         return false;
     }
-    else if ((unit[0] & 0xFE) == 0xFC)
+    else if ((unit[0] & 0xfe) == 0xfc)
     {
         utf8_len = 6;
         return false;
@@ -162,7 +162,7 @@ char16_t* i64tow(int64_t val, char16_t* str, int32_t radix = 10, bool sign = tru
     if (negative)
         uval = 0 - uval;
 
-    auto end = &buffer[sizeof buffer - 1];
+    auto end = &buffer[ARRAY_SIZE(buffer) - 1];
     auto pos = end;
 
     do
@@ -199,7 +199,7 @@ char16_t* itow(int32_t val, char16_t* str, int32_t radix = 10, bool sign = true)
     if (negative)
         uval = 0 - uval;
 
-    auto end = &buffer[sizeof buffer - 1];
+    auto end = &buffer[ARRAY_SIZE(buffer) - 1];
     auto pos = end;
 
     do
