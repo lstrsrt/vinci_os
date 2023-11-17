@@ -84,7 +84,7 @@ namespace serial
         constexpr u16 scratch = 7;
     }
 
-    void Initialize();
+    EARLY void Initialize();
 
     // Default is COM1
     void SetPort(u16 port);

@@ -7,6 +7,6 @@
 
 namespace acpi {
 
-    void ParseMadt(EFI_ACPI_2_0_MULTIPLE_APIC_DESCRIPTION_TABLE_HEADER* header, x64::ProcessorInfo& info);
+    EARLY void ParseMadt(EFI_ACPI_2_0_MULTIPLE_APIC_DESCRIPTION_TABLE_HEADER* header, x64::ProcessorInfo& info);
 
 }

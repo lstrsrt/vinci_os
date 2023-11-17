@@ -63,7 +63,7 @@ namespace cmos
     inline bool rtc_has_century; // TODO - check in FADT
     inline Rtc time;
 
-    void Initialize();
+    EARLY void Initialize();
 
     /* Full update.
        Assumes that CMOS update flag is not set. */

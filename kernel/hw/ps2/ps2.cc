@@ -57,7 +57,7 @@ namespace ps2
             Print("PS/2: Drain 0x%x\n", reply);
     }
 
-    void Initialize()
+    EARLY void Initialize()
     {
         // TODO - initialize USB controllers and disable legacy
 

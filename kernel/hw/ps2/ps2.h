@@ -81,7 +81,7 @@ namespace ps2
     };
     static_assert(sizeof Config == 0x1);
 
-    void Initialize();
+    EARLY void Initialize();
 
     void Write(u16 port, u8 byte);
     bool Read(u16 port, u8& reply);

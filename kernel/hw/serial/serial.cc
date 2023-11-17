@@ -48,7 +48,7 @@ namespace serial
         write_reg(reg::modem_ctrl, ( u8 )(Modem::DataReady | Modem::RequestSend));
     }
 
-    void Initialize()
+    EARLY void Initialize()
     {
         // Try to initialize COM1 and COM2.
         // TODO - Add support for finding more ports

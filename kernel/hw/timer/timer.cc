@@ -6,7 +6,7 @@
 
 namespace timer
 {
-    void Initialize(u64 hpet_address)
+    EARLY void Initialize(u64 hpet_address)
     {
         x64::ConnectIsr(timer::Isr, 0);
 
@@ -31,7 +31,7 @@ namespace timer
 
 namespace timer::pit
 {
-    void Initialize()
+    EARLY void Initialize()
     {
         WritePort8(port::ctrl, ( u8 )(Channel::Zero | Access::LowHigh |
             Mode::RateGenerator | BcdBinary::Binary));
@@ -42,7 +42,7 @@ namespace timer::pit
 
 namespace timer::hpet
 {
-    bool Initialize(u64 hpet_address)
+    EARLY bool Initialize(u64 hpet_address)
     {
         // TODO - accessing registers in Release builds hangs the system
         auto regs = ( volatile Registers* )hpet_address;

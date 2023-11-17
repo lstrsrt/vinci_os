@@ -13,7 +13,7 @@
 
 namespace x64
 {
-    void Initialize();
+    EARLY void Initialize();
 
     enum class Cr0 : u64
     {

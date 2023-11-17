@@ -14,7 +14,7 @@
 #define LIKELY          [[likely]]
 #define UNLIKELY        [[unlikely]]
 #define CODE_SEG(name)  __declspec(code_seg(name))
-#define EARLY           NO_INLINE CODE_SEG("INIT")
+#define EARLY           CODE_SEG("INIT")
 
 typedef __int8 i8;
 typedef __int16 i16;

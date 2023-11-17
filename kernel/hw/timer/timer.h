@@ -7,7 +7,7 @@ namespace timer
     inline volatile u64 ticks;
     inline volatile u64 seconds;
 
-    void Initialize(u64 hpet_address);
+    EARLY void Initialize(u64 hpet_address);
 
     void Isr();
 
@@ -55,7 +55,7 @@ namespace timer
         static constexpr u32 clock_rate = 1193182;
         static constexpr u16 divisor = clock_rate / 1000;
 
-        void Initialize();
+        EARLY void Initialize();
     }
 
     namespace hpet
@@ -118,6 +118,6 @@ namespace timer
 
         static constexpr u32 hz = 1000;
 
-        bool Initialize(u64 hpet_address);
+        EARLY bool Initialize(u64 hpet_address);
     }
 }

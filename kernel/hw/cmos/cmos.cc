@@ -88,7 +88,7 @@ namespace cmos
         }
     }
 
-    void Initialize()
+    EARLY void Initialize()
     {
         // Check the CMOS battery once
         valid = Read(port::rtc_status3) & ( u8 )RtcStatusD::Valid;

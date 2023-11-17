@@ -19,9 +19,9 @@ x64Entry proc
 x64Entry endp
 
 ;
-; NO_RETURN void ReloadSegments(u16 code_selector, u16 data_selector)
+; void ReloadSegments(u16 code_selector, u16 data_selector)
 ;
-; Loads new active code and data segments
+; Loads new code and data segments
 ;
 ; dx = New data selector
 ; cx = New code selector
@@ -36,6 +36,7 @@ ReloadSegments proc
 
     ; Set rdx to the label address and do a far return
     ; This will reload cs with whatever is in rcx
+    ; (as long as the corresponding GDT entry is valid)
     movzx rcx, cx
     lea rdx, exit
     push rcx
