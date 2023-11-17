@@ -32,18 +32,8 @@ typedef double f64;
 typedef u8 byte;
 typedef u8 uchar;
 typedef i64 ssize_t;
-typedef uintptr_t vaddr_t;
-typedef uintptr_t paddr_t;
-
-#define I8_MAX   INT8_MAX
-#define I16_MAX  INT16_MAX
-#define I32_MAX  INT32_MAX
-#define I64_MAX  INT64_MAX
-
-#define U8_MAX   UINT8_MAX
-#define U16_MAX  UINT16_MAX
-#define U32_MAX  UINT32_MAX
-#define U64_MAX  UINT64_MAX
+typedef uintptr_t uptr_t;
+typedef intptr_t iptr_t;
 
 /* Some headers may already have this defined. */
 #ifndef FALSE

@@ -72,5 +72,3 @@ namespace ec
         } bits{};
     };
 }
-
-using ec::bitfield;
