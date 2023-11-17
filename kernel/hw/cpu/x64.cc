@@ -182,6 +182,10 @@ namespace x64
             unmask_interrupts = pic::UnmaskInterrupts;
             send_eoi = pic::SendEoi;
         }
+        else
+        {
+            ke::Panic(Status::UnsupportedSystem);
+        }
 
         // Interrupts are still masked at this point.
         _enable();

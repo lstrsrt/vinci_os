@@ -9,9 +9,9 @@
 using vaddr_t = uintptr_t;
 using paddr_t = uintptr_t;
 
-constexpr size_t page_size  = 0x1000;
-constexpr size_t page_mask  = 0xfff;
-constexpr size_t page_shift = 12;
+static constexpr size_t page_size  = 0x1000;
+static constexpr size_t page_mask  = 0xfff;
+static constexpr size_t page_shift = 12;
 
 inline constexpr auto SizeToPages(size_t size)
 {

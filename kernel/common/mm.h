@@ -8,8 +8,12 @@
 
 #include "../common/va.h"
 
-
 static constexpr size_t va_index_mask = 0x1ff;
+
+static constexpr size_t va_pml4_shift = 39;
+static constexpr size_t va_pdpt_shift = 30;
+static constexpr size_t va_pd_shift   = 21;
+static constexpr size_t va_pt_shift   = 12;
 
 #define VA_PML4_INDEX(va)  ((va >> va_pml4_shift) & va_index_mask)
 #define VA_PDPT_INDEX(va)  ((va >> va_pdpt_shift) & va_index_mask)
@@ -135,7 +139,7 @@ static_assert(sizeof PhysicalPageInfo == sizeof u8);
 
 // One byte is one PageInfo, which means that one page can store information about 4096 pages.
 // So the maximum size of a page pool is 4096 pages, of which 4095 can be used.
-constexpr size_t max_page_pool_pages = (page_size / sizeof PhysicalPageInfo);
+static constexpr size_t max_page_pool_pages = (page_size / sizeof PhysicalPageInfo);
 
 //
 // The first page in a pool stores information about the remaining pages.

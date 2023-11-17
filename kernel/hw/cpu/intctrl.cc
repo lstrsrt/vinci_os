@@ -1,3 +1,5 @@
+#include <ec/const.h>
+
 #include "x64.h"
 #include "isr.h"
 #include "../serial/serial.h"
@@ -142,7 +144,7 @@ namespace apic
         u32 entry = irq_gsi_overrides[irq];
         u32 entry_reg = (entry * 2) + 16; // 2 ports per entry, so multiply by 2
         if (entry_reg > 63) // Min is 16, max is 63
-            return UINT32_MAX;
+            return ec::u32_max;
         return entry_reg;
     }
 
@@ -167,7 +169,7 @@ namespace apic
             return;
 
         auto entry_reg = EntryRegFromIrq(irq);
-        if (entry_reg == UINT32_MAX)
+        if (entry_reg == ec::u32_max)
             return;
 
         auto entry = ReadRedirEntry(entry_reg);

@@ -1,8 +1,9 @@
 #pragma once
 
 #include <base.h>
-#include <intrin.h>
+#include <ec/const.h>
 #include <ec/enums.h>
+#include <intrin.h>
 
 #define ReadPort8 __inbyte
 #define ReadPort16 __inword
@@ -208,7 +209,7 @@ namespace x64
         constexpr GdtEntry() = default;
 
         explicit constexpr GdtEntry(u8 dpl, u8 type)
-            : limit_low(UINT16_MAX),
+            : limit_low(ec::u16_max),
             base_low(0),
             base_mid(0),
             base_high(0)

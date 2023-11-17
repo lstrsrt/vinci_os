@@ -135,6 +135,7 @@
   <ItemGroup>
     <ClCompile Include="core\init.cc" />
     <ClCompile Include="core\gfx\output.cc" />
+    <ClCompile Include="core\panic.cc" />
     <ClCompile Include="hw\acpi\acpi.cc" />
     <ClCompile Include="hw\cmos\cmos.cc" />
     <ClCompile Include="hw\cpu\intctrl.cc" />
@@ -155,6 +156,7 @@
     <ClInclude Include="core\gfx\font.h" />
     <ClInclude Include="core\gfx\output.h" />
     <ClInclude Include="core\gfx\ssfn.h" />
+    <ClInclude Include="core\ke.h" />
     <ClInclude Include="hw\acpi\acpi.h" />
     <ClInclude Include="hw\cmos\cmos.h" />
     <ClInclude Include="hw\cpu\cpuid.h" />

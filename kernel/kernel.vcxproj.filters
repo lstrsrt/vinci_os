@@ -57,6 +57,9 @@
     <ClCompile Include="lib\libc\mem.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\panic.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lib\ec\bitfield.h">
@@ -138,6 +141,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="lib\ec\iterator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="core\ke.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
