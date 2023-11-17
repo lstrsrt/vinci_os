@@ -1,14 +1,14 @@
-﻿#include <libc/str.h>
-#include <ec/util.h>
+﻿#include <ec/util.h>
+#include <libc/str.h>
 
 #include "../../boot/boot.h"
-#include "../hw/cpu/x64.h"
+#include "../hw/acpi/acpi.h"
+#include "../hw/cmos/cmos.h"
 #include "../hw/cpu/isr.h"
+#include "../hw/cpu/x64.h"
 #include "../hw/ps2/ps2.h"
 #include "../hw/serial/serial.h"
 #include "../hw/timer/timer.h"
-#include "../hw/cmos/cmos.h"
-#include "../hw/acpi/acpi.h"
 #include "gfx/output.h"
 
 #include "../common/mm.h"
@@ -29,22 +29,20 @@ EARLY static void IterateMemoryDescriptors(const MemoryMap& m, auto&& callback)
 
 EARLY static void SerialPrintDescriptors(MemoryMap& m)
 {
-    int i = 0;
+    i32 i = 0;
     serial::Write("==== MEMORY MAP ====\n");
-    for (auto current = m.map;
-        current < uefi_next_memory_descriptor(m.map, m.size);
-        current = uefi_next_memory_descriptor(current, m.descriptor_size))
+    IterateMemoryDescriptors(m, [&i](uefi::memory_descriptor* desc)
     {
         serial::Write(
             "[%d]: Type: %d   PA: 0x%llx   VA: 0x%llx (pages: %llu) Attr 0x%llx\n",
             i++,
-            current->type,
-            current->physical_start,
-            current->virtual_start,
-            current->number_of_pages,
-            current->attribute
+            desc->type,
+            desc->physical_start,
+            desc->virtual_start,
+            desc->number_of_pages,
+            desc->attribute
         );
-    }
+    });
     serial::Write("====================\n");
 }
 
@@ -75,30 +73,26 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     MemoryMap memory_map = loader_block->memory_map;
     DisplayInfo display = loader_block->display;
     KernelData kernel = loader_block->kernel;
-    uint64 hpet = loader_block->hpet;
-    boolean i8042 = loader_block->i8042;
+    auto hpet = loader_block->hpet;
+    auto i8042 = loader_block->i8042;
     const auto pt_physical = loader_block->page_tables_pool;
-    const auto pt_count = loader_block->page_tables_pool_count;
+    const auto pt_pages = loader_block->page_tables_pool_count;
 
     // Build a new page table (the bootloader one is temporary)
-    PagePool pool(kva::page_tables, pt_physical, pt_count);
-    AllocatePoolEntry(pool, &pool.root);
+    PagePool pool(kva::kernel_pt.base, pt_physical, pt_pages);
+    AllocatePhysical(pool, &pool.root);
 
     const auto kernel_pages = SizeToPages(kernel.size);
     const auto frame_buffer_pages = SizeToPages(display.frame_buffer_size);
 
-    MapPages(pool, kva::kernel_base, kernel.physical_base, kernel_pages);
-    MapPages(pool, kva::page_tables, pt_physical, pt_count);
+    MapPages(pool, kva::kernel.base, kernel.physical_base, kernel_pages);
+    MapPages(pool, kva::kernel_pt.base, pt_physical, pt_pages);
 
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
-    MapPages(pool, kva::frame_buffer_base, display.frame_buffer, 4096 /*frame_buffer_pages*/);
-    display.frame_buffer = kva::frame_buffer_base;
-
-    Region device_rg{ kva::device_base, 4096 };
-
-    MapPagesInRegion(pool, device_rg, &hpet, 1);
-    MapPagesInRegion(pool, device_rg, &apic::io, 1);
-    MapPagesInRegion(pool, device_rg, &apic::local, 1);
+    MapPagesInRegion(pool, kva::frame_buffer, &display.frame_buffer, kva::frame_buffer.PageCount());
+    MapPagesInRegion(pool, kva::devices, &hpet, 1);
+    MapPagesInRegion(pool, kva::devices, &apic::io, 1);
+    MapPagesInRegion(pool, kva::devices, &apic::local, 1);
 
     // SerialPrintDescriptors(memory_map);
 
@@ -135,7 +129,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // }
 
     // Now that kernel init has completed, zero out discardable sections (INIT, CRT, RELOC)
-    auto kernel_nt = ImageNtHeaders(( void* )kva::kernel_base);
+    auto kernel_nt = ImageNtHeaders(( void* )kva::kernel.base);
     auto section = IMAGE_FIRST_SECTION(kernel_nt);
     for (u16 i = 0; i < kernel_nt->FileHeader.NumberOfSections; i++)
     {
@@ -146,10 +140,10 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
             Print(
                 "Zeroing section %s at 0x%llx (%u bytes)\n",
                 section_name,
-                kva::kernel_base + section->VirtualAddress,
+                kva::kernel.base + section->VirtualAddress,
                 section->Misc.VirtualSize
             );
-            memzero(( void* )(kva::kernel_base + section->VirtualAddress), section->SizeOfRawData);
+            memzero(( void* )(kva::kernel.base + section->VirtualAddress), section->Misc.VirtualSize);
         }
         section++;
     }

@@ -45,7 +45,7 @@ namespace gfx
 
     void Print(_Printf_format_string_ const char* fmt, ...);
 
-    void Initialize(const DisplayInfo& display);
+    EARLY void Initialize(const DisplayInfo& display);
 }
 
 using gfx::Print;

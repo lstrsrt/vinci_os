@@ -6,27 +6,56 @@
 
 #include <base.h>
 
-// TODO - use in bootloader?
+using vaddr_t = uintptr_t;
+using paddr_t = uintptr_t;
+
+constexpr size_t page_size  = 0x1000;
+constexpr size_t page_mask  = 0xfff;
+constexpr size_t page_shift = 12;
+
+inline constexpr auto SizeToPages(size_t size)
+{
+    return (size >> page_shift) + (size & page_mask ? 1 : 0);
+}
+
 struct Region
 {
     vaddr_t base;
-    size_t page_count;
+    size_t size;
+
+    constexpr vaddr_t End() const { return base + size; }
+    constexpr size_t PageCount() const { return SizeToPages(size); }
 };
 
 namespace kva
 {
     // Kernel image: 0xffffffff'80000000 - 0xffffffff'81000000
-    static constexpr vaddr_t kernel_base = 0xffffffff'80000000;
+    constexpr Region kernel{
+        0xffffffff'80000000,
+        MiB(16)
+    };
 
     // Page tables: 0xffffffff'81000000 - 0xffffffff'85000000
-    static constexpr vaddr_t page_tables = kernel_base + MiB(16);
+    constexpr Region kernel_pt{
+        kernel.End(),
+        MiB(64)
+    };
 
     // Device mappings: 0xffffffff'85000000 - 0xffffffff'86000000
-    static constexpr vaddr_t device_base = page_tables + MiB(64);
+    constexpr Region devices{
+        kernel_pt.End(),
+        MiB(16)
+    };
 
     // Framebuffer: 0xffffffff'86000000 - 0xffffffff'8a000000
-    static constexpr vaddr_t frame_buffer_base = device_base + MiB(16);
+    constexpr Region frame_buffer{
+        devices.End(),
+        MiB(64)
+    };
 
-    // UEFI runtime: 0xffffffff'8a000000 -
-    static constexpr vaddr_t uefi_base = frame_buffer_base + MiB(64);
+    // UEFI runtime: 0xffffffff'8a000000 - 0xffffffff'9a000000
+    constexpr Region uefi{
+        frame_buffer.End(),
+        MiB(256)
+    };
 }

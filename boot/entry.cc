@@ -191,25 +191,12 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     }
 
     // Set image base to our virtual address for later mapping
-    nt->OptionalHeader.ImageBase = kva::kernel_base;
+    nt->OptionalHeader.ImageBase = kva::kernel.base;
 
     loader_block->kernel.size = image_size;
     loader_block->kernel.entry_point = nt->OptionalHeader.ImageBase + entry_point;
 
     return uefi::success;
-}
-
-static uefi::boolean is_same_guid(uefi::guid* guid1, uefi::guid* guid2)
-{
-    auto g1 = ( int32* )guid1;
-    auto g2 = ( int32* )guid2;
-
-    auto d = g1[0] - g2[0];
-    d |= g1[1] - g2[1];
-    d |= g1[2] - g2[2];
-    d |= g1[3] - g2[3];
-
-    return d == 0;
 }
 
 static uefi::boolean acpi_validate_checksum(EFI_ACPI_DESCRIPTION_HEADER* header)
@@ -227,7 +214,7 @@ static ACPI_XSDT* locate_xsdt()
     for (uintn i = 0; i < g_st->number_of_table_entries; i++)
     {
         auto table = &g_st->configuration_table[i];
-        if (is_same_guid(&table->vendor_guid, &xsdt_guid))
+        if (!memcmp(&table->vendor_guid, &xsdt_guid, sizeof uefi::guid))
         {
             auto entry = ( EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_POINTER* )table->vendor_table;
             auto xsdt = ( ACPI_XSDT* )entry->XsdtAddress;
@@ -519,9 +506,9 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     for (u32 i4 = 256; i4 < 512; i4++)
         pml4[i4].value = 0;
 
-    MapPages(pool, kva::kernel_base, loader_block->kernel.physical_base, kernel_pages);
-    MapPages(pool, kva::page_tables, loader_block->page_tables_pool, loader_block->page_tables_pool_count);
-    MapPages(pool, kva::frame_buffer_base, loader_block->display.frame_buffer, frame_buffer_pages);
+    MapPages(pool, kva::kernel.base, loader_block->kernel.physical_base, kernel_pages);
+    MapPages(pool, kva::kernel_pt.base, loader_block->page_tables_pool, loader_block->page_tables_pool_count);
+    MapPages(pool, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
 
     // TODO - print runtime descriptors
 
@@ -577,7 +564,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     // }
 
     // Execute kernel .CRT* functions
-    run_cxx_initializers(kva::kernel_base);
+    run_cxx_initializers(kva::kernel.base);
 
     // Exit boot services
     g_leaving_boot_services = true;
@@ -603,12 +590,12 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     }
 
     // Set runtime memory virtual addresses
-    for (auto desc = ( EFI_MEMORY_DESCRIPTOR* )map;
-        desc < NextMemoryDescriptor(map, map_size);
-        desc = NextMemoryDescriptor(desc, desc_size))
+    for (auto desc = map;
+        desc < uefi_next_memory_descriptor(map, map_size);
+        desc = uefi_next_memory_descriptor(desc, desc_size))
     {
-        if (desc->Attribute & EFI_MEMORY_RUNTIME)
-            desc->VirtualStart = desc->PhysicalStart + kva::uefi_base;
+        if (desc->attribute & uefi::memory_runtime)
+            desc->virtual_start = desc->physical_start + kva::uefi.base;
     }
 
     // Update UEFI virtual address map

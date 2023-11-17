@@ -61,7 +61,7 @@ namespace gfx
             ssfn_putc(c);
     }
 
-    void Initialize(const DisplayInfo& display)
+    EARLY void Initialize(const DisplayInfo& display)
     {
         BgrPixel bg(0, 0, 255);
 

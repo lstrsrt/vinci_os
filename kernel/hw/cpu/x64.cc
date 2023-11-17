@@ -1,6 +1,7 @@
 #include "x64.h"
 #include "cpuid.h"
 #include "isr.h"
+#include "../../core/ke.h"
 #include "../../core/gfx/output.h"
 
 namespace x64
@@ -29,7 +30,7 @@ namespace x64
     static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
     static DescriptorTable idt_desc(&idt, sizeof idt - 1);
 
-    static void CheckFeatures()
+    EARLY static void CheckFeatures()
     {
         Cpuid ids(CpuidLeaf::Info);
 
@@ -59,13 +60,13 @@ namespace x64
         Print("\n");
     }
 
-    static void SetCr0Bits()
+    EARLY static void SetCr0Bits()
     {
         // TODO - set ET?
         WriteCr0(ReadCr0() & ~(Cr0::MP | Cr0::NE));
     }
 
-    static void SetCr4Bits()
+    EARLY static void SetCr4Bits()
     {
         Cpuid ids(CpuidLeaf::ExtendedFeatures);
 
@@ -93,14 +94,15 @@ namespace x64
         Print("\n");
     }
 
-    void InitGdt()
+    EARLY void InitGdt()
     {
         _lgdt(&gdt_desc);
         ReloadSegments(gdt_offset::r0_code, gdt_offset::r0_data);
         LoadTr(gdt_offset::tss_low);
+
     }
 
-    void InitIdt()
+    EARLY void InitIdt()
     {
         memzero(&idt, sizeof idt);
         idt[0].Set(_Isr0, 0);
@@ -159,7 +161,7 @@ namespace x64
         __lidt(&idt_desc);
     }
 
-    void InitInterrupts()
+    EARLY void InitInterrupts()
     {
         if (cpu_info.pic_present)
             pic::InitializeController();
@@ -174,7 +176,7 @@ namespace x64
             unmask_interrupts = apic::UnmaskInterrupts;
             send_eoi = apic::SendEoi;
         }
-        else
+        else if (cpu_info.pic_present)
         {
             mask_interrupts = pic::MaskInterrupts;
             unmask_interrupts = pic::UnmaskInterrupts;
@@ -186,7 +188,7 @@ namespace x64
         EnableNmi();
     }
 
-    void Initialize()
+    EARLY void Initialize()
     {
         Print("CPU vendor: %s\n", GetVendorString(cpu_info.vendor_string));
 
