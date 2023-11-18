@@ -10,6 +10,7 @@
 #include "gnu-efi/x86_64/pe.h"
 #include "cpp-uefi.hh"
 #include "../../kernel/common/acpi.h"
+#include "../../kernel/common/va.h"
 
 struct MemoryMap
 {
@@ -37,18 +38,14 @@ struct KernelData
 
 struct LoaderBlock
 {
-    alignas(4096) acpi::Madt* madt_header;
+    alignas(page_size) acpi::Madt* madt_header;
     boolean i8042;
     uint64 hpet;
-
     uefi::configuration_table* config_table;
     uintn config_table_entries;
-
     MemoryMap memory_map;
     physical_address page_tables_pool;
     uint32 page_tables_pool_count; // in pages
-
     KernelData kernel;
-
     DisplayInfo display;
 };

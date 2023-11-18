@@ -243,7 +243,7 @@ static uefi::status acpi_initialize(acpi::Xsdt* xsdt, LoaderBlock* loader_block)
             if (!(loader_block->i8042 = header->Revision < 2))
             {
                 auto fadt = ( acpi::Fadt* )header;
-                loader_block->i8042 = (fadt->IaPcBootArch & EFI_ACPI_2_0_8042) ? TRUE : FALSE;
+                loader_block->i8042 = (fadt->IaPcBootArch & ACPI_FADT_8042) ? TRUE : FALSE;
             }
             print_string(u"Legacy 8042 support: %d\r\n", loader_block->i8042);
             break;

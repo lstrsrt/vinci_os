@@ -14,6 +14,19 @@ namespace acpi
         static constexpr auto xsdt = 'TSDX';
     }
 
+#define ACPI_MADT_PCAT_COMPAT    (1 << 0)
+#define ACPI_MADT_LAPIC_ENABLED  (1 << 0)
+
+#define ACPI_MADT_PROCESSOR_LOCAL_APIC           0
+#define ACPI_MADT_IO_APIC                        1
+#define ACPI_MADT_INTERRUPT_SOURCE_OVERRIDE      2
+#define ACPI_MADT_NON_MASKABLE_INTERRUPT_SOURCE  3
+#define ACPI_MADT_LOCAL_APIC_NMI                 4
+#define ACPI_MADT_LOCAL_APIC_ADDRESS_OVERRIDE    5
+#define ACPI_MADT_IO_SAPIC                       6
+#define ACPI_MADT_PROCESSOR_LOCAL_SAPIC          7
+#define ACPI_MADT_PLATFORM_INTERRUPT_SOURCES     8
+
     struct GenericAddress
     {
         u8 AddressSpaceId;
@@ -99,19 +112,19 @@ namespace acpi
         GenericAddress XGpe1Blk;
     };
 
-#define EFI_ACPI_2_0_8042 (1 << 1)
+#define ACPI_FADT_8042 (1 << 1)
 
     struct Rsdp
     {
-        u64    Signature;
-        u8     Checksum;
-        u8     OemId[6];
-        u8     Revision;
-        u32    RsdtAddress;
-        u32    Length;
-        u64    XsdtAddress;
-        u8     ExtendedChecksum;
-        u8     Reserved[3];
+        u64 Signature;
+        u8 Checksum;
+        u8 OemId[6];
+        u8 Revision;
+        u32 RsdtAddress;
+        u32 Length;
+        u64 XsdtAddress;
+        u8 ExtendedChecksum;
+        u8 Reserved[3];
     };
 
     struct SubtableHeader
@@ -137,6 +150,44 @@ namespace acpi
         u16 MainCounterMinClockTick;
         u8 PageProtection : 4;
         u8 OemAttributes : 4;
+    };
+
+    struct MadtLocalApic
+    {
+        u8 Type;
+        u8 Length;
+        u8 AcpiProcessorId;
+        u8 ApicId;
+        u32 Flags;
+    };
+
+    struct MadtIoApic
+    {
+        u8 Type;
+        u8 Length;
+        u8 IoApicId;
+        u8 Reserved;
+        u32 IoApicAddress;
+        u32 GlobalSystemInterruptBase;
+    };
+
+    struct MadtLocalApicNmi
+    {
+        u8 Type;
+        u8 Length;
+        u8 AcpiProcessorId;
+        u16 Flags;
+        u8 LocalApicLint;
+    };
+
+    struct MadtIntSourceOverride
+    {
+        u8 Type;
+        u8 Length;
+        u8 Bus;
+        u8 Source;
+        u32 GlobalSystemInterrupt;
+        u16 Flags;
     };
 }
 

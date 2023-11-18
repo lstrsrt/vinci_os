@@ -5,8 +5,7 @@
 #include "../cpu/x64.h"
 #include "../common/acpi.h"
 
-namespace acpi {
-
+namespace acpi
+{
     EARLY void ParseMadt(Madt* header, x64::ProcessorInfo& info);
-
 }
