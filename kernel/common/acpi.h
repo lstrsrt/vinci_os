@@ -11,21 +11,8 @@ namespace acpi
         static constexpr auto madt = 'CIPA';
         static constexpr auto fadt = 'PCAF';
         static constexpr auto hpet = 'TEPH';
-        static constexpr auto xsdt = 'TSDX';
+        static constexpr auto xsdt = 'TDSX';
     }
-
-#define ACPI_MADT_PCAT_COMPAT    (1 << 0)
-#define ACPI_MADT_LAPIC_ENABLED  (1 << 0)
-
-#define ACPI_MADT_PROCESSOR_LOCAL_APIC           0
-#define ACPI_MADT_IO_APIC                        1
-#define ACPI_MADT_INTERRUPT_SOURCE_OVERRIDE      2
-#define ACPI_MADT_NON_MASKABLE_INTERRUPT_SOURCE  3
-#define ACPI_MADT_LOCAL_APIC_NMI                 4
-#define ACPI_MADT_LOCAL_APIC_ADDRESS_OVERRIDE    5
-#define ACPI_MADT_IO_SAPIC                       6
-#define ACPI_MADT_PROCESSOR_LOCAL_SAPIC          7
-#define ACPI_MADT_PLATFORM_INTERRUPT_SOURCES     8
 
     struct GenericAddress
     {
@@ -55,6 +42,19 @@ namespace acpi
         u32 LocalApicAddress;
         u32 Flags;
     };
+    
+#define ACPI_MADT_PCAT_COMPAT    (1 << 0)
+#define ACPI_MADT_LAPIC_ENABLED  (1 << 0)
+
+#define ACPI_MADT_PROCESSOR_LOCAL_APIC           0
+#define ACPI_MADT_IO_APIC                        1
+#define ACPI_MADT_INTERRUPT_SOURCE_OVERRIDE      2
+#define ACPI_MADT_NON_MASKABLE_INTERRUPT_SOURCE  3
+#define ACPI_MADT_LOCAL_APIC_NMI                 4
+#define ACPI_MADT_LOCAL_APIC_ADDRESS_OVERRIDE    5
+#define ACPI_MADT_IO_SAPIC                       6
+#define ACPI_MADT_PROCESSOR_LOCAL_SAPIC          7
+#define ACPI_MADT_PLATFORM_INTERRUPT_SOURCES     8
 
     struct Fadt
     {
