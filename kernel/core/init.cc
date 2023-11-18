@@ -14,7 +14,7 @@
 #include "../common/mm.h"
 
 static constexpr size_t kernel_stack_size = KiB(8);
-alignas(page_size) volatile u8 kernel_stack[kernel_stack_size]{};
+alignas(page_size) volatile u8 kernel_stack[kernel_stack_size];
 EXTERN_C u64 kernel_stack_top = ( u64 )&kernel_stack[kernel_stack_size];
 
 EARLY static void IterateMemoryDescriptors(const MemoryMap& m, auto&& callback)
@@ -79,20 +79,20 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     const auto pt_pages = loader_block->page_tables_pool_count;
 
     // Build a new page table (the bootloader one is temporary)
-    PagePool pool(kva::kernel_pt.base, pt_physical, pt_pages);
-    AllocatePhysical(pool, &pool.root);
+    mm::PagePool pool(kva::kernel_pt.base, pt_physical, pt_pages);
+    mm::AllocatePhysical(pool, &pool.root);
 
     const auto kernel_pages = SizeToPages(kernel.size);
     const auto frame_buffer_pages = SizeToPages(display.frame_buffer_size);
 
-    MapPages(pool, kva::kernel.base, kernel.physical_base, kernel_pages);
-    MapPages(pool, kva::kernel_pt.base, pt_physical, pt_pages);
+    mm::MapPages(pool, kva::kernel.base, kernel.physical_base, kernel_pages);
+    mm::MapPages(pool, kva::kernel_pt.base, pt_physical, pt_pages);
 
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
-    MapPagesInRegion(pool, kva::frame_buffer, &display.frame_buffer, kva::frame_buffer.PageCount());
-    MapPagesInRegion(pool, kva::devices, &hpet, 1);
-    MapPagesInRegion(pool, kva::devices, &apic::io, 1);
-    MapPagesInRegion(pool, kva::devices, &apic::local, 1);
+    mm::MapPagesInRegion(pool, kva::frame_buffer, &display.frame_buffer, kva::frame_buffer.PageCount());
+    mm::MapPagesInRegion(pool, kva::devices, &hpet, 1);
+    mm::MapPagesInRegion(pool, kva::devices, &apic::io, 1);
+    mm::MapPagesInRegion(pool, kva::devices, &apic::local, 1);
 
     // SerialPrintDescriptors(memory_map);
 
@@ -129,21 +129,43 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // }
 
     // Now that kernel init has completed, zero out discardable sections (INIT, CRT, RELOC)
+    // and write-protect everything without the IMAGE_SCN_MEM_WRITE attribute.
+
     auto kernel_nt = ImageNtHeaders(( void* )kva::kernel.base);
     auto section = IMAGE_FIRST_SECTION(kernel_nt);
+
     for (u16 i = 0; i < kernel_nt->FileHeader.NumberOfSections; i++)
     {
+        char section_name[IMAGE_SIZEOF_SHORT_NAME + 1]{};
+        strlcpy(section_name, ( const char* )section->Name, IMAGE_SIZEOF_SHORT_NAME);
         if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE)
         {
-            char section_name[IMAGE_SIZEOF_SHORT_NAME + 1]{};
-            strlcpy(section_name, ( const char* )section->Name, IMAGE_SIZEOF_SHORT_NAME);
+            const auto start = kva::kernel.base + section->VirtualAddress;
+            const auto size = section->Misc.VirtualSize;
             Print(
                 "Zeroing section %s at 0x%llx (%u bytes)\n",
                 section_name,
-                kva::kernel.base + section->VirtualAddress,
-                section->Misc.VirtualSize
+                start,
+                size
             );
-            memzero(( void* )(kva::kernel.base + section->VirtualAddress), section->Misc.VirtualSize);
+            memzero(( void* )start, size);
+        }
+        else if (!(section->Characteristics & IMAGE_SCN_MEM_WRITE))
+        {
+            const auto start = kva::kernel.base + section->VirtualAddress;
+            const auto end = start + section->Misc.VirtualSize;
+            Print(
+                "Write-protecting section %s at 0x%llx (%llu pages)\n",
+                section_name,
+                start,
+                end
+            );
+            for (auto page = start; page < end; page += page_size)
+            {
+                auto pte = mm::GetPresentPtEntry(pool, page);
+                pte->writable = false;
+                x64::TlbFlushAddress(page);
+            }
         }
         section++;
     }

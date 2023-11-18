@@ -5,6 +5,8 @@
 #include <ec/enums.h>
 #include <intrin.h>
 
+#include "../common/va.h"
+
 #define ReadPort8 __inbyte
 #define ReadPort16 __inword
 #define ReadPort32 __indword
@@ -371,5 +373,16 @@ namespace x64
     {
         if (cpu_info.smap_supported)
             _stac();
+    }
+
+    INLINE void TlbFullFlush()
+    {
+        // Reloading CR3 invalidates all TLB entries
+        __writecr3(__readcr3());
+    }
+
+    INLINE void TlbFlushAddress(vaddr_t addr)
+    {
+        __invlpg(( void* )addr);
     }
 }

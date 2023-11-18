@@ -124,73 +124,75 @@ namespace x64
 #pragma pack()
 }
 
-union PhysicalPageInfo
+namespace mm
 {
-    struct
+    union PhysicalPage
     {
-        u8 present : 1;
-        u8 reserved : 7; // to be used in the future
+        struct
+        {
+            u8 present : 1;
+            u8 reserved : 7; // to be used in the future
+        };
+        u8 value;
+
+        operator bool() { return value; }
     };
-    u8 value;
+    static_assert(sizeof PhysicalPage == sizeof u8);
 
-    operator bool() { return value; }
-};
-static_assert(sizeof PhysicalPageInfo == sizeof u8);
+    // One byte is one PageInfo, which means that one page can store information about 4096 pages.
+    // So the maximum size of a page pool is 4096 pages, of which 4095 can be used.
+    static constexpr size_t max_page_pool_pages = (page_size / sizeof PhysicalPage);
 
-// One byte is one PageInfo, which means that one page can store information about 4096 pages.
-// So the maximum size of a page pool is 4096 pages, of which 4095 can be used.
-static constexpr size_t max_page_pool_pages = (page_size / sizeof PhysicalPageInfo);
+    //
+    // The first page in a pool stores information about the remaining pages.
+    // The second page is the PML4.
+    // Remaining pages are used for the other paging structures (one page per entry).
+    //
 
-//
-// The first page in a pool stores information about the remaining pages.
-// The second page is the PML4.
-// Remaining pages are used for the other paging structures (one page per entry).
-//
-
-struct PagePool
-{
-    PagePool(vaddr_t virtual_base, paddr_t physical_base, size_t page_count)
-        : virt(virtual_base), phys(physical_base), pages(page_count)
+    struct PagePool
     {
+        PagePool(vaddr_t virtual_base, paddr_t physical_base, size_t page_count)
+            : virt(virtual_base), phys(physical_base), pages(page_count)
+        {
+        }
+
+        size_t pages;
+        union
+        {
+            vaddr_t virt;
+            PhysicalPage* phys_info;
+        };
+        paddr_t phys;
+        paddr_t root; // CR3 (currently one page after m_physical)
+    };
+
+    //
+    // Some of these functions were adapted from
+    // https://github.com/toddsharpe/MetalOS/blob/master/src/arch/x64/PageTables.cpp
+    //
+
+    size_t AllocatePhysical(PagePool& pool, paddr_t* phys_out)
+    {
+        for (size_t page = 1 /* Skip ourselves */; page < pool.pages; page++)
+        {
+            // Skip present pages
+            if (pool.phys_info[page])
+                continue;
+
+            pool.phys_info[page].present = true;
+            *phys_out = pool.phys + (page * page_size);
+
+            return page;
+        }
+
+        return 0;
     }
 
-    size_t pages;
-    union
+    // Converts the physical address of a paging structure within a pool to a virtual address
+    INLINE vaddr_t GetPoolEntryVa(PagePool& pool, paddr_t phys)
     {
-        vaddr_t virt;
-        PhysicalPageInfo* info;
-    };
-    paddr_t phys;
-    paddr_t root; // CR3 (currently one page after m_physical)
-};
-
-//
-// Some of these functions were adapted from
-// https://github.com/toddsharpe/MetalOS/blob/master/src/arch/x64/PageTables.cpp
-//
-
-size_t AllocatePhysical(PagePool& pool, paddr_t* phys_out)
-{
-    for (size_t page = 1 /* Skip ourselves */; page < pool.pages; page++)
-    {
-        // Skip present pages
-        if (pool.info[page])
-            continue;
-
-        pool.info[page].present = true;
-        *phys_out = pool.phys + (page * page_size);
-
-        return page;
+        return (phys - pool.phys) + pool.virt;
     }
-
-    return 0;
-}
-
-// Converts the physical address of a paging structure within a pool to a virtual address
-inline vaddr_t GetPoolEntryVa(PagePool& pool, paddr_t phys)
-{
-    return (phys - pool.phys) + pool.virt;
-}
 
 #define GetPml4Entry(pool, virt) \
     ((( x64::Pml4 )GetPoolEntryVa(pool, pool.root))[VA_PML4_INDEX(virt)])
@@ -204,117 +206,118 @@ inline vaddr_t GetPoolEntryVa(PagePool& pool, paddr_t phys)
 #define GetPtEntry(pool, pde, virt) \
     ((( x64::PageTable )GetPoolEntryVa(pool, pde.value & ~page_mask))[VA_PT_INDEX(virt)])
 
-x64::PageTableEntry* GetPresentPtEntry(PagePool& pool, vaddr_t virt)
-{
-    const auto pml4e = GetPml4Entry(pool, virt);
-    if (pml4e.present)
+    x64::PageTableEntry* GetPresentPtEntry(PagePool& pool, vaddr_t virt)
     {
-        const auto pdpte = GetPdptEntry(pool, pml4e, virt);
-        if (pdpte.present)
+        const auto pml4e = GetPml4Entry(pool, virt);
+        if (pml4e.present)
         {
-            const auto pde = GetPdEntry(pool, pdpte, virt);
-            if (pde.present)
-                return &GetPtEntry(pool, pde, virt);
-        }
-    }
-
-    return nullptr;
-}
-
-bool IsPagePresent(PagePool& pool, vaddr_t virt)
-{
-    auto pte = GetPresentPtEntry(pool, virt);
-    return pte ? pte->present : false;
-}
-
-bool MapPage(PagePool& pool, vaddr_t virtual_addr, paddr_t physical_addr)
-{
-    paddr_t physical_entry;
-
-    auto& pml4e = GetPml4Entry(pool, virtual_addr);
-    if (!pml4e)
-    {
-        // If this VA indexed a PDPTE that does not exist yet, allocate one from the pool.
-        // It is reused for all other VAs with the same index.
-        if (!AllocatePhysical(pool, &physical_entry))
-            return false;
-
-        pml4e.value = physical_entry; // same as PFN = physical_entry * PAGE_SIZE
-        pml4e.present = true;
-        pml4e.writable = true;
-        pml4e.accessed = true;
-        pml4e.user_mode = false;
-    }
-
-    auto& pdpte = GetPdptEntry(pool, pml4e, virtual_addr);
-    if (!pdpte)
-    {
-        if (!AllocatePhysical(pool, &physical_entry))
-            return false;
-
-        pdpte.value = physical_entry;
-        pdpte.present = true;
-        pdpte.writable = true;
-        pdpte.accessed = true;
-        pdpte.user_mode = false;
-    }
-
-    auto& pde = GetPdEntry(pool, pdpte, virtual_addr);
-    if (!pde)
-    {
-        if (!AllocatePhysical(pool, &physical_entry))
-            return false;
-
-        pde.value = physical_entry;
-        pde.present = true;
-        pde.writable = true;
-        pde.user_mode = false;
-    }
-
-    auto& pte = GetPtEntry(pool, pde, virtual_addr);
-    pte.value = physical_addr;
-    pte.present = true;
-    pte.writable = true;
-    pte.global = true;
-    pte.user_mode = false;
-
-    return true;
-}
-
-bool MapPages(PagePool& pool, vaddr_t virtual_addr, paddr_t physical_addr, size_t count)
-{
-    for (vaddr_t page_offset = 0; page_offset < (count * page_size); page_offset += page_size)
-    {
-        vaddr_t va = virtual_addr + page_offset;
-        paddr_t pa = physical_addr + page_offset;
-
-        if (!MapPage(pool, va, pa))
-            return false;
-    }
-
-    return true;
-}
-
-// phys_virt is the physical address on input and the virtual address on return (if successful).
-bool MapPagesInRegion(PagePool& pool, Region rg, uintptr_t* phys_virt, size_t count)
-{
-    for (vaddr_t page = rg.base; page < (page + rg.size); page += page_size)
-    {
-        if (IsPagePresent(pool, page))
-            continue;
-
-        // TODO - lookahead
-        // currently we alloc sequentially so it doesn't matter
-
-        if (MapPages(pool, page, *phys_virt, count))
-        {
-            *phys_virt = page;
-            return true;
+            const auto pdpte = GetPdptEntry(pool, pml4e, virt);
+            if (pdpte.present)
+            {
+                const auto pde = GetPdEntry(pool, pdpte, virt);
+                if (pde.present)
+                    return &GetPtEntry(pool, pde, virt);
+            }
         }
 
-        break;
+        return nullptr;
     }
 
-    *phys_virt = 0;
-    return false;
+    bool IsPagePresent(PagePool& pool, vaddr_t virt)
+    {
+        auto pte = GetPresentPtEntry(pool, virt);
+        return pte ? pte->present : false;
+    }
+
+    bool MapPage(PagePool& pool, vaddr_t virtual_addr, paddr_t physical_addr)
+    {
+        paddr_t physical_entry;
+
+        auto& pml4e = GetPml4Entry(pool, virtual_addr);
+        if (!pml4e)
+        {
+            // If this VA indexed a PDPTE that does not exist yet, allocate one from the pool.
+            // It is reused for all other VAs with the same index.
+            if (!AllocatePhysical(pool, &physical_entry))
+                return false;
+
+            pml4e.value = physical_entry; // same as PFN = physical_entry * PAGE_SIZE
+            pml4e.present = true;
+            pml4e.writable = true;
+            pml4e.accessed = true;
+            pml4e.user_mode = false;
+        }
+
+        auto& pdpte = GetPdptEntry(pool, pml4e, virtual_addr);
+        if (!pdpte)
+        {
+            if (!AllocatePhysical(pool, &physical_entry))
+                return false;
+
+            pdpte.value = physical_entry;
+            pdpte.present = true;
+            pdpte.writable = true;
+            pdpte.accessed = true;
+            pdpte.user_mode = false;
+        }
+
+        auto& pde = GetPdEntry(pool, pdpte, virtual_addr);
+        if (!pde)
+        {
+            if (!AllocatePhysical(pool, &physical_entry))
+                return false;
+
+            pde.value = physical_entry;
+            pde.present = true;
+            pde.writable = true;
+            pde.user_mode = false;
+        }
+
+        auto& pte = GetPtEntry(pool, pde, virtual_addr);
+        pte.value = physical_addr;
+        pte.present = true;
+        pte.writable = true;
+        pte.global = true;
+        pte.user_mode = false;
+
+        return true;
+    }
+
+    bool MapPages(PagePool& pool, vaddr_t virtual_addr, paddr_t physical_addr, size_t count)
+    {
+        for (vaddr_t page_offset = 0; page_offset < (count * page_size); page_offset += page_size)
+        {
+            vaddr_t va = virtual_addr + page_offset;
+            paddr_t pa = physical_addr + page_offset;
+
+            if (!MapPage(pool, va, pa))
+                return false;
+        }
+
+        return true;
+    }
+
+    // phys_virt is the physical address on input and the virtual address on return (if successful).
+    bool MapPagesInRegion(PagePool& pool, Region rg, uintptr_t* phys_virt, size_t count)
+    {
+        for (vaddr_t page = rg.base; page < (page + rg.size); page += page_size)
+        {
+            if (IsPagePresent(pool, page))
+                continue;
+
+            // TODO - lookahead
+            // currently we alloc sequentially so it doesn't matter
+
+            if (MapPages(pool, page, *phys_virt, count))
+            {
+                *phys_virt = page;
+                return true;
+            }
+
+            break;
+        }
+
+        *phys_virt = 0;
+        return false;
+    }
 }

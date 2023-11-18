@@ -493,7 +493,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     __writecr0(__readcr0() & ~CR0_WP);
 
     // UEFI identity maps the address space so both addresses are the same
-    PagePool pool(bl_page_pool, bl_page_pool, bl_page_pool_count);
+    mm::PagePool pool(bl_page_pool, bl_page_pool, bl_page_pool_count);
 
     // Take the current page tables
     pool.root = __readcr3();
@@ -506,14 +506,14 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     for (u32 i4 = 256; i4 < 512; i4++)
         pml4[i4].value = 0;
 
-    MapPages(pool, kva::kernel.base, loader_block->kernel.physical_base, kernel_pages);
-    MapPages(pool, kva::kernel_pt.base, loader_block->page_tables_pool, loader_block->page_tables_pool_count);
-    MapPages(pool, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
+    mm::MapPages(pool, kva::kernel.base, loader_block->kernel.physical_base, kernel_pages);
+    mm::MapPages(pool, kva::kernel_pt.base, loader_block->page_tables_pool, loader_block->page_tables_pool_count);
+    mm::MapPages(pool, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
 
     // TODO - print runtime descriptors
 
     // Set WP flag
-    // __writecr0(__readcr0() | CR0_WP);
+    __writecr0(__readcr0() | CR0_WP);
 
     // Give user time to read everything
     print_string(u"Press any key to continue...\r\n");
