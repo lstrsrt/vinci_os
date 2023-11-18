@@ -162,9 +162,9 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
             );
             for (auto page = start; page < end; page += page_size)
             {
-                auto pte = mm::GetPresentPtEntry(pool, page);
+                auto pte = mm::GetPresentPte(pool, page);
                 pte->writable = false;
-                x64::TlbFlushAddress(page);
+                x64::TlbFlushAddress(( void* )page);
             }
         }
         section++;

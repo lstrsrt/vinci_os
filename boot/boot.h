@@ -8,9 +8,8 @@
 #include "gnu-efi/efi.h"
 #include "gnu-efi/efilink.h"
 #include "gnu-efi/x86_64/pe.h"
-#include "../common/acpi/Base.h"
-#include "../common/acpi/Acpi.h"
 #include "cpp-uefi.hh"
+#include "../../kernel/common/acpi.h"
 
 struct MemoryMap
 {
@@ -38,7 +37,7 @@ struct KernelData
 
 struct LoaderBlock
 {
-    alignas(4096) EFI_ACPI_2_0_MULTIPLE_APIC_DESCRIPTION_TABLE_HEADER* madt_header;
+    alignas(4096) acpi::Madt* madt_header;
     boolean i8042;
     uint64 hpet;
 

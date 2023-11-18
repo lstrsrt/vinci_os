@@ -1474,6 +1474,8 @@ int ssfn_putc(uint32_t unicode)
     if (!ssfn_src || !ssfn_dst.ptr || !ssfn_dst.p)
         return SSFN_ERR_INVINP;
 
+#define ABS(x) ((x) < 0 ? -(x) : (x))
+
     w = ABS(ssfn_dst.w);
     ptr = ( uint8_t* )ssfn_src + ssfn_src->characters_offs;
 

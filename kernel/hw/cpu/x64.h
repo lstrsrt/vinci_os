@@ -375,14 +375,15 @@ namespace x64
             _stac();
     }
 
-    INLINE void TlbFullFlush()
+    INLINE void TlbFlush()
     {
         // Reloading CR3 invalidates all TLB entries
         __writecr3(__readcr3());
     }
 
-    INLINE void TlbFlushAddress(vaddr_t addr)
+    INLINE void TlbFlushAddress(void* addr)
     {
-        __invlpg(( void* )addr);
+        __invlpg(addr);
+        // TODO - make MP compatible with APIC IPIs
     }
 }

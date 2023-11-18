@@ -150,6 +150,7 @@
     <ClCompile Include="lib\libc\str.cc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="common\acpi.h" />
     <ClInclude Include="common\mm.h" />
     <ClInclude Include="common\pe64.h" />
     <ClInclude Include="common\va.h" />

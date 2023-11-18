@@ -9,38 +9,6 @@
 #include "mini-libc.h"
 #include "cpp-uefi.hh"
 
-#pragma pack(1)
-
-// 2.0 version for backwards compatibility
-using ACPI_GENERIC_ADDRESS = EFI_ACPI_2_0_GENERIC_ADDRESS_STRUCTURE;
-
-struct ACPI_SUBTABLE_HEADER
-{
-    UINT8 Type;
-    UINT8 Length;
-};
-
-#pragma warning(disable: 4200)
-struct ACPI_XSDT
-{
-    EFI_ACPI_DESCRIPTION_HEADER Header;
-    UINT64* Tables[];
-};
-#pragma warning(default: 4200)
-
-struct ACPI_HPET_DESCRIPTION_TABLE
-{
-    EFI_ACPI_DESCRIPTION_HEADER Header;
-    UINT32 EventTimerBlockId;
-    ACPI_GENERIC_ADDRESS BaseAddress;
-    UINT8 Number;
-    UINT16 MainCounterMinClockTick;
-    UINT8 PageProtection : 4;
-    UINT8 OemAttributes : 4;
-};
-
-#pragma pack()
-
 static uefi::simple_text_output_protocol* g_con_out;
 static uefi::simple_text_input_protocol* g_con_in;
 static bool g_leaving_boot_services;
@@ -199,7 +167,7 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     return uefi::success;
 }
 
-static uefi::boolean acpi_validate_checksum(EFI_ACPI_DESCRIPTION_HEADER* header)
+static uefi::boolean acpi_validate_checksum(acpi::DescriptionHeader* header)
 {
     uint8 sum = 0;
     for (uint32 i = 0; i < header->Length; i++)
@@ -207,7 +175,7 @@ static uefi::boolean acpi_validate_checksum(EFI_ACPI_DESCRIPTION_HEADER* header)
     return sum == 0;
 }
 
-static ACPI_XSDT* locate_xsdt()
+static acpi::Xsdt* locate_xsdt()
 {
     uefi::guid xsdt_guid = uefi::table::acpi20;
 
@@ -216,10 +184,10 @@ static ACPI_XSDT* locate_xsdt()
         auto table = &g_st->configuration_table[i];
         if (!memcmp(&table->vendor_guid, &xsdt_guid, sizeof uefi::guid))
         {
-            auto entry = ( EFI_ACPI_2_0_ROOT_SYSTEM_DESCRIPTION_POINTER* )table->vendor_table;
-            auto xsdt = ( ACPI_XSDT* )entry->XsdtAddress;
+            auto entry = ( acpi::Rsdp* )table->vendor_table;
+            auto xsdt = ( acpi::Xsdt* )entry->XsdtAddress;
 
-            if (xsdt->Header.Signature == EFI_ACPI_2_0_EXTENDED_SYSTEM_DESCRIPTION_TABLE_SIGNATURE
+            if (xsdt->Header.Signature == acpi::signature::xsdt
                 && acpi_validate_checksum(&xsdt->Header))
             {
                 print_string(u"ACPI: Found XSDT\r\n");
@@ -233,7 +201,7 @@ static ACPI_XSDT* locate_xsdt()
     return nullptr;
 }
 
-static uefi::status acpi_initialize(ACPI_XSDT* xsdt, LoaderBlock* loader_block)
+static uefi::status acpi_initialize(acpi::Xsdt* xsdt, LoaderBlock* loader_block)
 {
     loader_block->madt_header = nullptr;
     bool found_fadt = false;
@@ -241,14 +209,14 @@ static uefi::status acpi_initialize(ACPI_XSDT* xsdt, LoaderBlock* loader_block)
 
     for (uint64 i = 0; i < table_count; i++)
     {
-        auto header = ( EFI_ACPI_DESCRIPTION_HEADER* )xsdt->Tables[i];
+        auto header = ( acpi::DescriptionHeader* )xsdt->Tables[i];
         switch (header->Signature)
         {
-        case EFI_ACPI_2_0_MULTIPLE_APIC_DESCRIPTION_TABLE_SIGNATURE:
+        case acpi::signature::madt:
         {
             // The MADT is parsed in the kernel because it interacts with APIC initialization
             print_string(u"ACPI: Found MADT\r\n");
-            auto madt_header = ( EFI_ACPI_2_0_MULTIPLE_APIC_DESCRIPTION_TABLE_HEADER* )header;
+            auto madt_header = ( acpi::Madt* )header;
 
             // Needs to be 4k aligned and multiple of 4k in size
             efi_check(
@@ -263,7 +231,7 @@ static uefi::status acpi_initialize(ACPI_XSDT* xsdt, LoaderBlock* loader_block)
             print_string(u"MADT allocated at 0x%p\r\n", loader_block->madt_header);
             break;
         }
-        case EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE_SIGNATURE:
+        case acpi::signature::fadt:
         {
             found_fadt = true;
             print_string(u"ACPI: Found FADT (revision %d)\r\n", header->Revision);
@@ -274,16 +242,16 @@ static uefi::status acpi_initialize(ACPI_XSDT* xsdt, LoaderBlock* loader_block)
 
             if (!(loader_block->i8042 = header->Revision < 2))
             {
-                auto fadt = ( EFI_ACPI_2_0_FIXED_ACPI_DESCRIPTION_TABLE* )header;
+                auto fadt = ( acpi::Fadt* )header;
                 loader_block->i8042 = (fadt->IaPcBootArch & EFI_ACPI_2_0_8042) ? TRUE : FALSE;
             }
             print_string(u"Legacy 8042 support: %d\r\n", loader_block->i8042);
             break;
         }
-        case EFI_ACPI_3_0_HIGH_PRECISION_EVENT_TIMER_TABLE_SIGNATURE:
+        case acpi::signature::hpet:
         {
             print_string(u"ACPI: Found HPET\r\n");
-            auto hpet = ( ACPI_HPET_DESCRIPTION_TABLE* )header;
+            auto hpet = ( acpi::Hpet* )header;
             loader_block->hpet = hpet->BaseAddress.Address;
             break;
         }

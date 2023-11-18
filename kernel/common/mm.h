@@ -15,10 +15,10 @@ static constexpr size_t va_pdpt_shift = 30;
 static constexpr size_t va_pd_shift   = 21;
 static constexpr size_t va_pt_shift   = 12;
 
-#define VA_PML4_INDEX(va)  ((va >> va_pml4_shift) & va_index_mask)
-#define VA_PDPT_INDEX(va)  ((va >> va_pdpt_shift) & va_index_mask)
-#define VA_PD_INDEX(va)    ((va >> va_pd_shift) & va_index_mask)
-#define VA_PT_INDEX(va)    ((va >> va_pt_shift) & va_index_mask)
+#define VA_PML4_INDEX(va)   ((va >> va_pml4_shift) & va_index_mask)
+#define VA_PDPT_INDEX(va)   ((va >> va_pdpt_shift) & va_index_mask)
+#define VA_PD_INDEX(va)     ((va >> va_pd_shift) & va_index_mask)
+#define VA_PT_INDEX(va)     ((va >> va_pt_shift) & va_index_mask)
 
 namespace x64
 {
@@ -206,7 +206,7 @@ namespace mm
 #define GetPtEntry(pool, pde, virt) \
     ((( x64::PageTable )GetPoolEntryVa(pool, pde.value & ~page_mask))[VA_PT_INDEX(virt)])
 
-    x64::PageTableEntry* GetPresentPtEntry(PagePool& pool, vaddr_t virt)
+    x64::PageTableEntry* GetPresentPte(PagePool& pool, vaddr_t virt)
     {
         const auto pml4e = GetPml4Entry(pool, virt);
         if (pml4e.present)
@@ -225,7 +225,7 @@ namespace mm
 
     bool IsPagePresent(PagePool& pool, vaddr_t virt)
     {
-        auto pte = GetPresentPtEntry(pool, virt);
+        auto pte = GetPresentPte(pool, virt);
         return pte ? pte->present : false;
     }
 

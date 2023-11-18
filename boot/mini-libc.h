@@ -7,6 +7,8 @@
 #include <base.h>
 #include <ec/util.h>
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 #pragma function(memcpy)
 void* memcpy(void* dst, const void* src, size_t n)
 {
