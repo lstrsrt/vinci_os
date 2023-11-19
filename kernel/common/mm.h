@@ -229,11 +229,14 @@ namespace mm
         return pte ? pte->present : false;
     }
 
-    bool MapPage(PagePool& pool, vaddr_t virtual_addr, paddr_t physical_addr)
+    bool MapPage(PagePool& pool, vaddr_t virt, paddr_t phys)
     {
+        if (!IS_ALIGNED(phys, page_size) || !IS_ALIGNED(virt, page_size))
+            return false;
+
         paddr_t physical_entry;
 
-        auto& pml4e = GetPml4Entry(pool, virtual_addr);
+        auto& pml4e = GetPml4Entry(pool, virt);
         if (!pml4e)
         {
             // If this VA indexed a PDPTE that does not exist yet, allocate one from the pool.
@@ -248,7 +251,7 @@ namespace mm
             pml4e.user_mode = false;
         }
 
-        auto& pdpte = GetPdptEntry(pool, pml4e, virtual_addr);
+        auto& pdpte = GetPdptEntry(pool, pml4e, virt);
         if (!pdpte)
         {
             if (!AllocatePhysical(pool, &physical_entry))
@@ -261,7 +264,7 @@ namespace mm
             pdpte.user_mode = false;
         }
 
-        auto& pde = GetPdEntry(pool, pdpte, virtual_addr);
+        auto& pde = GetPdEntry(pool, pdpte, virt);
         if (!pde)
         {
             if (!AllocatePhysical(pool, &physical_entry))
@@ -273,8 +276,8 @@ namespace mm
             pde.user_mode = false;
         }
 
-        auto& pte = GetPtEntry(pool, pde, virtual_addr);
-        pte.value = physical_addr;
+        auto& pte = GetPtEntry(pool, pde, virt);
+        pte.value = phys;
         pte.present = true;
         pte.writable = true;
         pte.global = true;
@@ -300,6 +303,9 @@ namespace mm
     // phys_virt is the physical address on input and the virtual address on return (if successful).
     bool MapPagesInRegion(PagePool& pool, Region rg, uintptr_t* phys_virt, size_t count)
     {
+        if ((*phys_virt + count * page_size) > rg.End())
+            return false;
+
         for (vaddr_t page = rg.base; page < (page + rg.size); page += page_size)
         {
             if (IsPagePresent(pool, page))

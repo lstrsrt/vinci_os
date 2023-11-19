@@ -32,6 +32,8 @@ namespace x64
 
     EARLY static void CheckFeatures()
     {
+        Print("CPU vendor: %s\n", GetVendorString(cpu_info.vendor_string));
+
         Cpuid ids(CpuidLeaf::Info);
 
         cpu_info.stepping = EXTRACT32(ids.eax, 0, 4);
@@ -194,8 +196,6 @@ namespace x64
 
     EARLY void Initialize()
     {
-        Print("CPU vendor: %s\n", GetVendorString(cpu_info.vendor_string));
-
         // Fill out cpu_info and initialize CR0
         CheckFeatures();
         SetCr0Bits();

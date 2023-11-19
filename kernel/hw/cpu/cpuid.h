@@ -164,9 +164,9 @@ namespace x64
         }
     };
 
-    static char* GetVendorString(char str[13])
+    INLINE char* GetVendorString(char str[13])
     {
-        auto ids = Cpuid(CpuidLeaf::VendorString);
+        Cpuid ids(CpuidLeaf::VendorString);
         memcpy(str, &ids.ebx, 4);
         memcpy(str + 4, &ids.edx, 4);
         memcpy(str + 8, &ids.ecx, 4);

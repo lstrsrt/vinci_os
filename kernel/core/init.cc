@@ -2,6 +2,7 @@
 #include <libc/str.h>
 
 #include "../../boot/boot.h"
+#include "../common/mm.h"
 #include "../hw/acpi/acpi.h"
 #include "../hw/cmos/cmos.h"
 #include "../hw/cpu/isr.h"
@@ -10,8 +11,6 @@
 #include "../hw/serial/serial.h"
 #include "../hw/timer/timer.h"
 #include "gfx/output.h"
-
-#include "../common/mm.h"
 
 static constexpr size_t kernel_stack_size = KiB(8);
 alignas(page_size) volatile u8 kernel_stack[kernel_stack_size];
@@ -46,13 +45,30 @@ EARLY static void SerialPrintDescriptors(MemoryMap& m)
     serial::Write("====================\n");
 }
 
+EARLY static void ReclaimBootPages(const MemoryMap& m)
+{
+    size_t count = 0;
+    IterateMemoryDescriptors(m, [&count](uefi::memory_descriptor* desc)
+    {
+        if ((desc->type == uefi::memory_type::boot_services_code
+            || desc->type == uefi::memory_type::boot_services_data
+            || desc->type == uefi::memory_type::loader_code)
+            && !(desc->attribute & uefi::memory_attribute::memory_runtime))
+        {
+            count++;
+            desc->type = uefi::memory_type::conventional_memory;
+        }
+    });
+    Print("Reclaimed %llu boot pages\n", count);
+}
+
 static IMAGE_NT_HEADERS* ImageNtHeaders(void* image_base)
 {
     auto dos_header = ( IMAGE_DOS_HEADER* )image_base;
     if (!dos_header || dos_header->e_magic != IMAGE_DOS_SIGNATURE)
         return nullptr;
 
-    auto nt_headers = ( IMAGE_NT_HEADERS* )(( uintptr_t )image_base + dos_header->e_lfanew);
+    auto nt_headers = ( IMAGE_NT_HEADERS* )(( uptr_t )image_base + dos_header->e_lfanew);
     if (!nt_headers || nt_headers->Signature != IMAGE_NT_SIGNATURE)
         return nullptr;
 
@@ -78,6 +94,8 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     const auto pt_physical = loader_block->page_tables_pool;
     const auto pt_pages = loader_block->page_tables_pool_count;
 
+    ReclaimBootPages(memory_map);
+
     // Build a new page table (the bootloader one is temporary)
     mm::PagePool pool(kva::kernel_pt.base, pt_physical, pt_pages);
     mm::AllocatePhysical(pool, &pool.root);
@@ -99,14 +117,22 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     IterateMemoryDescriptors(memory_map, [&pool](uefi::memory_descriptor* desc)
     {
         if (desc->attribute & uefi::memory_runtime)
+        {
+            Print(
+                "Mapping UEFI runtime: 0x%llx -> 0x%llx (%llu pages)\n",
+                desc->physical_start,
+                desc->virtual_start,
+                desc->number_of_pages
+            );
             MapPages(pool, desc->virtual_start, desc->physical_start, desc->number_of_pages);
+        }
     });
 
     __writecr3(pool.root);
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
 
-    x64::cpu_info.using_apic = false;
+    // x64::cpu_info.using_apic = false;
     x64::Initialize();
 
     timer::Initialize(hpet);
@@ -129,7 +155,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // }
 
     // Now that kernel init has completed, zero out discardable sections (INIT, CRT, RELOC)
-    // and write-protect everything without the IMAGE_SCN_MEM_WRITE attribute.
+    // and write-protect every section not marked writable.
 
     auto kernel_nt = ImageNtHeaders(( void* )kva::kernel.base);
     auto section = IMAGE_FIRST_SECTION(kernel_nt);
@@ -155,10 +181,10 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
             const auto start = kva::kernel.base + section->VirtualAddress;
             const auto end = start + section->Misc.VirtualSize;
             Print(
-                "Write-protecting section %s at 0x%llx (%llu pages)\n",
+                "Write-protecting section %s at 0x%llx (%llu bytes)\n",
                 section_name,
                 start,
-                end
+                end - start
             );
             for (auto page = start; page < end; page += page_size)
             {

@@ -42,7 +42,7 @@ namespace acpi
         u32 LocalApicAddress;
         u32 Flags;
     };
-    
+
 #define ACPI_MADT_PCAT_COMPAT    (1 << 0)
 #define ACPI_MADT_LAPIC_ENABLED  (1 << 0)
 

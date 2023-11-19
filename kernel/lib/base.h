@@ -54,6 +54,10 @@ typedef intptr_t iptr_t;
 #define MiB(x)   (1024ULL * KiB(x))
 #define GiB(x)   (1024ULL * MiB(x))
 
+#ifndef IS_ALIGNED
+#define IS_ALIGNED(x, a) (((x) & ((a) - 1)) == 0)
+#endif
+
 /*
 *  Bit extraction macros. 
 *  x's bits in range [a, b) (counting from 0) are returned.
