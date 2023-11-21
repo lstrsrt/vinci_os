@@ -227,7 +227,7 @@ namespace x64
             return GdtEntry();
         }
 
-        static constexpr GdtEntry TssLow(Tss* tss)
+        static constexpr GdtEntry TssLow(const Tss* tss)
         {
             GdtEntry entry{};
 
@@ -243,7 +243,7 @@ namespace x64
             return entry;
         }
 
-        static constexpr GdtEntry TssHigh(Tss* tss)
+        static constexpr GdtEntry TssHigh(const Tss* tss)
         {
             GdtEntry entry{};
             entry.bits = HIGH32(tss);

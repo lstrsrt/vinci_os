@@ -1,3 +1,5 @@
+#include <ec/array.h>
+
 #include "x64.h"
 #include "cpuid.h"
 #include "isr.h"
@@ -8,14 +10,15 @@ namespace x64
 {
     volatile u8 int_stack_tables[IstCount][ist_size]{};
 
-    static Tss tss{
+#pragma data_seg("PROTDATA")
+    static const Tss tss{
         ( u64 )(int_stack_tables[0] + ist_size),
         ( u64 )(int_stack_tables[1] + ist_size),
         ( u64 )(int_stack_tables[2] + ist_size),
         ( u64 )(int_stack_tables[3] + ist_size)
     };
 
-    static GdtEntry gdt[]{
+    static const GdtEntry gdt[]{
         GdtEntry::Null(),
         GdtEntry(0, GDT_ENTRY_CODE | GDT_READ),
         GdtEntry(0, GDT_ENTRY_DATA | GDT_WRITE),
@@ -25,10 +28,12 @@ namespace x64
         GdtEntry::TssHigh(&tss)
     };
 
-    static IdtEntry idt[256]{};
+    static ec::array<IdtEntry, 256> idt;
 
     static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
     static DescriptorTable idt_desc(&idt, sizeof idt - 1);
+#pragma data_seg()
+
 
     EARLY static void CheckFeatures()
     {

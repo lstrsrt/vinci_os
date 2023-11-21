@@ -60,7 +60,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>__KERNEL__;_HAS_EXCEPTIONS=0;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>__KERNEL__;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -88,7 +88,7 @@
       <BaseAddress>0xFFFFFFFF80000000</BaseAddress>
       <FixedBaseAddress>false</FixedBaseAddress>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
-      <SpecifySectionAttributes>INIT,D;.CRT,D</SpecifySectionAttributes>
+      <SpecifySectionAttributes>PROTDATA,!W;INIT,D;.CRT,D</SpecifySectionAttributes>
     </Link>
     <PostBuildEvent>
       <Command>$(SolutionDir)\bin\$(Configuration)\copy_to_flash.cmd $(OutDir)\$(TargetName)$(TargetExt)</Command>
@@ -101,7 +101,7 @@
       <WarningLevel>Level3</WarningLevel>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>__KERNEL__;_HAS_EXCEPTIONS=0;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>__KERNEL__;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -128,7 +128,7 @@
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <BaseAddress>0xFFFFFFFF80000000</BaseAddress>
       <FixedBaseAddress>false</FixedBaseAddress>
-      <SpecifySectionAttributes>INIT,D;.CRT,D</SpecifySectionAttributes>
+      <SpecifySectionAttributes>PROTDATA,!W;INIT,D;.CRT,D</SpecifySectionAttributes>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
