@@ -42,7 +42,7 @@ namespace acpi
             {
                 auto ptr = ( acpi::MadtIntSourceOverride* )entry;
                 Print("  INTERRUPT_SOURCE_OVERRIDE: %u to %u\n", ptr->Source, ptr->GlobalSystemInterrupt);
-                if (ptr->Source < 16)
+                if (ptr->Source < apic::irq_gsi_overrides.size())
                     apic::irq_gsi_overrides[ptr->Source] = ptr->GlobalSystemInterrupt;
                 break;
             }
@@ -50,9 +50,14 @@ namespace acpi
             {
                 auto ptr = ( acpi::MadtLocalApicNmi* )entry;
                 Print("  LOCAL_APIC_NMI: LINTN %u\n", ptr->LocalApicLint);
+                info.apic_nmi_pin = (ptr->LocalApicLint != 0);
                 // TODO - do something
-                apic::UpdateLvtEntry(ptr->LocalApicLint ? apic::LocalReg::LINT1 : apic::LocalReg::LINT0,
-                    254, apic::Delivery::Nmi, true);
+                apic::UpdateLvtEntry(
+                    info.apic_nmi_pin ? apic::LocalReg::LINT1 : apic::LocalReg::LINT0,
+                    2,
+                    apic::Delivery::Nmi,
+                    true
+                );
                 break;
             }
             default:

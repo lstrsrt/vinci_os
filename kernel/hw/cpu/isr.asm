@@ -1,4 +1,5 @@
 extern IsrCommon: proc
+extern spurious_irqs: qword
 
 PUSH_GPR macro
     push r15
@@ -74,6 +75,14 @@ _Isr&int_no& endp
 endm
 
 .code
+
+_IsrSpurious proc
+    cld
+    inc spurious_irqs
+    ; TODO - check if spurious_irqs is really high
+    ; and issue a warning or mask the interrupt entirely
+    iretq
+_IsrSpurious endp
 
 ; TODO - bad design, remove asap
 ; we should just generate all 256 routines via macro

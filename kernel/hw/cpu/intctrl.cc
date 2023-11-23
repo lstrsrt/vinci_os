@@ -53,6 +53,8 @@ namespace x64
         "Reserved 31"
     };
 
+    EXTERN_C u64 spurious_irqs = 0;
+
     EXTERN_C void IsrCommon(InterruptFrame* frame, u8 int_no)
     {
         if (int_no < irq_base)
@@ -63,7 +65,7 @@ namespace x64
                 auto op = frame->error_code & 2 ? "write" : "read";
                 auto ring = frame->error_code & 4 ? "ring 3" : "ring 0";
                 auto virt = __readcr2();
-                serial::Write("Page fault @ 0x%llx (%s, %s, %s)\n", virt, present, op, ring);
+                Print("Page fault @ 0x%llx (%s, %s, %s)\n", virt, present, op, ring);
             }
             else
             {
@@ -79,6 +81,10 @@ namespace x64
                     irq_handlers[irq]();
                 send_eoi(irq);
             }
+            else // PIC and spurious
+            {
+                spurious_irqs++;
+            }
         }
         else
         {
@@ -90,10 +96,13 @@ namespace x64
 
 // TODO - msr header with enums
 #define MSR_APIC_BASE 0x1b
-#define APIC_GLOBAL_ENABLE_FLAG (1 << 11)
+#define APIC_BSP (1 << 8)
+#define APIC_GLOBAL_ENABLE (1 << 11)
 
 namespace apic
 {
+    static constexpr u32 max_irq = 24;
+
     static u8 connect_cnt;
 
     u32 ReadLocal(LocalReg reg)
@@ -129,30 +138,40 @@ namespace apic
         entry.vector = vector;
         entry.delivery = type;
         /* "When the delivery mode is NMI, SMI, or INIT, the trigger mode is always edge sensitive."
-            Intel SDM 3A, pg 376 */
-        entry.trigger = (
-            type == Delivery::Nmi
+           "Software should always set the trigger mode in the LVT LINT1 register to 0 (edge sensitive)."
+           Intel SDM 3A, pg 376 */
+        entry.trigger =
+            (type == Delivery::Nmi
             || type == Delivery::Smi
-            || type == Delivery::Init
-            ) ? Trigger::Edge : Trigger::Level;
+            || type == Delivery::Init)
+            || reg == LocalReg::LINT1
+            ? Trigger::Edge : Trigger::Level;
 
         WriteLocal(reg, entry.bits);
     }
 
     static u32 EntryRegFromIrq(u8 irq)
     {
-        u32 entry = irq_gsi_overrides[irq];
+        u32 entry = irq;
+
+        if (irq < irq_gsi_overrides.size())
+            entry = irq_gsi_overrides[irq];
+
         u32 entry_reg = (entry * 2) + 16; // 2 ports per entry, so multiply by 2
+
         if (entry_reg > 63) // Min is 16, max is 63
             return ec::u32_max;
+
         return entry_reg;
     }
 
     static IoRedirectionEntry ReadRedirEntry(u32 entry_reg)
     {
         IoRedirectionEntry entry;
+
         entry.low32 = ReadIo(entry_reg);
         entry.high32 = ReadIo(entry_reg + 1);
+
         return entry;
     }
 
@@ -184,7 +203,13 @@ namespace apic
 
     void SetRedirEntryState(u8 irq, bool enable)
     {
+        if (irq >= max_irq)
+            return;
+
         auto entry_reg = EntryRegFromIrq(irq);
+        if (entry_reg == ec::u32_max)
+            return;
+
         auto entry = ReadRedirEntry(entry_reg);
 
         entry.disabled = !enable;
@@ -195,18 +220,25 @@ namespace apic
     void InitializeController()
     {
         // Mask all interrupts
-        for (u8 irq = 16; irq < 64; irq++)
+        for (u8 irq = 16; irq < max_irq; irq++)
             SetRedirEntryState(irq, false);
+
+        UpdateLvtEntry(
+            x64::cpu_info.apic_nmi_pin ? LocalReg::LINT0 : LocalReg::LINT1,
+            spurious_int_vec,
+            Delivery::ExtInt,
+            true
+        );
 
         // Map spurious interrupts to vector 255.
         // Do not set the enable flag yet
         WriteLocal(LocalReg::SIVR, spurious_int_vec);
 
         u64 msr_apic = __readmsr(MSR_APIC_BASE);
-        if (!(msr_apic & APIC_GLOBAL_ENABLE_FLAG))
+        if (!(msr_apic & APIC_GLOBAL_ENABLE))
         {
             Print("APIC was disabled in APIC_BASE MSR -- enabling now.\n");
-            __writemsr(MSR_APIC_BASE, msr_apic | APIC_GLOBAL_ENABLE_FLAG);
+            __writemsr(MSR_APIC_BASE, msr_apic | APIC_BSP | APIC_GLOBAL_ENABLE);
         }
     }
 }

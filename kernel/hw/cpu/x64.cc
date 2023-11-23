@@ -165,6 +165,9 @@ namespace x64
         for (u64 i = 48; i < max_idt_entry; i++)
             idt[i].Set(_IsrUnexpected, 0);
 
+        if (cpu_info.using_apic)
+            idt[apic::spurious_int_vec].Set(_IsrSpurious, 0);
+
         __lidt(&idt_desc);
     }
 
