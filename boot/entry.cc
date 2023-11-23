@@ -350,28 +350,28 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     strcpy16(kernel_path, path);
 
     // Allocate boot loader page pool
-    uefi::physical_address bl_page_pool;
-    static constexpr uintn bl_page_pool_count = 512; // 2 MiB
+    uefi::physical_address bl_page_table;
+    static constexpr uintn bl_page_pool_pages = 512; // 2 MiB
 
     efi_check(
         zero_allocate_pages(
             uefi::allocation_type::any_pages,
             uefi::memory_type::boot_services_data,
-            bl_page_pool_count,
-            &bl_page_pool
+            bl_page_pool_pages,
+            &bl_page_table
         )
     );
 
     // Allocate kernel page pool
-    static constexpr uintn kernel_page_pool_count = 4096; // 16 MiB
-    loader_block->page_tables_pool_count = kernel_page_pool_count;
+    static constexpr uintn kernel_page_table_pages = 4096; // 16 MiB
+    loader_block->page_table_size = kernel_page_table_pages;
 
     efi_check(
         zero_allocate_pages(
             uefi::allocation_type::any_pages,
             alloc_type,
-            loader_block->page_tables_pool_count,
-            &loader_block->page_tables_pool
+            loader_block->page_table_size,
+            &loader_block->page_table
         )
     );
 
@@ -461,7 +461,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     __writecr0(__readcr0() & ~CR0_WP);
 
     // UEFI identity maps the address space so both addresses are the same
-    mm::PagePool pool(bl_page_pool, bl_page_pool, bl_page_pool_count);
+    mm::PagePool pool(bl_page_table, bl_page_table, bl_page_pool_pages);
 
     // Take the current page tables
     pool.root = __readcr3();
@@ -475,7 +475,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
         pml4[i4].value = 0;
 
     mm::MapPages(pool, kva::kernel.base, loader_block->kernel.physical_base, kernel_pages);
-    mm::MapPages(pool, kva::kernel_pt.base, loader_block->page_tables_pool, loader_block->page_tables_pool_count);
+    mm::MapPages(pool, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
     mm::MapPages(pool, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
 
     // TODO - print runtime descriptors

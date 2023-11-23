@@ -44,8 +44,8 @@ struct LoaderBlock
     uefi::configuration_table* config_table;
     uintn config_table_entries;
     MemoryMap memory_map;
-    physical_address page_tables_pool;
-    uint32 page_tables_pool_count; // in pages
+    physical_address page_table;
+    uint32 page_table_size;
     KernelData kernel;
     DisplayInfo display;
 };
