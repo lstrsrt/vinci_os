@@ -106,7 +106,7 @@ namespace x64
             u64 cache_disable : 1;
             u64 accessed : 1;
             u64 dirty : 1;
-            u64 access_type : 1;
+            u64 pat : 1;
             u64 global : 1;
             u64 ignored0 : 3;
             u64 page_frame_number : 36;
@@ -134,8 +134,6 @@ namespace mm
             u8 reserved : 7; // to be used in the future
         };
         u8 value;
-
-        operator bool() { return value; }
     };
     static_assert(sizeof PhysicalPage == sizeof u8);
 
@@ -143,17 +141,16 @@ namespace mm
     // So the maximum size of a page pool is 4096 pages, of which 4095 can be used.
     static constexpr size_t max_page_pool_pages = (page_size / sizeof PhysicalPage);
 
-    //
+    // This structure is used when allocating physical pages.
     // The first page in a pool stores information about the remaining pages.
     // The second page is the PML4.
     // Remaining pages are used for the other paging structures (one page per entry).
-    //
-
     struct PagePool
     {
         PagePool(vaddr_t virtual_base, paddr_t physical_base, size_t page_count)
             : virt(virtual_base), phys(physical_base), pages(page_count)
         {
+            phys_info[0].present = true;
         }
 
         size_t pages;
@@ -176,7 +173,7 @@ namespace mm
         for (size_t page = 1 /* Skip ourselves */; page < pool.pages; page++)
         {
             // Skip present pages
-            if (pool.phys_info[page])
+            if (pool.phys_info[page].present)
                 continue;
 
             pool.phys_info[page].present = true;
@@ -229,10 +226,10 @@ namespace mm
         return pte ? pte->present : false;
     }
 
-    bool MapPage(PagePool& pool, vaddr_t virt, paddr_t phys)
+    x64::PageTableEntry* MapPage(PagePool& pool, vaddr_t virt, paddr_t phys)
     {
-        if (!IS_ALIGNED(phys, page_size) || !IS_ALIGNED(virt, page_size))
-            return false;
+        if (!IsPageAligned(virt) || !IsPageAligned(phys))
+            return nullptr;
 
         paddr_t physical_entry;
 
@@ -242,7 +239,7 @@ namespace mm
             // If this VA indexed a PDPTE that does not exist yet, allocate one from the pool.
             // It is reused for all other VAs with the same index.
             if (!AllocatePhysical(pool, &physical_entry))
-                return false;
+                return nullptr;
 
             pml4e.value = physical_entry; // same as PFN = physical_entry * PAGE_SIZE
             pml4e.present = true;
@@ -255,7 +252,7 @@ namespace mm
         if (!pdpte)
         {
             if (!AllocatePhysical(pool, &physical_entry))
-                return false;
+                return nullptr;
 
             pdpte.value = physical_entry;
             pdpte.present = true;
@@ -268,7 +265,7 @@ namespace mm
         if (!pde)
         {
             if (!AllocatePhysical(pool, &physical_entry))
-                return false;
+                return nullptr;
 
             pde.value = physical_entry;
             pde.present = true;
@@ -276,22 +273,22 @@ namespace mm
             pde.user_mode = false;
         }
 
-        auto& pte = GetPtEntry(pool, pde, virt);
-        pte.value = phys;
-        pte.present = true;
-        pte.writable = true;
-        pte.global = true;
-        pte.user_mode = false;
+        auto* pte = &GetPtEntry(pool, pde, virt);
+        pte->value = phys;
+        pte->present = true;
+        pte->writable = true;
+        pte->global = true;
+        pte->user_mode = false;
 
-        return true;
+        return pte;
     }
 
-    bool MapPages(PagePool& pool, vaddr_t virtual_addr, paddr_t physical_addr, size_t count)
+    bool MapPages(PagePool& pool, vaddr_t virt, paddr_t phys, size_t count)
     {
         for (vaddr_t page_offset = 0; page_offset < (count * page_size); page_offset += page_size)
         {
-            vaddr_t va = virtual_addr + page_offset;
-            paddr_t pa = physical_addr + page_offset;
+            vaddr_t va = virt + page_offset;
+            paddr_t pa = phys + page_offset;
 
             if (!MapPage(pool, va, pa))
                 return false;
@@ -301,7 +298,8 @@ namespace mm
     }
 
     // phys_virt is the physical address on input and the virtual address on return (if successful).
-    bool MapPagesInRegion(PagePool& pool, Region rg, uintptr_t* phys_virt, size_t count)
+    template<Region rg>
+    bool MapPagesInRegion(PagePool& pool, uptr_t* phys_virt, size_t count)
     {
         if ((*phys_virt + count * page_size) > rg.End())
             return false;
@@ -323,7 +321,6 @@ namespace mm
             break;
         }
 
-        *phys_virt = 0;
         return false;
     }
 }
