@@ -63,6 +63,8 @@ namespace x64
             Print("TSC ");
         if (cpu_info.msr_supported = CheckCpuid(ids.edx, CpuidFeature::MSR))
             Print("MSR ");
+        // if (cpu_info.using_apic = CheckCpuid(ids.edx, CpuidFeature::APIC))
+        //     Print("APIC ");
 
         Print("\n");
     }

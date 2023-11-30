@@ -7,6 +7,7 @@
 #include "../hw/cmos/cmos.h"
 #include "../hw/cpu/isr.h"
 #include "../hw/cpu/x64.h"
+#include "../hw/cpu/cpuid.h"
 #include "../hw/ps2/ps2.h"
 #include "../hw/serial/serial.h"
 #include "../hw/timer/timer.h"
@@ -128,6 +129,39 @@ static void FinalizeKernelMapping(mm::PagePool& pool)
     }
 }
 
+#define MSR_MTRR_DEF_TYPE 0x2ff
+#define MTRR_FIXED_ENABLED (1 << 10)
+#define MTRR_ENABLED (1 << 11)
+
+#define MSR_PAT 0x277
+
+static void LoadPat(u64 pat)
+{
+    using namespace x64;
+
+    // Normally we would also have to disable interrupts here
+    // but this gets called before we enable them in the first place
+
+    auto cr0 = ReadCr0();
+    WriteCr0(cr0 & ~(Cr0::CD | Cr0::NW));
+
+    __wbinvd();
+    __writemsr(MSR_MTRR_DEF_TYPE, __readmsr(MSR_MTRR_DEF_TYPE) & ~(MTRR_ENABLED | MTRR_FIXED_ENABLED));
+    __wbinvd(); // Flush caches twice (required on Xeon and P4)
+
+    auto cr4 = ReadCr4();
+    WriteCr4(cr4 & ~(Cr4::PGE));
+    TlbFlush();
+
+    __writemsr(MSR_PAT, pat);
+
+    __wbinvd();
+    TlbFlush();
+
+    WriteCr4(cr4);
+    WriteCr0(cr0);
+}
+
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 {
     gfx::Initialize(loader_block->display);
@@ -160,6 +194,41 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     mm::MapPages(pool, kva::kernel.base, kernel.physical_base, kernel_pages);
     mm::MapPages(pool, kva::kernel_pt.base, pt_physical, pt_pages);
 
+    enum MemoryType : u64
+    {
+        MT_Uncacheable = 0x00, // (UC)
+        MT_WriteCombining = 0x01,
+        MT_WriteThrough = 0x04,
+        MT_WriteProtected = 0x05,
+        MT_WriteBack = 0x06,
+        MT_Uncached = 0x07, // (UC-) PAT only, reserved on MTRRs
+    };
+
+    u64 ia32_mtrr_def_type = __readmsr(MSR_MTRR_DEF_TYPE);
+    Print("IA32_MTRR_DEF_TYPE: 0x%llx\n", ia32_mtrr_def_type);
+
+    // This is the same as the default PAT entries
+    // but with one exception: PAT4 selects WC instead of WB
+    static constexpr u64 pat_entries =
+          (MT_WriteBack)            // PAT0
+        | (MT_WriteThrough << 8)    // PAT1
+        | (MT_Uncached << 16)       // PAT2
+        | (MT_Uncacheable << 24)    // PAT3
+        | (MT_WriteCombining << 32) // PAT4
+        | (MT_WriteThrough << 40)   // PAT5
+        | (MT_Uncached << 48)       // PAT6
+        | (MT_Uncacheable << 56);   // PAT7
+
+    // NOTE: If we use UC as the default MTRR type then
+    // we can only use WC from the PAT, all other entries don't matter anymore.
+
+    auto ia32_pat = __readmsr(MSR_PAT);
+    Print("IA32_PAT: 0x%llx\n", ia32_pat);
+
+    // Update the PAT to have a WC entry
+    LoadPat(pat_entries);
+    Print("IA32_PAT: 0x%llx\n", __readmsr(MSR_PAT));
+
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
     mm::MapPagesInRegion<kva::frame_buffer>(pool, &display.frame_buffer, kva::frame_buffer.PageCount());
 
@@ -189,7 +258,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
 
-    // x64::cpu_info.using_apic = false;
+    x64::cpu_info.using_apic = false;
     x64::Initialize();
 
     timer::Initialize(hpet);

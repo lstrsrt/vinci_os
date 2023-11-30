@@ -24,8 +24,8 @@ namespace acpi
             case ACPI_MADT_PROCESSOR_LOCAL_APIC:
             {
                 auto ptr = ( acpi::MadtLocalApic* )entry;
-                Print("  PROCESSOR_LOCAL_APIC: ID %u Core ID %u Type %u Flags 0x%x\n",
-                    ptr->ApicId, ptr->AcpiProcessorId, ptr->Type, ptr->Flags);
+                // Print("  PROCESSOR_LOCAL_APIC: ID %u Core ID %u Type %u Flags 0x%x\n",
+                //     ptr->ApicId, ptr->AcpiProcessorId, ptr->Type, ptr->Flags);
                 if (ptr->Flags & ACPI_MADT_LAPIC_ENABLED)
                     info.cores++;
                 break;
@@ -33,7 +33,7 @@ namespace acpi
             case ACPI_MADT_IO_APIC:
             {
                 auto ptr = ( acpi::MadtIoApic* )entry;
-                Print("  IO_APIC: ID %u Vector 0x%x\n", ptr->IoApicId, ptr->GlobalSystemInterruptBase);
+                // Print("  IO_APIC: ID %u Vector 0x%x\n", ptr->IoApicId, ptr->GlobalSystemInterruptBase);
                 // there are multiple?
                 apic::io = ptr->IoApicAddress;
                 break;
@@ -41,7 +41,7 @@ namespace acpi
             case ACPI_MADT_INTERRUPT_SOURCE_OVERRIDE:
             {
                 auto ptr = ( acpi::MadtIntSourceOverride* )entry;
-                Print("  INTERRUPT_SOURCE_OVERRIDE: %u to %u\n", ptr->Source, ptr->GlobalSystemInterrupt);
+                // Print("  INTERRUPT_SOURCE_OVERRIDE: %u to %u\n", ptr->Source, ptr->GlobalSystemInterrupt);
                 if (ptr->Source < apic::irq_gsi_overrides.size())
                     apic::irq_gsi_overrides[ptr->Source] = ptr->GlobalSystemInterrupt;
                 break;
@@ -49,7 +49,7 @@ namespace acpi
             case ACPI_MADT_LOCAL_APIC_NMI:
             {
                 auto ptr = ( acpi::MadtLocalApicNmi* )entry;
-                Print("  LOCAL_APIC_NMI: LINTN %u\n", ptr->LocalApicLint);
+                // Print("  LOCAL_APIC_NMI: LINTN %u\n", ptr->LocalApicLint);
                 info.apic_nmi_pin = (ptr->LocalApicLint != 0);
                 // TODO - do something
                 apic::UpdateLvtEntry(
@@ -61,7 +61,7 @@ namespace acpi
                 break;
             }
             default:
-                Print("  MADT: Ignoring entry of type %u\n", entry->Type);
+                // Print("  MADT: Ignoring entry of type %u\n", entry->Type);
                 break;
             }
             entry = ( SubtableHeader* )(( u64 )entry + entry->Length);
