@@ -78,40 +78,81 @@ namespace x64
     EARLY static void SetCr4Bits()
     {
         Cpuid ids(CpuidLeaf::ExtendedFeatures);
+        auto cr4 = ReadCr4();
 
         Print("CR4: ");
 
         if (CheckCpuid(ids.ebx, CpuidFeature::SMEP))
         {
-            WriteCr4(ReadCr4() | Cr4::SMEP);
+            cr4 |= Cr4::SMEP;
             Print("SMEP ");
         }
 
         if (cpu_info.smap_supported =
             CheckCpuid(ids.ebx, CpuidFeature::SMAP))
         {
-            WriteCr4(ReadCr4() | Cr4::SMAP);
+            cr4 |= Cr4::SMAP;
             Print("SMAP ");
         }
 
         if (CheckCpuid(ids.ecx, CpuidFeature::UMIP))
         {
-            WriteCr4(ReadCr4() | Cr4::UMIP);
+            cr4 |= Cr4::UMIP;
             Print("UMIP ");
         }
 
         Print("\n");
+
+        WriteCr4(cr4);
     }
 
-    EARLY void InitGdt()
+#define MSR_MTRR_DEF_TYPE 0x2ff
+#define MSR_PAT 0x277
+
+#define MTRR_FIXED_ENABLED (1 << 10)
+#define MTRR_ENABLED (1 << 11)
+
+    enum MemoryType : u64
+    {
+        Uncacheable = 0x00, // (UC)
+        WriteCombining = 0x01,
+        WriteThrough = 0x04,
+        WriteProtected = 0x05,
+        WriteBack = 0x06,
+        Uncached = 0x07, // (UC-) PAT only, reserved on MTRRs
+    };
+
+    EARLY static void LoadPageAttributeTable()
+    {
+        // This is the same as the default PAT entries
+        // but with one exception: PAT4 selects WC instead of WB
+        static constexpr auto pat_entries = ( u64 )(
+            (MemoryType::WriteBack)              // PAT0
+            | (MemoryType::WriteThrough << 8)    // PAT1
+            | (MemoryType::Uncached << 16)       // PAT2
+            | (MemoryType::Uncacheable << 24)    // PAT3
+            | (MemoryType::WriteCombining << 32) // PAT4
+            | (MemoryType::WriteThrough << 40)   // PAT5
+            | (MemoryType::Uncached << 48)       // PAT6
+            | (MemoryType::Uncacheable << 56));  // PAT7
+
+        TlbFlush();
+        __wbinvd();
+
+        __writemsr(MSR_PAT, pat_entries);
+
+        __wbinvd();
+        TlbFlush();
+    }
+
+    EARLY static void InitGdt()
     {
         _lgdt(&gdt_desc);
         ReloadSegments(gdt_offset::r0_code, gdt_offset::r0_data);
         LoadTr(gdt_offset::tss_low);
-
     }
 
-    EARLY void InitIdt()
+    EARLY static void InitIdt()
     {
         memzero(&idt, sizeof idt);
         idt[0].Set(_Isr0, 0);
@@ -173,7 +214,7 @@ namespace x64
         __lidt(&idt_desc);
     }
 
-    EARLY void InitInterrupts()
+    EARLY static void InitInterrupts()
     {
         if (cpu_info.pic_present)
             pic::InitializeController();
@@ -212,6 +253,9 @@ namespace x64
 
         // Enable extended features
         SetCr4Bits();
+
+        // Update PAT
+        LoadPageAttributeTable();
 
         // Set up descriptor tables
         InitGdt();
