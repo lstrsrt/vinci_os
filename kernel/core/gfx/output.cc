@@ -63,7 +63,7 @@ namespace gfx
 
     EARLY void Initialize(const DisplayInfo& display)
     {
-        BgrPixel bg(0, 0, 255);
+        BgrPixel bg(0, 0, 0);
 
         for (u32 x = 0; x < display.width; x++)
         {

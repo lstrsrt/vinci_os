@@ -98,6 +98,7 @@ namespace x64
                 bool pic_present;
                 bool using_apic; // PIC if 0
                 bool apic_nmi_pin; // LINT0/LINT1
+                bool pat_supported;
                 bool tsc_supported;
                 bool msr_supported;
                 bool smap_supported;

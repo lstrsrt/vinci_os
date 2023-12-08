@@ -189,6 +189,16 @@ namespace acpi
         u32 GlobalSystemInterrupt;
         u16 Flags;
     };
+
+    // Custom type
+    struct IntSrcOverride
+    {
+        u32 gsi;
+        u16 flags;
+
+        constexpr IntSrcOverride(u32 gsi_, u32 flags_ = 0)
+            : gsi(gsi_), flags(flags_) { }
+    };
 }
 
 #pragma pack()

@@ -129,6 +129,32 @@ static void FinalizeKernelMapping(mm::PagePool& pool)
     }
 }
 
+static apic::IoRedirectionEntry ReadRedirEntry(u32 offset)
+{
+    using namespace apic;
+    apic::IoRedirectionEntry entry;
+
+    entry.low32 = ReadIo(( u32 )IoReg::REDIR + offset);
+    entry.high32 = ReadIo(( u32 )IoReg::REDIR + offset + 1);
+
+    return entry;
+}
+
+static void WriteRedirEntry(u32 offset, apic::IoRedirectionEntry entry)
+{
+    using namespace apic;
+    WriteIo(( u32 )IoReg::REDIR + offset, entry.low32);
+    WriteIo(( u32 )IoReg::REDIR + offset + 1, entry.high32);
+}
+
+static u32 RedirOffsetFromIrq(u8 irq)
+{
+    u32 offset =
+        irq < apic::int_src_overrides.size() ?
+        apic::int_src_overrides[irq].gsi : irq;
+    return offset * 2; // 2 registers per entry
+}
+
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 {
     gfx::Initialize(loader_block->display);
@@ -189,7 +215,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
 
-    x64::cpu_info.using_apic = false;
+    // x64::cpu_info.using_apic = false;
     x64::Initialize();
 
     for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
@@ -221,6 +247,8 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // Now that kernel init has completed, zero out discardable sections
     // and write-protect every section not marked writable.
     FinalizeKernelMapping(pool);
+
+    Print("Entering idle loop...\n");
 
     x64::unmask_interrupts();
     x64::Idle();

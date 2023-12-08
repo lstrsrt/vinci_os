@@ -63,8 +63,12 @@ namespace x64
             Print("TSC ");
         if (cpu_info.msr_supported = CheckCpuid(ids.edx, CpuidFeature::MSR))
             Print("MSR ");
+        if (cpu_info.pat_supported = CheckCpuid(ids.edx, CpuidFeature::PAT))
+            Print("PAT ");
         // if (cpu_info.using_apic = CheckCpuid(ids.edx, CpuidFeature::APIC))
         //     Print("APIC ");
+        if (CheckCpuid(ids.ecx, ( CpuidFeature )(1 << 21)))
+            Print("X2APIC ");
 
         Print("\n");
     }
@@ -124,6 +128,12 @@ namespace x64
 
     EARLY static void LoadPageAttributeTable()
     {
+        if (!cpu_info.pat_supported)
+        {
+            Print("PAT not supported, skipping initialization.\n");
+            return;
+        }
+
         // This is the same as the default PAT entries
         // but with one exception: PAT4 selects WC instead of WB
         static constexpr auto pat_entries = ( u64 )(
@@ -138,9 +148,7 @@ namespace x64
 
         TlbFlush();
         __wbinvd();
-
         __writemsr(MSR_PAT, pat_entries);
-
         __wbinvd();
         TlbFlush();
     }

@@ -101,36 +101,13 @@ namespace x64
 
 namespace apic
 {
-    static constexpr u32 max_irq = 24;
-
-    static u8 connect_cnt;
-
-    u32 ReadLocal(LocalReg reg)
-    {
-        return *( volatile u32* )(local + ( u32 )reg);
-    }
-
-    void WriteLocal(LocalReg reg, u32 data)
-    {
-        *( volatile u32* )(local + ( u32 )reg) = data;
-    }
-
-    u32 ReadIo(u32 reg)
-    {
-        auto i = ( volatile u32* )io;
-        *i = reg & 0xff;
-        return *(i + 4);
-    }
-
-    void WriteIo(u32 reg, u32 data)
-    {
-        auto i = ( volatile u32* )io;
-        *i = reg & 0xff;
-        *(i + 4) = data;
-    }
+    static u32 max_irq;
 
     void UpdateLvtEntry(LocalReg reg, u8 vector, Delivery type, bool enable)
     {
+        if (vector < 16)
+            return;
+
         LvtEntry entry;
         entry.bits = ReadLocal(reg);
 
@@ -141,105 +118,115 @@ namespace apic
            "Software should always set the trigger mode in the LVT LINT1 register to 0 (edge sensitive)."
            Intel SDM 3A, pg 376 */
         entry.trigger =
-            (type == Delivery::Nmi
-            || type == Delivery::Smi
-            || type == Delivery::Init)
-            || reg == LocalReg::LINT1
+            (type == Delivery::Nmi || type == Delivery::Smi || type == Delivery::Init)
+            || (reg == LocalReg::LINT1)
             ? Trigger::Edge : Trigger::Level;
 
         WriteLocal(reg, entry.bits);
     }
 
-    static u32 EntryRegFromIrq(u8 irq)
-    {
-        u32 entry = irq;
-
-        if (irq < irq_gsi_overrides.size())
-            entry = irq_gsi_overrides[irq];
-
-        u32 entry_reg = (entry * 2) + 16; // 2 ports per entry, so multiply by 2
-
-        if (entry_reg > 63) // Min is 16, max is 63
-            return ec::u32_max;
-
-        return entry_reg;
-    }
-
-    static IoRedirectionEntry ReadRedirEntry(u32 entry_reg)
+    static IoRedirectionEntry ReadRedirEntry(u32 gsi)
     {
         IoRedirectionEntry entry;
 
-        entry.low32 = ReadIo(entry_reg);
-        entry.high32 = ReadIo(entry_reg + 1);
+        u32 offset = ( u32 )IoReg::REDIR + (gsi * 2);
+        entry.low32 = ReadIo(offset);
+        entry.high32 = ReadIo(offset + 1);
 
         return entry;
     }
 
-    static void WriteRedirEntry(u32 entry_reg, IoRedirectionEntry entry)
+    static void WriteRedirEntry(u32 gsi, IoRedirectionEntry entry)
     {
-        WriteIo(entry_reg, entry.low32);
-        WriteIo(entry_reg + 1, entry.high32);
+        u32 offset = ( u32 )IoReg::REDIR + (gsi * 2);
+        WriteIo(offset, entry.low32);
+        WriteIo(offset + 1, entry.high32);
     }
 
     void ConnectRedirEntry(u8 irq, u8 apic_id, bool enable)
     {
-        u8 vector = irq + x64::irq_base;
-        if (vector < 16 || vector > 254)
-            return;
+        u32 gsi = irq;
+        auto polarity = Polarity::ActiveLow;
+        auto trigger = Trigger::Level;
 
-        auto entry_reg = EntryRegFromIrq(irq);
-        if (entry_reg == ec::u32_max)
-            return;
+        if (irq < int_src_overrides.size())
+        {
+            gsi = int_src_overrides[irq].gsi;
+            auto flags = int_src_overrides[irq].flags;
+            if ((flags & 0b11) == 0b01)
+                polarity = Polarity::ActiveHigh;
+            if ((flags & 0b1100) == 0b0100)
+                trigger = Trigger::Edge;
+        }
 
-        auto entry = ReadRedirEntry(entry_reg);
+        auto entry = ReadRedirEntry(gsi);
+
+        Print("irq %u gsi %u: 0x%x 0x%x\n", irq, gsi, entry.high32, entry.low32);
+
+        u32 vector = irq + x64::irq_base;
+        if (vector > 254)
+            return;
 
         entry.disabled = !enable;
         entry.vector = vector;
+        entry.trigger = trigger;
+        entry.polarity = polarity;
+        entry.delivery = Delivery::Fixed;
         entry.dst.physical.apic_id = apic_id & 0xf;
 
-        WriteRedirEntry(entry_reg, entry);
-        connect_cnt++;
+        Print("irq %u gsi %u: 0x%x 0x%x\n", irq, gsi, entry.high32, entry.low32);
+
+        WriteRedirEntry(gsi, entry);
     }
 
     void SetRedirEntryState(u8 irq, bool enable)
     {
-        if (irq >= max_irq)
-            return;
-
-        auto entry_reg = EntryRegFromIrq(irq);
-        if (entry_reg == ec::u32_max)
-            return;
-
-        auto entry = ReadRedirEntry(entry_reg);
+        auto gsi = irq < int_src_overrides.size() ? int_src_overrides[irq].gsi : irq;
+        auto entry = ReadRedirEntry(gsi);
 
         entry.disabled = !enable;
 
-        WriteRedirEntry(entry_reg, entry);
+        WriteRedirEntry(gsi, entry);
     }
 
     void InitializeController()
     {
+        max_irq = EXTRACT32(ReadIo(IoReg::VER), 16, 24) + 1;
+
         // Mask all interrupts
-        for (u8 irq = 16; irq < max_irq; irq++)
-            SetRedirEntryState(irq, false);
+        //
+        // should already be masked?
+        // for (u8 irq = 0; irq < max_irq; irq++)
+        //     SetRedirEntryState(irq, OFF);
 
-        UpdateLvtEntry(
-            x64::cpu_info.apic_nmi_pin ? LocalReg::LINT0 : LocalReg::LINT1,
-            spurious_int_vec,
-            Delivery::ExtInt,
-            true
-        );
+        // This also maps spurious interrupts to vector 255.
+        MaskInterrupts();
 
-        // Map spurious interrupts to vector 255.
-        // Do not set the enable flag yet
-        WriteLocal(LocalReg::SIVR, spurious_int_vec);
+        /*for (u32 i = 0; i < max_irq; i++)
+        {
+            auto reg = 16 + (2 * i);
+            auto low = ReadIo(reg);
+            auto high = ReadIo(reg + 1);
+            Print("Entry %u 0x%x 0x%x\n", i, low, high);
+        }*/
+
+        // TODO - set error int vector
+
+        Print("VER: 0x%x\n", ReadLocal(LocalReg::VER));
+        Print("ESR: 0x%x\n", ReadLocal(LocalReg::ESR));
+        Print("TPR: 0x%x\n", ReadLocal(LocalReg::TPR));
+        Print("ERR_LVTR: 0x%x\n", ReadLocal(LocalReg::ERR_LVTR));
 
         u64 msr_apic = __readmsr(MSR_APIC_BASE);
+        // Print("MSR_APIC_BASE: 0x%llx\n", msr_apic);
+
         if (!(msr_apic & APIC_GLOBAL_ENABLE))
         {
             Print("APIC was disabled in APIC_BASE MSR -- enabling now.\n");
             __writemsr(MSR_APIC_BASE, msr_apic | APIC_BSP | APIC_GLOBAL_ENABLE);
         }
+
+        WriteLocal(LocalReg::TPR, 0);
     }
 }
 

@@ -3,6 +3,8 @@
 #include <base.h>
 #include <ec/array.h>
 
+#include "../core/gfx/output.h"
+
 namespace apic
 {
     enum class LocalReg
@@ -68,8 +70,8 @@ namespace apic
 
     enum class Polarity : u32
     {
-        High,
-        Low
+        ActiveHigh,
+        ActiveLow
     };
 
     enum class Trigger : u32
@@ -88,7 +90,7 @@ namespace apic
             u32 logical : 1;
             u32 pending : 1;
             Polarity polarity : 1;
-            u32 irr : 1;
+            u32 remote_irr : 1;
             Trigger trigger : 1;
             u32 disabled : 1;
             u32 reserved : 15;
@@ -120,7 +122,7 @@ namespace apic
     {
         struct
         {
-            u32 vector : 8;
+            u32 vector : 8; /* Allowed: 16 to 254 */
             Delivery delivery : 3;
             u32 reserved0 : 1;
             u32 pending : 1;
@@ -138,15 +140,47 @@ namespace apic
 
     inline u64 local;
     inline u64 io;
-    inline ec::array irq_gsi_overrides{
+
+    inline ec::array<acpi::IntSrcOverride, 16> int_src_overrides{
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
     };
     constexpr u8 spurious_int_vec = 255;
 
-    u32 ReadLocal(LocalReg reg);
-    void WriteLocal(LocalReg reg, u32 data);
-    u32 ReadIo(u32 reg);
-    void WriteIo(u32 reg, u32 data);
+    INLINE u32 ReadLocal(LocalReg reg)
+    {
+        return *( u32 volatile* )(local + ( u32 )reg);
+    }
+
+    INLINE void WriteLocal(LocalReg reg, u32 data)
+    {
+        *( u32 volatile* )(local + ( u32 )reg) = data;
+    }
+
+    INLINE u32 ReadIo(u32 reg)
+    {
+        auto io_reg_sel = ( u32 volatile* )io;
+        *io_reg_sel = reg & 0xff;
+        auto io_win = ( u32 volatile* )(io + 16);
+        return *io_win;
+    }
+
+    INLINE u32 ReadIo(IoReg reg)
+    {
+        return ReadIo(( u32 )reg);
+    }
+
+    INLINE void WriteIo(u32 reg, u32 data)
+    {
+        auto io_reg_sel = ( u32 volatile* )io;
+        *io_reg_sel = reg & 0xff;
+        auto io_win = ( u32 volatile* )(io + 16);
+        *io_win = data;
+    }
+
+    INLINE void WriteIo(IoReg reg, u32 data)
+    {
+        return WriteIo(( u32 )reg, data);
+    }
 
     INLINE void SendEoi(UNUSED u8)
     {
@@ -155,13 +189,12 @@ namespace apic
 
     INLINE void MaskInterrupts()
     {
-        WriteLocal(LocalReg::SIVR, ReadLocal(LocalReg::SIVR) & 0xff);
+        WriteLocal(LocalReg::SIVR, spurious_int_vec);
     }
 
     INLINE void UnmaskInterrupts()
     {
         WriteLocal(LocalReg::SIVR, ( u32 )SivrFlag::ApicEnable | spurious_int_vec);
-        // WriteLocal(LocalReg::SIVR, ( u32 )SivrFlag::ApicEnable | ReadLocal(LocalReg::SIVR));
     }
 
     // TODO - apic timer update function

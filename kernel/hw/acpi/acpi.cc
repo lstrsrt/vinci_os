@@ -34,16 +34,18 @@ namespace acpi
             {
                 auto ptr = ( acpi::MadtIoApic* )entry;
                 // Print("  IO_APIC: ID %u Vector 0x%x\n", ptr->IoApicId, ptr->GlobalSystemInterruptBase);
-                // there are multiple?
                 apic::io = ptr->IoApicAddress;
+
+                // apic::WriteIo(apic::IoReg::ID, ptr->IoApicId);
+
                 break;
             }
             case ACPI_MADT_INTERRUPT_SOURCE_OVERRIDE:
             {
                 auto ptr = ( acpi::MadtIntSourceOverride* )entry;
                 // Print("  INTERRUPT_SOURCE_OVERRIDE: %u to %u\n", ptr->Source, ptr->GlobalSystemInterrupt);
-                if (ptr->Source < apic::irq_gsi_overrides.size())
-                    apic::irq_gsi_overrides[ptr->Source] = ptr->GlobalSystemInterrupt;
+                if (ptr->Source < apic::int_src_overrides.size())
+                    apic::int_src_overrides[ptr->Source] = IntSrcOverride(ptr->GlobalSystemInterrupt, ptr->Flags);
                 break;
             }
             case ACPI_MADT_LOCAL_APIC_NMI:
@@ -52,12 +54,12 @@ namespace acpi
                 // Print("  LOCAL_APIC_NMI: LINTN %u\n", ptr->LocalApicLint);
                 info.apic_nmi_pin = (ptr->LocalApicLint != 0);
                 // TODO - do something
-                apic::UpdateLvtEntry(
-                    info.apic_nmi_pin ? apic::LocalReg::LINT1 : apic::LocalReg::LINT0,
-                    2,
-                    apic::Delivery::Nmi,
-                    true
-                );
+                // apic::UpdateLvtEntry(
+                //     info.apic_nmi_pin ? apic::LocalReg::LINT1 : apic::LocalReg::LINT0,
+                //     2,
+                //     apic::Delivery::Nmi,
+                //     ON
+                // );
                 break;
             }
             default:
