@@ -339,8 +339,8 @@ namespace uefi {
         THISPTR_FN(status, reset, (this, extended_verification), boolean extended_verification);
         THISPTR_FN(status, output_string, (this, string), const char16* string);
         THISPTR_FN(status, test_string, (this, string), const char16* string);
-        THISPTR_FN(status, query_mode, (this, mode, cols, rows), uintn mode, uintn* cols, uintn* rows);
-        THISPTR_FN(status, set_mode, (this, mode), uintn mode);
+        THISPTR_FN(status, query_mode, (this, mode_, cols, rows), uintn mode_, uintn* cols, uintn* rows);
+        THISPTR_FN(status, set_mode, (this, mode_), uintn mode_);
         THISPTR_FN(status, set_attribute, (this, attribute), uintn attribute);
         THISPTR_FN(status, clear_screen, (this));
         THISPTR_FN(status, set_cursor_position, (this, col, row), uintn col, uintn row);

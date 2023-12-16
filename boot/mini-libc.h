@@ -284,7 +284,6 @@ namespace {
         case 'x': return SPEC_HEX;
         case 'p': return SPEC_POINTER;
         case 'l': return ( Fmt )parse_l(fmt);
-        default: return SPEC_NONE;
         }
         return SPEC_NONE;
     }

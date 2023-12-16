@@ -58,7 +58,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>__KERNEL__;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
@@ -75,7 +75,7 @@
       <CompileAs />
       <AdditionalOptions>/Zc:threadSafeInit- /source-charset:.1252 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
-      <DisableSpecificWarnings>26495</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4201;26495</DisableSpecificWarnings>
       <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
     <Link>

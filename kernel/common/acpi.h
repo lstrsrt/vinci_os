@@ -196,7 +196,7 @@ namespace acpi
         u32 gsi;
         u16 flags;
 
-        constexpr IntSrcOverride(u32 gsi_, u32 flags_ = 0)
+        constexpr IntSrcOverride(u32 gsi_, u16 flags_ = 0)
             : gsi(gsi_), flags(flags_) { }
     };
 }

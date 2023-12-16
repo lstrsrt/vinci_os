@@ -6,10 +6,10 @@
 
 namespace ec::inline constants
 {
-    static constexpr u8 u8_max = ~0;
-    static constexpr u16 u16_max = ~0;
-    static constexpr u32 u32_max = ~0;
-    static constexpr u64 u64_max = ~0;
+    static constexpr u8 u8_max = 0xff;
+    static constexpr u16 u16_max = 0xffff;
+    static constexpr u32 u32_max = 0xffff'ffff;
+    static constexpr u64 u64_max = 0xffffffff'ffffffff;
 
     static constexpr i8 i8_max = u8_max >> 1;
     static constexpr i16 i16_max = u16_max >> 1;
