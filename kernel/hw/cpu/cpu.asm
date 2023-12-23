@@ -59,4 +59,38 @@ LoadTr proc
     ret
 LoadTr endp
 
+;
+; void Ring3Function()
+;
+; Sample function to demonstrate entering ring 3
+;
+Ring3Function proc
+    mov rax, 0adadadadadadadadh
+    mov rbx, rax
+inf_loop:
+    jmp inf_loop
+    ret
+Ring3Function endp
+
+;
+; void EnterUserMode()
+;
+; Transfers control to ring 3 via sysret.
+; CS and SS are changed to user segments.
+;
+; rcx = User code address
+; rdx = User stack address
+;
+EnterUserMode proc
+    cli
+    ; mov rcx, 7ff7f0000000h ; user_page_va
+    mov r11, 200h ; 300h
+    mov rsp, rdx ; user_stack_va
+    sysretq
+EnterUserMode endp
+
+x64SysCall proc
+    sysretq
+x64SysCall endp
+
 end

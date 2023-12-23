@@ -226,7 +226,7 @@ namespace mm
         return pte ? pte->present : false;
     }
 
-    x64::PageTableEntry* MapPage(PagePool& pool, vaddr_t virt, paddr_t phys)
+    x64::PageTableEntry* MapPage(PagePool& pool, vaddr_t virt, paddr_t phys, bool user = false)
     {
         if (!IsPageAligned(virt) || !IsPageAligned(phys))
             return nullptr;
@@ -245,7 +245,7 @@ namespace mm
             pml4e.present = true;
             pml4e.writable = true;
             pml4e.accessed = true;
-            pml4e.user_mode = false;
+            pml4e.user_mode = user;
         }
 
         auto& pdpte = GetPdptEntry(pool, pml4e, virt);
@@ -258,7 +258,7 @@ namespace mm
             pdpte.present = true;
             pdpte.writable = true;
             pdpte.accessed = true;
-            pdpte.user_mode = false;
+            pdpte.user_mode = user;
         }
 
         auto& pde = GetPdEntry(pool, pdpte, virt);
@@ -270,7 +270,7 @@ namespace mm
             pde.value = physical_entry;
             pde.present = true;
             pde.writable = true;
-            pde.user_mode = false;
+            pde.user_mode = user;
         }
 
         auto* pte = &GetPtEntry(pool, pde, virt);
@@ -278,7 +278,7 @@ namespace mm
         pte->present = true;
         pte->writable = true;
         pte->global = true;
-        pte->user_mode = false;
+        pte->user_mode = user;
 
         return pte;
     }

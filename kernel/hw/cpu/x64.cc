@@ -8,32 +8,32 @@
 
 namespace x64
 {
-    volatile u8 int_stack_tables[IstCount][ist_size]{};
+    alignas(page_size) volatile u8 int_stack_tables[IstCount][ist_size]{};
 
 #pragma data_seg("PROTDATA")
-    static const Tss tss{
+    alignas(64) static const Tss tss{
         ( u64 )(int_stack_tables[0] + ist_size),
         ( u64 )(int_stack_tables[1] + ist_size),
         ( u64 )(int_stack_tables[2] + ist_size),
         ( u64 )(int_stack_tables[3] + ist_size)
     };
 
-    static const GdtEntry gdt[]{
-        GdtEntry::Null(),
-        GdtEntry(0, GDT_ENTRY_CODE | GDT_READ),
-        GdtEntry(0, GDT_ENTRY_DATA | GDT_WRITE),
-        GdtEntry(3, GDT_ENTRY_CODE | GDT_READ),
-        GdtEntry(3, GDT_ENTRY_DATA | GDT_WRITE),
-        GdtEntry::TssLow(&tss),
-        GdtEntry::TssHigh(&tss)
+    alignas(64) static const GdtEntry gdt[]{
+        GdtEntry::Null(),                              // Empty
+        GdtEntry(0, GDT_ENTRY_CODE | GDT_READ),        // Ring 0 code
+        GdtEntry(0, GDT_ENTRY_DATA | GDT_WRITE),       // Ring 0 data
+        GdtEntry(3, GDT_ENTRY_CODE | GDT_READ, false), // Ring 3 code, 32 bit
+        GdtEntry(3, GDT_ENTRY_DATA | GDT_WRITE),       // Ring 3 data
+        GdtEntry(3, GDT_ENTRY_CODE | GDT_READ),        // Ring 3 code
+        GdtEntry::TssLow(&tss),                        // TSS low
+        GdtEntry::TssHigh(&tss)                        // TSS high
     };
 
-    static ec::array<IdtEntry, 256> idt;
+    alignas(64) static ec::array<IdtEntry, 256> idt;
 
-    static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
-    static DescriptorTable idt_desc(&idt, sizeof idt - 1);
+    alignas(sizeof u16) static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
+    alignas(sizeof u16) static DescriptorTable idt_desc(&idt, sizeof idt - 1);
 #pragma data_seg()
-
 
     EARLY static void CheckFeatures()
     {
@@ -137,14 +137,14 @@ namespace x64
         // This is the same as the default PAT entries
         // but with one exception: PAT4 selects WC instead of WB
         static constexpr auto pat_entries = ( u64 )(
-            (MemoryType::WriteBack)              // PAT0
-            | (MemoryType::WriteThrough << 8)    // PAT1
-            | (MemoryType::Uncached << 16)       // PAT2
-            | (MemoryType::Uncacheable << 24)    // PAT3
-            | (MemoryType::WriteCombining << 32) // PAT4
-            | (MemoryType::WriteThrough << 40)   // PAT5
-            | (MemoryType::Uncached << 48)       // PAT6
-            | (MemoryType::Uncacheable << 56));  // PAT7
+            (MemoryType::WriteBack)              // PAT0: WB
+            | (MemoryType::WriteThrough << 8)    // PAT1: WT
+            | (MemoryType::Uncached << 16)       // PAT2: UC-
+            | (MemoryType::Uncacheable << 24)    // PAT3: UC+
+            | (MemoryType::WriteCombining << 32) // PAT4: WC
+            | (MemoryType::WriteThrough << 40)   // PAT5: WT
+            | (MemoryType::Uncached << 48)       // PAT6: UC-
+            | (MemoryType::Uncacheable << 56));  // PAT7: UC+
 
         TlbFlush();
         __wbinvd();
@@ -156,8 +156,8 @@ namespace x64
     EARLY static void InitGdt()
     {
         _lgdt(&gdt_desc);
-        ReloadSegments(gdt_offset::r0_code, gdt_offset::r0_data);
-        LoadTr(gdt_offset::tss_low);
+        ReloadSegments(GetGdtOffset(GdtIndex::R0Code), GetGdtOffset(GdtIndex::R0Data));
+        LoadTr(GetGdtOffset(GdtIndex::TssLow));
     }
 
     EARLY static void InitIdt()
@@ -253,6 +253,46 @@ namespace x64
         EnableNmi();
     }
 
+#pragma pack(1)
+    union SegmentSelector
+    {
+        struct
+        {
+            u16 rpl : 2;
+            u16 table : 1; // 0: GDT, 1: LDT
+            u16 index : 13;
+        };
+        u16 bits;
+    };
+    static_assert(sizeof SegmentSelector == sizeof u16);
+
+    union Ia32Star
+    {
+        struct
+        {
+            u32 reserved;
+            u16 syscall_cs;
+            u16 sysret_cs;
+        };
+        u64 bits;
+    };
+    static_assert(sizeof Ia32Star == sizeof u64);
+#pragma pack()
+
+    enum class Msr : u32
+    {
+        IA32_FS_BASE = 0xc0000100,
+        IA32_GS_BASE = 0xc0000101,
+        IA32_KERNEL_GS_BASE = 0xc0000102,
+
+        IA32_EFER = 0xc0000080,
+        IA32_STAR = 0xc0000081,
+        IA32_LSTAR = 0xc0000082, // Target RIP
+        IA32_FMASK = 0xc0000084,
+    };
+
+    EXTERN_C void x64SysCall();
+
     EARLY void Initialize()
     {
         // Fill out cpu_info and initialize CR0
@@ -271,5 +311,20 @@ namespace x64
 
         // Initialize interrupt controllers
         InitInterrupts();
+
+        // TODO - check via cpuid if syscall/sysret is supported
+
+        constexpr auto star = ((( u64 )GetGdtOffset(GdtIndex::R0Code)) << 32) |
+            /* sysret: 8 is added for SS which gets us to R3Data,
+               16 is added for CS which is R3Code */
+            (((( u64 )GetGdtOffset(GdtIndex::R3Code32) | 3)) << 48);
+        __writemsr(( u32 )Msr::IA32_STAR, star);
+
+        // TODO - rflags enum
+        __writemsr(( u32 )Msr::IA32_LSTAR, ( u64 )x64SysCall);
+        __writemsr(( u32 )Msr::IA32_FMASK, 0x200 | 0x100); // Mask interrupts and traps on syscall
+
+        auto efer = __readmsr(( u32 )Msr::IA32_EFER);
+        __writemsr(( u32 )Msr::IA32_EFER, efer | 0x1);
     }
 }

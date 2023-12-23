@@ -172,32 +172,48 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     {
         if (desc->attribute & uefi::memory_runtime)
         {
-            // FIXME - on hardware this maps into very low VM?
             Print(
                 "Mapping UEFI runtime: 0x%llx -> 0x%llx (%llu pages)\n",
                 desc->physical_start,
                 desc->virtual_start,
                 desc->number_of_pages
             );
-            MapPages(pool, desc->virtual_start, desc->physical_start, desc->number_of_pages);
+            mm::MapPages(pool, desc->virtual_start, desc->physical_start, desc->number_of_pages);
         }
     });
 
     // SerialPrintDescriptors(memory_map);
 
+    paddr_t user_page;
+    vaddr_t user_page_va = 0x7ff7f0000000;
+    mm::AllocatePhysical(pool, &user_page);
+    auto pte = mm::MapPage(pool, user_page_va, user_page, true);
+
+    paddr_t user_stack;
+    vaddr_t user_stack_va = 0x7ff7f0001000;
+    mm::AllocatePhysical(pool, &user_stack);
+    pte = mm::MapPage(pool, user_stack_va, user_stack, true);
+
+    // Print("0x%llx\n", pte->value);
+
     __writecr3(pool.root);
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
 
+    memzero(( void* )user_stack_va, page_size);
+    memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 100);
+    for (auto i = ( uptr_t )user_page_va; i < ( uptr_t )user_page_va + 100; i++)
+        Print("0x%x ", *( u8* )i);
+
     x64::cpu_info.using_apic = false;
     x64::Initialize();
 
-    for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
-    {
-        // Map the framebuffer as write combining (PAT4)
-        auto pte = mm::GetPresentPte(pool, page);
-        pte->pat = true;
-    }
+    // for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
+    // {
+    //     // Map the framebuffer as write combining (PAT4)
+    //     auto pte = mm::GetPresentPte(pool, page);
+    //     pte->pat = true;
+    // }
 
     timer::Initialize(hpet);
 
@@ -222,8 +238,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // and write-protect every section not marked writable.
     FinalizeKernelMapping(pool);
 
-    Print("Entering idle loop...\n");
-
     x64::unmask_interrupts();
+    x64::EnterUserMode(user_page_va, user_stack_va);
     x64::Idle();
 }

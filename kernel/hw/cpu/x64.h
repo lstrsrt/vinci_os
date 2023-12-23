@@ -212,7 +212,7 @@ namespace x64
 
         constexpr GdtEntry() = default;
 
-        explicit constexpr GdtEntry(u8 dpl, u8 type)
+        explicit constexpr GdtEntry(u8 dpl, u8 type, bool long_mode = true)
             : limit_low(ec::u16_max),
             base_low(0),
             base_mid(0),
@@ -221,7 +221,13 @@ namespace x64
             this->type = type;
             this->dpl = dpl;
             this->present = TRUE;
-            this->long_mode = TRUE;
+            this->granularity = TRUE;
+
+            // Not set if this is a data segment
+            this->long_mode = long_mode && type != GDT_ENTRY_DATA;
+
+            // Opposite of LM
+            this->operation_size = this->long_mode ? FALSE : TRUE;
         }
 
         static constexpr GdtEntry Null()
@@ -254,17 +260,22 @@ namespace x64
     };
     static_assert(sizeof GdtEntry == 0x8);
 
-    namespace gdt_offset
+    enum class GdtIndex
     {
-        consteval u16 get(u8 index) { return ( u16 )(sizeof GdtEntry * index); }
-        static constexpr u16 null     = get(0);
-        static constexpr u16 r0_code  = get(1);
-        static constexpr u16 r0_data  = get(2);
-        static constexpr u16 r3_code  = get(3);
-        static constexpr u16 r3_data  = get(4);
-        static constexpr u16 tss_low  = get(5);
-        static constexpr u16 tss_high = get(6);
+        Null,
+        R0Code,
+        R0Data,
+        R3Code32,
+        R3Data,
+        R3Code,
+        TssLow,
+        TssHigh,
     };
+
+    consteval u16 GetGdtOffset(GdtIndex index)
+    {
+        return ( u16 )(sizeof GdtEntry * ( u16 )index);
+    }
 
 #define INT_GATE 0xe
 #define TRAP_GATE 0xf
@@ -296,7 +307,7 @@ namespace x64
             this->isr_mid = EXTRACT64(function, 16, 32);
             this->isr_high = HIGH32(function);
 
-            this->segment_selector = gdt_offset::r0_code;
+            this->segment_selector = GetGdtOffset(GdtIndex::R0Code);
 
             this->reserved0 = this->reserved1 = this->null = 0;
             this->ist = ist;
@@ -329,6 +340,8 @@ namespace x64
 
     void ReloadSegments(u16 code_selector, u16 data_selector);
     void LoadTr(u16 offset);
+    void Ring3Function();
+    void EnterUserMode(vaddr_t code, vaddr_t stack);
 
     EXTERN_C_END
 
