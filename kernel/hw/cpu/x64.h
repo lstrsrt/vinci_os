@@ -159,6 +159,28 @@ namespace x64
     };
     static_assert(sizeof Tss == 0x68);
 
+    enum IstIndex
+    {
+        // Index in TSS starts from 1
+        DoubleFaultIst = 1,
+        NmiIst,
+        DebugIst,
+        MachineCheckIst,
+
+        IstCount = MachineCheckIst
+    };
+
+    static constexpr u64 ist_size = KiB(4);
+
+    alignas(page_size) inline volatile u8 int_stack_tables[IstCount][ist_size]{};
+
+    alignas(64) inline Tss kernel_tss(
+        ( u64 )(int_stack_tables[0] + ist_size),
+        ( u64 )(int_stack_tables[1] + ist_size),
+        ( u64 )(int_stack_tables[2] + ist_size),
+        ( u64 )(int_stack_tables[3] + ist_size)
+    );
+
     // ignored: base fields, segment limit, granularity/readable/accessed bits
 
 /* S bit */
@@ -320,19 +342,6 @@ namespace x64
 #pragma pack()
 
     static constexpr u64 max_idt_entry = 256;
-
-    enum IstIndex
-    {
-        // Index in TSS starts from 1
-        DoubleFaultIst = 1,
-        NmiIst,
-        DebugIst,
-        MachineCheckIst,
-
-        IstCount = MachineCheckIst
-    };
-
-    static constexpr u64 ist_size = KiB(4);
 
     EXTERN_C_START
 
