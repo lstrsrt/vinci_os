@@ -88,8 +88,8 @@ namespace x64
         }
         else
         {
-            // IsrUnexpected does not keep the int_no so we can't print it
-            Print("IsrCommon: Unexpected interrupt.\n");
+            Print("IsrCommon: Unexpected interrupt %u.\n", int_no);
+            Halt();
         }
     }
 }

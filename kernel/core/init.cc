@@ -186,15 +186,13 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     paddr_t user_page;
     vaddr_t user_page_va = 0x7ff7f0000000;
+    vaddr_t user_stack_va = 0x7ff7f0001000;
+
     mm::AllocatePhysical(pool, &user_page);
     auto pte = mm::MapPage(pool, user_page_va, user_page, true);
 
-    paddr_t user_stack;
-    vaddr_t user_stack_va = 0x7ff7f0001000;
-    mm::AllocatePhysical(pool, &user_stack);
-    pte = mm::MapPage(pool, user_stack_va, user_stack, true);
-
-    // Print("0x%llx\n", pte->value);
+    mm::AllocatePhysical(pool, &user_page);
+    pte = mm::MapPage(pool, user_stack_va, user_page, true);
 
     __writecr3(pool.root);
 
@@ -202,11 +200,9 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     memzero(( void* )user_stack_va, page_size);
     memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 100);
-    for (auto i = ( uptr_t )user_page_va; i < ( uptr_t )user_page_va + 100; i++)
-        Print("0x%x ", *( u8* )i);
 
     x64::cpu_info.using_apic = false;
-    x64::Initialize();
+    x64::Initialize(kernel_stack_top);
 
     // for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
     // {
@@ -222,23 +218,11 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     else
         Print("No PS/2 legacy support.\n");
 
-    // while (1)
-    // {
-    //     volatile u8 last = time.s;
-    //     u64 x = __rdtsc();
-    //     volatile u64 next = timer::ticks + 1000;
-    //     while (next > timer::ticks)
-    //         ;
-    //     Print("%llu (%llu) ", ++a, __rdtsc() - x);
-    //     while (last == time.s)
-    //         ;
-    // }
-
     // Now that kernel init has completed, zero out discardable sections
     // and write-protect every section not marked writable.
     FinalizeKernelMapping(pool);
 
     x64::unmask_interrupts();
-    x64::EnterUserMode(user_page_va, user_stack_va);
-    x64::Idle();
+    x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
+    // x64::Idle();
 }

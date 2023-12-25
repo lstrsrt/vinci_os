@@ -3,10 +3,8 @@ extern OsInitialize: proc
 
 .code
 
-; TODO - move entry somewhere else
-
 ;
-; NO_RETURN void x64Entry()
+; NO_RETURN void x64Entry(LoaderBlock*)
 ;
 ; Main x64 architecture entry point
 ;
@@ -21,7 +19,8 @@ x64Entry endp
 ;
 ; void ReloadSegments(u16 code_selector, u16 data_selector)
 ;
-; Loads new code and data segments
+; Loads new code and data segments.
+; FS and GS are not changed!
 ;
 ; dx = New data selector
 ; cx = New code selector
@@ -30,8 +29,6 @@ ReloadSegments proc
     ; Loading data segments can be done with simple movs
     mov ds, dx
     mov es, dx
-    mov fs, dx
-    mov gs, dx
     mov ss, dx
 
     ; Set rdx to the label address and do a far return
@@ -60,9 +57,10 @@ LoadTr proc
 LoadTr endp
 
 ;
-; void Ring3Function()
+; NO_RETURN void Ring3Function()
 ;
-; Sample function to demonstrate entering ring 3
+; Sample function to demonstrate entering ring 3.
+; Never returns!
 ;
 Ring3Function proc
     mov rax, 0adadadadadadadadh
@@ -73,19 +71,18 @@ inf_loop:
 Ring3Function endp
 
 ;
-; void EnterUserMode()
+; void EnterUserMode(vaddr_t code, vaddr_t stack)
 ;
 ; Transfers control to ring 3 via sysret.
-; CS and SS are changed to user segments.
 ;
 ; rcx = User code address
 ; rdx = User stack address
 ;
 EnterUserMode proc
-    cli
-    ; mov rcx, 7ff7f0000000h ; user_page_va
-    mov r11, 200h ; 300h
-    mov rsp, rdx ; user_stack_va
+    mov r11, 202h ; new rflags
+    mov rsp, rdx
+    ; sysret jumps to rcx, which should be a canonical VA
+    ; mapped with the user mode bit set.
     sysretq
 EnterUserMode endp
 

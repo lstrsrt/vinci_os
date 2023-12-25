@@ -185,6 +185,22 @@ namespace mm
         return 0;
     }
 
+    size_t AllocatePhysical(PagePool& pool, paddr_t* phys_out, size_t count)
+    {
+        size_t page = AllocatePhysical(pool, phys_out);
+        if (!page)
+            return 0;
+
+        paddr_t tmp;
+        for (size_t i = 0; i < count; i++)
+        {
+            if (!AllocatePhysical(pool, &tmp))
+                return 0;
+        }
+
+        return page;
+    }
+
     // Converts the physical address of a paging structure within a pool to a virtual address
     INLINE vaddr_t GetPoolEntryVa(PagePool& pool, paddr_t phys)
     {

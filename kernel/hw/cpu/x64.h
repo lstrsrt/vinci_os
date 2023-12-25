@@ -16,7 +16,7 @@
 
 namespace x64
 {
-    EARLY void Initialize();
+    EARLY void Initialize(uptr_t kernel_stack);
 
     enum class Cr0 : u64
     {
@@ -171,15 +171,6 @@ namespace x64
     };
 
     static constexpr u64 ist_size = KiB(4);
-
-    alignas(page_size) inline volatile u8 int_stack_tables[IstCount][ist_size]{};
-
-    alignas(64) inline Tss kernel_tss(
-        ( u64 )(int_stack_tables[0] + ist_size),
-        ( u64 )(int_stack_tables[1] + ist_size),
-        ( u64 )(int_stack_tables[2] + ist_size),
-        ( u64 )(int_stack_tables[3] + ist_size)
-    );
 
     // ignored: base fields, segment limit, granularity/readable/accessed bits
 

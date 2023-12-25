@@ -8,6 +8,15 @@
 
 namespace x64
 {
+    alignas(page_size) inline volatile u8 int_stack_tables[IstCount][ist_size]{};
+
+    alignas(64) static Tss kernel_tss(
+        ( u64 )(int_stack_tables[0] + ist_size),
+        ( u64 )(int_stack_tables[1] + ist_size),
+        ( u64 )(int_stack_tables[2] + ist_size),
+        ( u64 )(int_stack_tables[3] + ist_size)
+    );
+
 #pragma data_seg("PROTDATA")
     alignas(64) static const GdtEntry gdt[]{
         GdtEntry::Null(),                              // Empty
@@ -494,8 +503,10 @@ namespace x64
 
     EXTERN_C void x64SysCall();
 
-    EARLY void Initialize()
+    EARLY void Initialize(uptr_t kernel_stack)
     {
+        kernel_tss.rsp0 = kernel_stack;
+
         // Fill out cpu_info and initialize CR0
         CheckFeatures();
         SetCr0Bits();
