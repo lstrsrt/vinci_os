@@ -75,7 +75,7 @@
       <CompileAs />
       <AdditionalOptions>/Zc:threadSafeInit- /source-charset:.1252 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
-      <DisableSpecificWarnings>4201;26495</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4201;4458;26495</DisableSpecificWarnings>
       <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
     <Link>

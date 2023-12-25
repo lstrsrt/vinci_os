@@ -151,6 +151,9 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     ReclaimBootPages(memory_map);
     CoalesceMemoryDescriptors(memory_map);
 
+    x64::cpu_info.using_apic = false;
+    x64::Initialize(kernel_stack_top);
+
     // Build a new page table (the bootloader one is temporary)
     mm::PagePool pool(kva::kernel_pt.base, pt_physical, pt_pages);
     mm::AllocatePhysical(pool, &pool.root);
@@ -164,9 +167,23 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
     mm::MapPagesInRegion<kva::frame_buffer>(pool, &display.frame_buffer, kva::frame_buffer.PageCount());
 
-    mm::MapPagesInRegion<kva::devices>(pool, &hpet, 1);
-    mm::MapPagesInRegion<kva::devices>(pool, &apic::io, 1);
-    mm::MapPagesInRegion<kva::devices>(pool, &apic::local, 1);
+    for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
+    {
+        // Map the framebuffer as write combining (PAT4)
+        auto pte = mm::GetPresentPte(pool, page);
+        pte->pat = true;
+    }
+
+    {
+        mm::MapPagesInRegion<kva::devices>(pool, &hpet, 1);
+        mm::GetPresentPte(pool, hpet)->cache_disable = true;
+
+        mm::MapPagesInRegion<kva::devices>(pool, &apic::io, 1);
+        mm::GetPresentPte(pool, apic::io)->cache_disable = true;
+
+        mm::MapPagesInRegion<kva::devices>(pool, &apic::local, 1);
+        mm::GetPresentPte(pool, apic::local)->cache_disable = true;
+    }
 
     IterateMemoryDescriptors(memory_map, [&pool](uefi::memory_descriptor* desc)
     {
@@ -189,27 +206,21 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     vaddr_t user_stack_va = 0x7ff7f0001000;
 
     mm::AllocatePhysical(pool, &user_page);
-    auto pte = mm::MapPage(pool, user_page_va, user_page, true);
+    mm::MapPage(pool, user_page_va, user_page, true);
 
     mm::AllocatePhysical(pool, &user_page);
-    pte = mm::MapPage(pool, user_stack_va, user_page, true);
+    mm::MapPage(pool, user_stack_va, user_page, true);
 
     __writecr3(pool.root);
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
 
-    memzero(( void* )user_stack_va, page_size);
-    memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 100);
-
-    x64::cpu_info.using_apic = false;
-    x64::Initialize(kernel_stack_top);
-
-    // for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
-    // {
-    //     // Map the framebuffer as write combining (PAT4)
-    //     auto pte = mm::GetPresentPte(pool, page);
-    //     pte->pat = true;
-    // }
+    {
+        x64::SmapSetAc();
+        memzero(( void* )user_stack_va, page_size);
+        memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 100);
+        x64::SmapClearAc();
+    }
 
     timer::Initialize(hpet);
 
@@ -223,6 +234,6 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     FinalizeKernelMapping(pool);
 
     x64::unmask_interrupts();
-    x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
-    // x64::Idle();
+    // x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
+    x64::Idle();
 }
