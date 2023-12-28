@@ -111,7 +111,7 @@ namespace x64
             u64 ignored0 : 3;
             u64 page_frame_number : 36;
             u64 reserved : 4;
-            u64 ignored : 7;
+            u64 ignored1 : 7;
             u64 protection_key : 4;
             u64 execute_disable : 1;
         };
@@ -242,6 +242,14 @@ namespace mm
         return pte ? pte->present : false;
     }
 
+    bool UnmapPage(mm::PagePool& pool, vaddr_t virt)
+    {
+        auto pte = GetPresentPte(pool, virt);
+        if (pte)
+            pte->present = false;
+        return pte != nullptr;
+    }
+
     x64::PageTableEntry* MapPage(PagePool& pool, vaddr_t virt, paddr_t phys, bool user = false)
     {
         if (!IsPageAligned(virt) || !IsPageAligned(phys))
@@ -260,7 +268,6 @@ namespace mm
             pml4e.value = physical_entry; // same as PFN = physical_entry * PAGE_SIZE
             pml4e.present = true;
             pml4e.writable = true;
-            pml4e.accessed = true;
             pml4e.user_mode = user;
         }
 
@@ -273,7 +280,6 @@ namespace mm
             pdpte.value = physical_entry;
             pdpte.present = true;
             pdpte.writable = true;
-            pdpte.accessed = true;
             pdpte.user_mode = user;
         }
 

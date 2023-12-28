@@ -86,6 +86,12 @@ namespace x64
 
         Print("CR4: ");
 
+        if (CheckCpuid(ids.ebx, CpuidFeature::FSGSBASE))
+        {
+            cr4 |= Cr4::FSGSBASE;
+            Print("FSGSBASE ");
+        }
+
         if (CheckCpuid(ids.ebx, CpuidFeature::SMEP))
         {
             cr4 |= Cr4::SMEP;
