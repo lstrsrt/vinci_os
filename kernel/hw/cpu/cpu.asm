@@ -1,5 +1,6 @@
 extern kernel_stack_top: qword
 extern OsInitialize: proc
+extern x64SyscallCxx: proc
 
 .code
 
@@ -11,6 +12,7 @@ extern OsInitialize: proc
 ; rcx = Loader block (used by OsInitialize)
 ;
 x64Entry proc
+    cli
     mov rsp, kernel_stack_top
     sub rsp, 32 ; shadow space
     jmp OsInitialize
@@ -63,8 +65,9 @@ LoadTr endp
 ; Never returns!
 ;
 Ring3Function proc
-    mov rax, 0adadadadadadadadh
-    mov rbx, rax
+    mov rdi, 123
+    mov rax, 1
+    syscall
 inf_loop:
     jmp inf_loop
     ret
@@ -86,8 +89,55 @@ EnterUserMode proc
     sysretq
 EnterUserMode endp
 
-x64SysCall proc
+;
+; u64 x64Syscall()
+;
+; Main syscall entry routine.
+; Loads the kernel stack, constructs a SyscallFrame and calls x64SyscallCxx
+; which selects and runs the requested system service.
+;
+; Result is returned in rax.
+;
+x64Syscall proc
+    swapgs            ; Switch to kernel gs from KERNEL_GS_BASE MSR
+
+    mov gs:[8], rsp   ; Store user stack
+
+    ; TODO - currently this is just kernel_stack_top,
+    ; have to store the kernel stack location first...
+    mov rsp, gs:[0]   ; Switch to kernel stack
+
+    push r11 ; rflags
+    push r10
+    push r9
+    push r8
+    push rcx
+    push rdx
+    push rax ; int_no
+    push rdi
+    push rsi
+    push r11
+
+    mov rcx, rsp  ; SyscallFrame
+    mov rdx, rax  ; int_no
+    sub rsp, 32   ; shadow space
+    call x64SyscallCxx
+    add rsp, 32
+
+    pop r11
+    pop rsi
+    pop rdi
+    add rsp, 8 ; Don't restore rax since it holds the return value
+    pop rdx
+    pop rcx
+    pop r8
+    pop r9
+    pop r10
+    pop r11
+
+    ; Back to user mode
+    swapgs
     sysretq
-x64SysCall endp
+x64Syscall endp
 
 end

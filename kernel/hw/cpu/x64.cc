@@ -70,6 +70,11 @@ namespace x64
         if (CheckCpuid(ids.ecx, ( CpuidFeature )(1 << 21)))
             Print("X2APIC ");
 
+        ids = Cpuid(CpuidLeaf::ExtendedInfo);
+
+        if (!CheckCpuid(ids.edx, CpuidFeature::SYSCALL))
+            ke::Panic(Status::UnsupportedSystem);
+
         Print("\n");
     }
 
@@ -497,17 +502,72 @@ namespace x64
 
     enum class Msr : u32
     {
-        IA32_FS_BASE = 0xc0000100,
-        IA32_GS_BASE = 0xc0000101,
-        IA32_KERNEL_GS_BASE = 0xc0000102,
+        FS_BASE = 0xc0000100,
+        GS_BASE = 0xc0000101,
+        KERNEL_GS_BASE = 0xc0000102,
 
-        IA32_EFER = 0xc0000080,
-        IA32_STAR = 0xc0000081,
-        IA32_LSTAR = 0xc0000082, // Target RIP
-        IA32_FMASK = 0xc0000084,
+        EFER = 0xc0000080,
+        STAR = 0xc0000081,
+        LSTAR = 0xc0000082,
+        FMASK = 0xc0000084
     };
 
-    EXTERN_C void x64SysCall();
+    enum RFlag
+    {
+        RFL_CF = 1 << 0, // Carry Flag
+        RFL_PF = 1 << 2, // Parity Flag
+        RFL_AF = 1 << 4, // Auxiliary Carry Flag
+        RFL_ZF = 1 << 6, // Zero Flag
+        RFL_SF = 1 << 7, // Sign Flag
+        RFL_TF = 1 << 8, // Trap Flag
+        RFL_IF = 1 << 9, // Interrupt Flag
+        RFL_DF = 1 << 10, // Direction Flag
+        RFL_OF = 1 << 11, // Overflow Flag
+        RFL_IOPL = (1 << 12) | (1 << 13), // I/O Privilege Level
+        RFL_NT = 1 << 14, // Nested Task Flag
+        RFL_MD = 1 << 15, // Mode Flag
+        RFL_RF = 1 << 16, // Resume Flag
+        RFL_VM = 1 << 17, // Virtual 8086 Mode
+        RFL_AC = 1 << 18, // Alignment Check/SMAP Access Check
+        RFL_VIF = 1 << 19, // Virtual Interrupt Flag
+        RFL_VIP = 1 << 20, // Virtual Interrupt Pending
+        RFL_ID = 1 << 21 // CPUID Support
+    };
+
+#define EFER_SCE (1 << 0)
+
+#define ReadMsr(msr) __readmsr(( u32 )msr)
+#define WriteMsr(msr, x) __writemsr(( u32 )msr, x)
+
+    EARLY void InitSyscalls()
+    {
+        // Store syscall/sysret code and stack selectors
+        constexpr auto star = ((( u64 )GetGdtOffset(GdtIndex::R0Code)) << 32) |
+            /* sysret: 8 is added for SS which gets us to R3Data,
+               16 is added for CS which is R3Code */
+            (((( u64 )GetGdtOffset(GdtIndex::R3Code32) | /* ring */ 3)) << 48);
+        WriteMsr(Msr::STAR, star);
+
+        // Mask interrupts and traps on syscalls
+        WriteMsr(Msr::LSTAR, ( uptr_t )x64Syscall);
+        WriteMsr(Msr::FMASK, RFL_IF | RFL_TF);
+
+        // Enable syscall extensions
+        auto efer = ReadMsr(Msr::EFER);
+        WriteMsr(Msr::EFER, efer | EFER_SCE);
+    }
+
+    EXTERN_C u64 x64SyscallCxx(x64::SyscallFrame* frame, u64 sys_no)
+    {
+        Print("Syscall number: 0x%llx\n", sys_no);
+
+        if (sys_no == 1)
+            Print("%d\n", ( int )frame->rdi);
+
+        Print("Returning to 0x%llx with flags 0x%llx\n", frame->rcx, frame->rflags);
+
+        return 0;
+    }
 
     EARLY void Initialize(uptr_t kernel_stack)
     {
@@ -530,19 +590,13 @@ namespace x64
         // Initialize interrupt controllers
         InitInterrupts();
 
-        // TODO - check via cpuid if syscall/sysret is supported
+        InitSyscalls();
 
-        constexpr auto star = ((( u64 )GetGdtOffset(GdtIndex::R0Code)) << 32) |
-            /* sysret: 8 is added for SS which gets us to R3Data,
-               16 is added for CS which is R3Code */
-            (((( u64 )GetGdtOffset(GdtIndex::R3Code32) | 3)) << 48);
-        __writemsr(( u32 )Msr::IA32_STAR, star);
+        core.kernel_stack = kernel_stack; // FIXME
+        _writegsbase_u64(( uptr_t )&core);
+        Print("GS base: 0x%llx\n", _readgsbase_u64());
 
-        // TODO - rflags enum
-        __writemsr(( u32 )Msr::IA32_LSTAR, ( u64 )x64SysCall);
-        __writemsr(( u32 )Msr::IA32_FMASK, 0x200 | 0x100); // Mask interrupts and traps on syscall
-
-        auto efer = __readmsr(( u32 )Msr::IA32_EFER);
-        __writemsr(( u32 )Msr::IA32_EFER, efer | 0x1); // Enable syscall extensions
+        WriteMsr(Msr::KERNEL_GS_BASE, ( uptr_t )&core);
+        WriteMsr(Msr::GS_BASE, 0); // User space has nothing stored here for now
     }
 }

@@ -4,11 +4,12 @@
 
 namespace x64
 {
-    enum class CpuidLeaf
+    enum class CpuidLeaf : u32
     {
         VendorString = 0x0,
         Info = 0x1,
-        ExtendedFeatures = 0x7
+        ExtendedFeatures = 0x7,
+        ExtendedInfo = 0x80000001,
     };
 
     enum class CpuidFeature
@@ -138,16 +139,16 @@ namespace x64
         SSBD = 1 << 31,
 
         // EDX (leaf 0x80000001)
-        AMD_SYSCALL = 1 << 11,
-        AMD_MP = 1 << 19,
-        AMD_NX = 1 << 20,
-        AMD_MMXEXT = 1 << 22,
-        AMD_FXSR_OPT = 1 << 25,
-        AMD_PDPE1GB = 1 << 26,
-        AMD_RDTSCP = 1 << 27,
-        AMD_LM = 1 << 29,
-        AMD_3DNOW_EXT = 1 << 30,
-        AMD_3DNOW = 1 << 31,
+        SYSCALL = 1 << 11,
+        MP = 1 << 19,
+        NX = 1 << 20,
+        MMXEXT = 1 << 22,
+        FXSR_OPT = 1 << 25,
+        PDPE1GB = 1 << 26,
+        RDTSCP = 1 << 27,
+        LM = 1 << 29,
+        _3DNOW_EXT = 1 << 30,
+        _3DNOW = 1 << 31,
     };
 
     union Cpuid

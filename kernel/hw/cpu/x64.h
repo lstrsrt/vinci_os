@@ -334,14 +334,33 @@ namespace x64
 
     static constexpr u64 max_idt_entry = 256;
 
+    struct Core
+    {
+        uptr_t kernel_stack;
+        uptr_t user_stack;
+    };
+
+    inline Core core{}; // This goes into GS.
+
+    struct SyscallFrame
+    {
+        u64 rflags;
+        u64 rsi, rdi;
+        u64 rax, rdx, rcx;
+        u64 r8, r9, r10, r11;
+    };
+
     EXTERN_C_START
 
     /* Implemented in assembly (see cpu.asm) */
-
     void ReloadSegments(u16 code_selector, u16 data_selector);
     void LoadTr(u16 offset);
     void Ring3Function();
-    void EnterUserMode(vaddr_t code, vaddr_t stack);
+    void EnterUserMode(uptr_t code, uptr_t stack);
+    void x64Syscall();
+
+    // C++ handler
+    u64 x64SyscallCxx(SyscallFrame* frame, u64 sys_no);
 
     EXTERN_C_END
 

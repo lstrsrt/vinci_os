@@ -167,12 +167,9 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
     mm::MapPagesInRegion<kva::frame_buffer>(pool, &display.frame_buffer, kva::frame_buffer.PageCount());
 
+    // Map the framebuffer as write combining (PAT4)
     for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
-    {
-        // Map the framebuffer as write combining (PAT4)
-        auto pte = mm::GetPresentPte(pool, page);
-        pte->pat = true;
-    }
+        mm::GetPresentPte(pool, page)->pat = true;
 
     {
         mm::MapPagesInRegion<kva::devices>(pool, &hpet, 1);
@@ -218,7 +215,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     {
         x64::SmapSetAc();
         memzero(( void* )user_stack_va, page_size);
-        memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 100);
+        memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 40);
         x64::SmapClearAc();
     }
 
@@ -234,6 +231,6 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     FinalizeKernelMapping(pool);
 
     x64::unmask_interrupts();
-    // x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
-    x64::Idle();
+    x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
+    // x64::Idle();
 }
