@@ -18,6 +18,29 @@ namespace x64
 {
     EARLY void Initialize(uptr_t kernel_stack);
 
+    enum class RFLAGS
+    {
+        CF = 1 << 0,                  // Carry Flag
+        PF = 1 << 2,                  // Parity Flag
+        AF = 1 << 4,                  // Auxiliary Carry Flag
+        ZF = 1 << 6,                  // Zero Flag
+        SF = 1 << 7,                  // Sign Flag
+        TF = 1 << 8,                  // Trap Flag
+        IF = 1 << 9,                  // Interrupt Flag
+        DF = 1 << 10,                 // Direction Flag
+        OF = 1 << 11,                 // Overflow Flag
+        IOPL = (1 << 12) | (1 << 13), // I/O Privilege Level
+        NT = 1 << 14,                 // Nested Task Flag
+        MD = 1 << 15,                 // Mode Flag
+        RF = 1 << 16,                 // Resume Flag
+        VM = 1 << 17,                 // Virtual 8086 Mode
+        AC = 1 << 18,                 // Alignment Check/SMAP Access Check
+        VIF = 1 << 19,                // Virtual Interrupt Flag
+        VIP = 1 << 20,                // Virtual Interrupt Pending
+        ID = 1 << 21                  // CPUID Support
+    };
+    EC_ENUM_BIT_OPS(RFLAGS)
+
     enum class Cr0 : u64
     {
         PE = 1 << 0,
@@ -330,6 +353,21 @@ namespace x64
         }
     };
     static_assert(sizeof IdtEntry == 0x10);
+
+#define TABLE_GDT 0
+#define TABLE_LDT 1
+
+    union SegmentSelector
+    {
+        struct
+        {
+            u16 rpl : 2;
+            u16 table : 1;
+            u16 index : 13;
+        };
+        u16 bits;
+    };
+    static_assert(sizeof SegmentSelector == sizeof u16);
 #pragma pack()
 
     static constexpr u64 max_idt_entry = 256;

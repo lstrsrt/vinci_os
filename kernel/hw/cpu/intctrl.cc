@@ -2,6 +2,7 @@
 
 #include "x64.h"
 #include "isr.h"
+#include "msr.h"
 #include "../serial/serial.h"
 #include "../../core/gfx/output.h"
 
@@ -93,11 +94,6 @@ namespace x64
         }
     }
 }
-
-// TODO - msr header with enums
-#define MSR_APIC_BASE 0x1b
-#define APIC_BSP (1 << 8)
-#define APIC_GLOBAL_ENABLE (1 << 11)
 
 namespace apic
 {
@@ -217,13 +213,13 @@ namespace apic
         Print("TPR: 0x%x\n", ReadLocal(LocalReg::TPR));
         Print("ERR_LVTR: 0x%x\n", ReadLocal(LocalReg::ERR_LVTR));
 
-        u64 msr_apic = __readmsr(MSR_APIC_BASE);
+        u64 msr_apic = ReadMsr(x64::Msr::APIC_BASE);
         // Print("MSR_APIC_BASE: 0x%llx\n", msr_apic);
 
         if (!(msr_apic & APIC_GLOBAL_ENABLE))
         {
             Print("APIC was disabled in APIC_BASE MSR -- enabling now.\n");
-            __writemsr(MSR_APIC_BASE, msr_apic | APIC_BSP | APIC_GLOBAL_ENABLE);
+            WriteMsr(x64::Msr::APIC_BASE, msr_apic | APIC_BSP | APIC_GLOBAL_ENABLE);
         }
 
         WriteLocal(LocalReg::TPR, 0);

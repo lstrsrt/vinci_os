@@ -149,6 +149,9 @@
     <ClInclude Include="common\acpi.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="hw\cpu\msr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="hw\cpu\cpu.asm">

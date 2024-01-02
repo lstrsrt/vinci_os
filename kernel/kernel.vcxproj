@@ -162,6 +162,7 @@
     <ClInclude Include="hw\cmos\cmos.h" />
     <ClInclude Include="hw\cpu\cpuid.h" />
     <ClInclude Include="hw\cpu\isr.h" />
+    <ClInclude Include="hw\cpu\msr.h" />
     <ClInclude Include="hw\cpu\x64.h" />
     <ClInclude Include="hw\ps2\keyboard.h" />
     <ClInclude Include="hw\ps2\ps2.h" />

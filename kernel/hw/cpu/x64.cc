@@ -3,6 +3,7 @@
 #include "x64.h"
 #include "cpuid.h"
 #include "isr.h"
+#include "msr.h"
 #include "../../core/ke.h"
 #include "../../core/gfx/output.h"
 
@@ -147,7 +148,7 @@ namespace x64
 
         // This is the same as the default PAT entries
         // but with one exception: PAT4 selects WC instead of WB
-        static constexpr auto pat_entries = ( u64 )(
+        static constexpr auto pat_entries = (
             (MemoryType::WriteBack)              // PAT0: WB
             | (MemoryType::WriteThrough << 8)    // PAT1: WT
             | (MemoryType::Uncached << 16)       // PAT2: UC-
@@ -159,7 +160,7 @@ namespace x64
 
         TlbFlush();
         __wbinvd();
-        __writemsr(MSR_PAT, pat_entries);
+        WriteMsr(MSR_PAT, pat_entries);
         __wbinvd();
         TlbFlush();
     }
@@ -474,83 +475,29 @@ namespace x64
         EnableNmi();
     }
 
-#pragma pack(1)
-    union SegmentSelector
-    {
-        struct
-        {
-            u16 rpl : 2;
-            u16 table : 1; // 0: GDT, 1: LDT
-            u16 index : 13;
-        };
-        u16 bits;
-    };
-    static_assert(sizeof SegmentSelector == sizeof u16);
-
-    union Ia32Star
-    {
-        struct
-        {
-            u32 reserved;
-            u16 syscall_cs;
-            u16 sysret_cs;
-        };
-        u64 bits;
-    };
-    static_assert(sizeof Ia32Star == sizeof u64);
-#pragma pack()
-
-    enum class Msr : u32
-    {
-        FS_BASE = 0xc0000100,
-        GS_BASE = 0xc0000101,
-        KERNEL_GS_BASE = 0xc0000102,
-
-        EFER = 0xc0000080,
-        STAR = 0xc0000081,
-        LSTAR = 0xc0000082,
-        FMASK = 0xc0000084
-    };
-
-    enum RFlag
-    {
-        RFL_CF = 1 << 0, // Carry Flag
-        RFL_PF = 1 << 2, // Parity Flag
-        RFL_AF = 1 << 4, // Auxiliary Carry Flag
-        RFL_ZF = 1 << 6, // Zero Flag
-        RFL_SF = 1 << 7, // Sign Flag
-        RFL_TF = 1 << 8, // Trap Flag
-        RFL_IF = 1 << 9, // Interrupt Flag
-        RFL_DF = 1 << 10, // Direction Flag
-        RFL_OF = 1 << 11, // Overflow Flag
-        RFL_IOPL = (1 << 12) | (1 << 13), // I/O Privilege Level
-        RFL_NT = 1 << 14, // Nested Task Flag
-        RFL_MD = 1 << 15, // Mode Flag
-        RFL_RF = 1 << 16, // Resume Flag
-        RFL_VM = 1 << 17, // Virtual 8086 Mode
-        RFL_AC = 1 << 18, // Alignment Check/SMAP Access Check
-        RFL_VIF = 1 << 19, // Virtual Interrupt Flag
-        RFL_VIP = 1 << 20, // Virtual Interrupt Pending
-        RFL_ID = 1 << 21 // CPUID Support
-    };
-
-#define EFER_SCE (1 << 0)
-
-#define ReadMsr(msr) __readmsr(( u32 )msr)
-#define WriteMsr(msr, x) __writemsr(( u32 )msr, x)
-
     EARLY void InitSyscalls()
     {
-        // Store syscall/sysret code and stack selectors
-        constexpr auto star = ((( u64 )GetGdtOffset(GdtIndex::R0Code)) << 32) |
-            /* sysret: 8 is added for SS which gets us to R3Data,
-               16 is added for CS which is R3Code */
-            (((( u64 )GetGdtOffset(GdtIndex::R3Code32) | /* ring */ 3)) << 48);
-        WriteMsr(Msr::STAR, star);
+        x64::MsrStar star{};
+
+        // On syscall:
+        // ss = IA32_STAR[47:32] + 8
+        // cs = IA32_STAR[47:32]
+        star.syscall_cs.index = ( u16 )GdtIndex::R0Code;
+        star.syscall_cs.rpl = 0;
+        star.syscall_cs.table = TABLE_GDT;
+
+        // On sysret:
+        // ss = IA32_STAR[63:48] + 8
+        // cs = IA32_STAR[63:48] + 16
+        star.sysret_cs.index = ( u16 )GdtIndex::R3Code32;
+        star.sysret_cs.rpl = 3;
+        star.sysret_cs.table = TABLE_GDT;
+
+        WriteMsr(Msr::STAR, star.bits);
 
         // Mask interrupts and traps on syscalls
         WriteMsr(Msr::LSTAR, ( uptr_t )x64Syscall);
-        WriteMsr(Msr::FMASK, RFL_IF | RFL_TF);
+        WriteMsr(Msr::FMASK, ( u64 )(RFLAGS::IF | RFLAGS::TF));
 
         // Enable syscall extensions
         auto efer = ReadMsr(Msr::EFER);
