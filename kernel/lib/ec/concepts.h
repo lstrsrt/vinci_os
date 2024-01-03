@@ -38,9 +38,11 @@ namespace ec::inline concepts
         template<class T> constexpr bool is_pointer<T* volatile> = true;
         template<class T> constexpr bool is_pointer<T* const volatile> = true;
 
-        template <class> constexpr bool is_array = false;
-        template <class T, size_t N> constexpr bool is_array<T[N]> = true;
-        template <class T> constexpr bool is_array<T[]> = true;
+        template<class> constexpr bool is_array = false;
+        template<class T, size_t N> constexpr bool is_array<T[N]> = true;
+        template<class T> constexpr bool is_array<T[]> = true;
+
+        template<class T, class U> constexpr bool is_convertible = __is_convertible_to(T, U);
     }
 
     template<class T> using remove_const = typename impl::remove_const<T>::type;
@@ -96,6 +98,9 @@ namespace ec::inline concepts
 
     template<class T>
     concept is_array = impl::is_array<T>;
+
+    template<class T, class U>
+    concept convertible = impl::is_convertible<T, U> && requires { static_cast<U>(declval<T>()); };;
 
     template<is_enum T>
     using underlying_t = __underlying_type(T);

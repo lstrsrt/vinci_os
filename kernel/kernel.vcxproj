@@ -174,7 +174,9 @@
     <ClInclude Include="lib\ec\concepts.h" />
     <ClInclude Include="lib\ec\const.h" />
     <ClInclude Include="lib\ec\enums.h" />
+    <ClInclude Include="lib\ec\format.h" />
     <ClInclude Include="lib\ec\iterator.h" />
+    <ClInclude Include="lib\ec\string.h" />
     <ClInclude Include="lib\ec\util.h" />
     <ClInclude Include="lib\libc\args.h" />
     <ClInclude Include="lib\libc\mem.h" />
