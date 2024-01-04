@@ -2,6 +2,34 @@ extern kernel_stack_top: qword
 extern OsInitialize: proc
 extern x64SyscallCxx: proc
 
+.data
+
+InterruptFrame struct
+    _rax qword ?
+    _rcx qword ?
+    _rdx qword ?
+    _rbx qword ?
+    _rsi qword ?
+    _rdi qword ?
+    _r8 qword ?
+    _r9 qword ?
+    _r10 qword ?
+    _r11 qword ?
+    _r12 qword ?
+    _r13 qword ?
+    _r14 qword ?
+    _r15 qword ?
+    _fs qword ?
+    _gs qword ?
+    _rbp qword ?
+    _unused qword ?
+    _rip qword ?
+    _cs qword ?
+    _rflags qword ?
+    _rsp qword ?
+    _ss qword ?
+InterruptFrame ends
+
 .code
 
 ;
@@ -65,8 +93,8 @@ LoadTr endp
 ; Never returns!
 ;
 Ring3Function proc
-    mov rdi, 123
-    mov rax, 1
+    mov rdi, 1000
+    mov rax, 2
     syscall
 inf_loop:
     jmp inf_loop
@@ -99,7 +127,7 @@ EnterUserMode endp
 ; Result is returned in rax.
 ;
 x64Syscall proc
-    swapgs            ; Switch to kernel gs from KERNEL_GS_BASE MSR
+    swapgs            ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
 
     mov gs:[8], rsp   ; Store user stack
 
@@ -139,5 +167,67 @@ x64Syscall proc
     swapgs
     sysretq
 x64Syscall endp
+
+;
+; void SetRegs()
+;
+SetRegs proc
+    mov rbx, rcx
+    mov rsi, rcx
+    mov rdi, rcx
+    mov r12, rcx
+    mov r13, rcx
+    mov r14, rcx
+    mov r15, rcx
+    ret
+SetRegs endp
+
+;
+; void SaveContext(InterruptFrame* ctx)
+;
+SaveContext proc
+    mov [rcx + InterruptFrame._rsp], rsp
+    mov [rcx + InterruptFrame._rbp], rbp
+    mov [rcx + InterruptFrame._rbx], rbx
+    mov [rcx + InterruptFrame._rdi], rdi
+    mov [rcx + InterruptFrame._rsi], rsi
+    mov [rcx + InterruptFrame._r12], r12
+    mov [rcx + InterruptFrame._r13], r13
+    mov [rcx + InterruptFrame._r14], r14
+    mov [rcx + InterruptFrame._r15], r15
+
+    pushfq
+    pop rax
+    mov [rcx + InterruptFrame._rflags], rax
+
+    ; Get the return address from the stack
+    pop rdx
+    mov [rcx + InterruptFrame._rip], rdx
+    mov [rcx + InterruptFrame._rsp], rsp
+
+    jmp rdx
+SaveContext endp
+
+;
+; void LoadContext(InterruptFrame* ctx)
+;
+LoadContext proc
+    mov rsp, [rcx + InterruptFrame._rsp]
+    mov rbp, [rcx + InterruptFrame._rbp]
+    mov rbx, [rcx + InterruptFrame._rbx]
+    mov rdi, [rcx + InterruptFrame._rdi]
+    mov rsi, [rcx + InterruptFrame._rsi]
+    mov r12, [rcx + InterruptFrame._r12]
+    mov r13, [rcx + InterruptFrame._r13]
+    mov r14, [rcx + InterruptFrame._r14]
+    mov r15, [rcx + InterruptFrame._r15]
+
+    mov r8, [rcx + InterruptFrame._rflags]
+    push r8
+    popfq
+
+    mov r9, [rcx + InterruptFrame._rip]
+    jmp r9
+LoadContext endp
 
 end

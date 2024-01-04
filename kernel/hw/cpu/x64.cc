@@ -7,17 +7,10 @@
 #include "../../core/ke.h"
 #include "../../core/gfx/output.h"
 
+#include "../timer/timer.h"
+
 namespace x64
 {
-    alignas(page_size) inline volatile u8 int_stack_tables[IstCount][ist_size]{};
-
-    alignas(64) static Tss kernel_tss(
-        ( u64 )(int_stack_tables[0] + ist_size),
-        ( u64 )(int_stack_tables[1] + ist_size),
-        ( u64 )(int_stack_tables[2] + ist_size),
-        ( u64 )(int_stack_tables[3] + ist_size)
-    );
-
 #pragma data_seg("PROTDATA")
     alignas(64) static const GdtEntry gdt[]{
         GdtEntry::Null(),                              // Empty
@@ -504,7 +497,7 @@ namespace x64
         WriteMsr(Msr::EFER, efer | EFER_SCE);
     }
 
-    EXTERN_C u64 x64SyscallCxx(x64::SyscallFrame* frame, u64 sys_no)
+    EXTERN_C u64 x64SyscallCxx(SyscallFrame* frame, u64 sys_no)
     {
         Print("Syscall number: 0x%llx\n", sys_no);
 

@@ -4,8 +4,10 @@
 
 namespace timer
 {
-    inline volatile u64 ticks;
-    inline volatile u64 seconds;
+#pragma data_seg(".data")
+    inline volatile u64 ticks = 0;
+    inline volatile u64 seconds = 0;
+#pragma data_seg()
 
     EARLY void Initialize(u64 hpet_address);
 

@@ -79,7 +79,10 @@ namespace ec::inline concepts
     concept is_number = is_integral<T> || is_float<T>;
 
     template<class T>
-    concept is_unsigned = impl::is_unsigned<T>;
+    concept is_unsigned = is_integral<T> && static_cast<remove_cv<T>>(-1) < static_cast<remove_cv<T>>(0);
+
+    template<class T>
+    concept is_signed = is_integral<T> && !is_unsigned<T>;
 
     template<class T, class... Args>
     concept is_callable = requires(T t) { T(declval<Args>()...); };

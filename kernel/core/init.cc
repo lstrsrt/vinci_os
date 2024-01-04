@@ -106,27 +106,92 @@ static void FinalizeKernelMapping(mm::PagePool& pool)
     auto kernel_nt = ImageNtHeaders(( void* )kva::kernel.base);
     auto section = IMAGE_FIRST_SECTION(kernel_nt);
 
-    for (u16 i = 0; i < kernel_nt->FileHeader.NumberOfSections; i++)
+    for (u16 i = 0; i < kernel_nt->FileHeader.NumberOfSections; i++, section++)
     {
         const auto start = kva::kernel.base + section->VirtualAddress;
         const auto size = section->Misc.VirtualSize;
         const auto end = start + size;
 
         if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE)
+        {
             memzero(( void* )start, size);
+            for (auto page = start; page < end; page += page_size)
+            {
+                mm::UnmapPage(pool, page);
+                x64::TlbFlushAddress(( void* )page);
+            }
+            continue;
+        }
 
         if (!(section->Characteristics & IMAGE_SCN_MEM_WRITE))
         {
             for (auto page = start; page < end; page += page_size)
             {
-                auto pte = mm::GetPresentPte(pool, start);
+                auto pte = mm::GetPresentPte(pool, page);
                 pte->writable = false;
                 x64::TlbFlushAddress(( void* )page);
             }
         }
-
-        section++;
     }
+}
+
+void PrintContext(x64::InterruptFrame* ctx)
+{
+    serial::Write("R9 : 0x%llx\n", ctx->r9);
+    serial::Write("R10: 0x%llx\n", ctx->r10);
+    serial::Write("R11: 0x%llx\n", ctx->r11);
+    serial::Write("R12: 0x%llx\n", ctx->r12);
+    serial::Write("R13: 0x%llx\n", ctx->r13);
+    serial::Write("R14: 0x%llx\n", ctx->r14);
+    serial::Write("R15: 0x%llx\n", ctx->r15);
+    serial::Write("RDI: 0x%llx\n", ctx->rdi);
+    serial::Write("RSI: 0x%llx\n", ctx->rsi);
+    serial::Write("RBX: 0x%llx\n", ctx->rbx);
+    serial::Write("RBP: 0x%llx\n", ctx->rbp);
+    serial::Write("RSP: 0x%llx\n", ctx->rsp);
+    serial::Write("RIP: 0x%llx\n", ctx->rip);
+    serial::Write("RFL: 0x%llx\n", ctx->rflags);
+}
+
+static void ThreadAFunc()
+{
+    int i = 0;
+    while (1)
+    {
+        x64::SaveContext(&x64::cur->ctx);
+
+        Print("A %d\n", i++);
+        serial::Write("********* Reg Dump A:\n");
+        PrintContext(&x64::cur->ctx);
+
+        x64::LoadContext(&x64::next->ctx);
+    }
+}
+
+static void ThreadBFunc()
+{
+    int i = 0;
+    while (1)
+    {
+        x64::SaveContext(&x64::next->ctx);
+
+        Print("B %d\n", i++);
+        serial::Write("********* Reg Dump B:\n");
+        PrintContext(&x64::next->ctx);
+
+        x64::LoadContext(&x64::cur->ctx);
+    }
+}
+
+static auto& CreateThread(size_t i, void* function, vaddr_t stack)
+{
+    using namespace x64;
+    memzero(&threads[i], sizeof Thread);
+    threads[i].ctx.rip = ( u64 )function;
+    threads[i].ctx.rsp = stack;
+    threads[i].ctx.rflags = ( u64 )RFLAGS::IF | 2;
+    threads[i].id = i + 1;
+    return threads[i];
 }
 
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
@@ -198,6 +263,16 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     // SerialPrintDescriptors(memory_map);
 
+    vaddr_t stk_va = kva::kernel.base + (200*page_size), stk_va2 = stk_va + page_size;
+    Print("stk_va 0x%llx stk_va2 0x%llx\n", stk_va + page_size, stk_va2 + page_size);
+    {
+        paddr_t tmp_stk;
+        mm::AllocatePhysical(pool, &tmp_stk);
+        mm::MapPage(pool, stk_va, tmp_stk);
+        mm::AllocatePhysical(pool, &tmp_stk);
+        mm::MapPage(pool, stk_va2, tmp_stk);
+    }
+
     paddr_t user_page;
     vaddr_t user_page_va = 0x7ff7f0000000;
     vaddr_t user_stack_va = 0x7ff7f0001000;
@@ -231,6 +306,16 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     FinalizeKernelMapping(pool);
 
     x64::unmask_interrupts();
-    x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
-    // x64::Idle();
+
+    CreateThread(0, ThreadAFunc, stk_va + page_size);
+    CreateThread(1, ThreadBFunc, stk_va2 + page_size);
+    x64::cur = &x64::threads[0];
+    x64::next = &x64::threads[1];
+    x64::schedule = true;
+
+    // x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
+
+    x64::LoadContext(&x64::cur->ctx);
+
+    x64::Idle();
 }

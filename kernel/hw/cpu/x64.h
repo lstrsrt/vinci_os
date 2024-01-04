@@ -18,7 +18,7 @@ namespace x64
 {
     EARLY void Initialize(uptr_t kernel_stack);
 
-    enum class RFLAGS
+    enum class RFLAGS : u64
     {
         CF = 1 << 0,                  // Carry Flag
         PF = 1 << 2,                  // Parity Flag
@@ -43,47 +43,47 @@ namespace x64
 
     enum class Cr0 : u64
     {
-        PE = 1 << 0,
-        MP = 1 << 1,
-        EM = 1 << 2,
-        TS = 1 << 3,
-        ET = 1 << 4,
-        NE = 1 << 5,
-        WP = 1 << 16,
-        AM = 1 << 18,
-        NW = 1 << 29,
-        CD = 1 << 30,
-        PG = 1 << 31,
+        PE = 1 << 0,   // Protected Mode
+        MP = 1 << 1,   // Monitor co-processor
+        EM = 1 << 2,   // Emulation
+        TS = 1 << 3,   // Task switched
+        ET = 1 << 4,   // Extension type
+        NE = 1 << 5,   // Numeric error
+        WP = 1 << 16,  // Write protect
+        AM = 1 << 18,  // Alignment mask
+        NW = 1 << 29,  // Not-write through
+        CD = 1 << 30,  // Cache disable
+        PG = 1 << 31,  // Paging
     };
     EC_ENUM_BIT_OPS(Cr0)
 
     enum class Cr4 : u64
     {
-        VME = 1 << 0,
-        PVI = 1 << 1,
-        TSD = 1 << 2,
-        DE = 1 << 3,
-        PSE = 1 << 4,
-        PAE = 1 << 5,
-        MCE = 1 << 6,
-        PGE = 1 << 7,
-        PCE = 1 << 8,
-        OSFXSR = 1 << 9,
-        OSXMMEXCPT = 1 << 10,
-        UMIP = 1 << 11,
-        LA57 = 1 << 12,
-        VMXE = 1 << 13,
-        SMXE = 1 << 14,
-        FSGSBASE = 1 << 16,
-        PCIDE = 1 << 17,
-        OSXSAVE = 1 << 18,
-        KL = 1 << 19,
-        SMEP = 1 << 20,
-        SMAP = 1 << 21,
-        PKE = 1 << 22,
-        CET = 1 << 23,
-        PKS = 1 << 24,
-        UINTR = 1 << 25,
+        VME = 1 << 0,          // Virtual 8086 Mode Extensions
+        PVI = 1 << 1,          // Protected-mode Virtual Extensions
+        TSD = 1 << 2,          // Time Stamp Disable
+        DE = 1 << 3,           // Debugging Extensions
+        PSE = 1 << 4,          // Page Size Extensions
+        PAE = 1 << 5,          // Physical Address Extensions
+        MCE = 1 << 6,          // Machine Check Exception
+        PGE = 1 << 7,          // Page Global Enabled
+        PCE = 1 << 8,          // Performance-Monitoring Counter
+        OSFXSR = 1 << 9,       // FXSAVE and FXRSTOR
+        OSXMMEXCPT = 1 << 10,  // SSE Exceptions
+        UMIP = 1 << 11,        // User-Mode Instruction Prevention
+        LA57 = 1 << 12,        // 57-Bit Linear Addresses
+        VMXE = 1 << 13,        // Virtual Machine Extensions
+        SMXE = 1 << 14,        // Safer Mode Extensions
+        FSGSBASE = 1 << 16,    // {RD,WR}{FS,GS}BASE
+        PCIDE = 1 << 17,       // Process Context Identifiers
+        OSXSAVE = 1 << 18,     // XSAVE and Processor Extended States
+        KL = 1 << 19,          // Key Locker
+        SMEP = 1 << 20,        // Supervisor Mode Execution Protection
+        SMAP = 1 << 21,        // Supervisor Mode Access Prevention
+        PKE = 1 << 22,         // Supervisor Mode Access Prevention
+        CET = 1 << 23,         // Control-flow Enforcement Technology
+        PKS = 1 << 24,         // Protection Keys for Supervisor-Mode Pages
+        UINTR = 1 << 25,       // User Interrupts
     };
     EC_ENUM_BIT_OPS(Cr4)
 
@@ -130,6 +130,7 @@ namespace x64
         };
     } inline cpu_info;
 
+#pragma pack(1)
     struct InterruptFrame
     {
         u64 rax, rcx, rdx, rbx, rsi, rdi;
@@ -140,7 +141,44 @@ namespace x64
         u64 rip, cs, rflags, rsp, ss;
     };
 
-#pragma pack(1)
+    // struct Context
+    // {
+    //     // u64 rax, rcx, rdx, rbx, rsi, rdi;
+    //     // u64 r8, r9, r10, r11, r12, r13, r14, r15;
+    //     // u64 rbp, rsp;
+    //     // u64 rip;
+    //     // u64 rflags;
+    //     u64 _r12;
+    //     u64 _r13;
+    //     u64 _r14;
+    //     u64 _r15;
+    //     u64 _rdi;
+    //     u64 _rsi;
+    //     u64 _rbx;
+    //     u64 _rbp;
+    //     u64 _rsp;
+    //     u64 _rip;
+    //     u64 _rflags;
+    // };
+
+    // TEMP
+    // this goes into ke/
+    struct Thread
+    {
+        InterruptFrame ctx;
+        u64 id;
+    };
+
+    static constexpr size_t threadcount = 2;
+#pragma data_seg(".data")
+    inline Thread* cur, * next;
+    inline Thread threads[threadcount]{};
+    inline bool schedule = false;
+#pragma data_seg()
+
+    EXTERN_C void SaveContext(InterruptFrame* context);
+    EXTERN_C void LoadContext(InterruptFrame* context);
+
     struct DescriptorTable
     {
         u16 limit;
@@ -194,6 +232,15 @@ namespace x64
     };
 
     static constexpr u64 ist_size = KiB(4);
+
+    alignas(page_size) inline volatile u8 int_stack_tables[IstCount][ist_size]{};
+
+    alignas(64) static Tss kernel_tss(
+        ( u64 )(int_stack_tables[0] + ist_size),
+        ( u64 )(int_stack_tables[1] + ist_size),
+        ( u64 )(int_stack_tables[2] + ist_size),
+        ( u64 )(int_stack_tables[3] + ist_size)
+    );
 
     // ignored: base fields, segment limit, granularity/readable/accessed bits
 
