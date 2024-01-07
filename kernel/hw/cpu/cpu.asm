@@ -4,7 +4,7 @@ extern x64SyscallCxx: proc
 
 .data
 
-InterruptFrame struct
+Context struct
     _rax qword ?
     _rcx qword ?
     _rdx qword ?
@@ -19,16 +19,11 @@ InterruptFrame struct
     _r13 qword ?
     _r14 qword ?
     _r15 qword ?
-    _fs qword ?
-    _gs qword ?
     _rbp qword ?
-    _unused qword ?
-    _rip qword ?
-    _cs qword ?
-    _rflags qword ?
     _rsp qword ?
-    _ss qword ?
-InterruptFrame ends
+    _rip qword ?
+    _rflags qword ?
+Context ends
 
 .code
 
@@ -169,65 +164,25 @@ x64Syscall proc
 x64Syscall endp
 
 ;
-; void SetRegs()
+; void Switch(Context* ctx)
 ;
-SetRegs proc
-    mov rbx, rcx
-    mov rsi, rcx
-    mov rdi, rcx
-    mov r12, rcx
-    mov r13, rcx
-    mov r14, rcx
-    mov r15, rcx
-    ret
-SetRegs endp
+Switch proc
+    mov rsp, [rcx + Context._rsp]
+    mov rbp, [rcx + Context._rbp]
+    mov rbx, [rcx + Context._rbx]
+    mov rdi, [rcx + Context._rdi]
+    mov rsi, [rcx + Context._rsi]
+    mov r12, [rcx + Context._r12]
+    mov r13, [rcx + Context._r13]
+    mov r14, [rcx + Context._r14]
+    mov r15, [rcx + Context._r15]
 
-;
-; void SaveContext(InterruptFrame* ctx)
-;
-SaveContext proc
-    mov [rcx + InterruptFrame._rsp], rsp
-    mov [rcx + InterruptFrame._rbp], rbp
-    mov [rcx + InterruptFrame._rbx], rbx
-    mov [rcx + InterruptFrame._rdi], rdi
-    mov [rcx + InterruptFrame._rsi], rsi
-    mov [rcx + InterruptFrame._r12], r12
-    mov [rcx + InterruptFrame._r13], r13
-    mov [rcx + InterruptFrame._r14], r14
-    mov [rcx + InterruptFrame._r15], r15
-
-    pushfq
-    pop rax
-    mov [rcx + InterruptFrame._rflags], rax
-
-    ; Get the return address from the stack
-    pop rdx
-    mov [rcx + InterruptFrame._rip], rdx
-    mov [rcx + InterruptFrame._rsp], rsp
-
-    jmp rdx
-SaveContext endp
-
-;
-; void LoadContext(InterruptFrame* ctx)
-;
-LoadContext proc
-    mov rsp, [rcx + InterruptFrame._rsp]
-    mov rbp, [rcx + InterruptFrame._rbp]
-    mov rbx, [rcx + InterruptFrame._rbx]
-    mov rdi, [rcx + InterruptFrame._rdi]
-    mov rsi, [rcx + InterruptFrame._rsi]
-    mov r12, [rcx + InterruptFrame._r12]
-    mov r13, [rcx + InterruptFrame._r13]
-    mov r14, [rcx + InterruptFrame._r14]
-    mov r15, [rcx + InterruptFrame._r15]
-
-    mov r8, [rcx + InterruptFrame._rflags]
+    mov r8, [rcx + Context._rflags]
     push r8
     popfq
 
-    mov r9, [rcx + InterruptFrame._rip]
+    mov r9, [rcx + Context._rip]
     jmp r9
-LoadContext endp
+Switch endp
 
 end

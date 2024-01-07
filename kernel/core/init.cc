@@ -135,8 +135,16 @@ static void FinalizeKernelMapping(mm::PagePool& pool)
     }
 }
 
-void PrintContext(x64::InterruptFrame* ctx)
+void PrintContext(x64::Context* ctx)
 {
+    serial::Write("RAX: 0x%llx\n", ctx->rax);
+    serial::Write("RCX: 0x%llx\n", ctx->rcx);
+    serial::Write("RDX: 0x%llx\n", ctx->rdx);
+    serial::Write("RBX: 0x%llx\n", ctx->rbx);
+    serial::Write("RSI: 0x%llx\n", ctx->rsi);
+    serial::Write("RDI: 0x%llx\n", ctx->rdi);
+
+    serial::Write("R8 : 0x%llx\n", ctx->r8);
     serial::Write("R9 : 0x%llx\n", ctx->r9);
     serial::Write("R10: 0x%llx\n", ctx->r10);
     serial::Write("R11: 0x%llx\n", ctx->r11);
@@ -144,13 +152,14 @@ void PrintContext(x64::InterruptFrame* ctx)
     serial::Write("R13: 0x%llx\n", ctx->r13);
     serial::Write("R14: 0x%llx\n", ctx->r14);
     serial::Write("R15: 0x%llx\n", ctx->r15);
-    serial::Write("RDI: 0x%llx\n", ctx->rdi);
-    serial::Write("RSI: 0x%llx\n", ctx->rsi);
-    serial::Write("RBX: 0x%llx\n", ctx->rbx);
-    serial::Write("RBP: 0x%llx\n", ctx->rbp);
+
     serial::Write("RSP: 0x%llx\n", ctx->rsp);
+    serial::Write("RBP: 0x%llx\n", ctx->rbp);
+
     serial::Write("RIP: 0x%llx\n", ctx->rip);
+
     serial::Write("RFL: 0x%llx\n", ctx->rflags);
+    serial::Write("*********\n");
 }
 
 static void ThreadAFunc()
@@ -158,13 +167,15 @@ static void ThreadAFunc()
     int i = 0;
     while (1)
     {
-        x64::SaveContext(&x64::cur->ctx);
+        // x64::SaveContext(&x64::cur->ctx);
 
-        Print("A %d\n", i++);
+        _disable();
+        serial::Write("AAAAAAA %d\n", i++);
         serial::Write("********* Reg Dump A:\n");
         PrintContext(&x64::cur->ctx);
+        _enable();
 
-        x64::LoadContext(&x64::next->ctx);
+        // x64::LoadContext(&x64::next->ctx);
     }
 }
 
@@ -173,25 +184,38 @@ static void ThreadBFunc()
     int i = 0;
     while (1)
     {
-        x64::SaveContext(&x64::next->ctx);
+        // x64::SaveContext(&x64::next->ctx);
 
-        Print("B %d\n", i++);
+        _disable();
+        serial::Write("BBBBBBB %d\n", i++);
         serial::Write("********* Reg Dump B:\n");
-        PrintContext(&x64::next->ctx);
+        PrintContext(&x64::cur->ctx);
+        _enable();
 
-        x64::LoadContext(&x64::cur->ctx);
+        // x64::LoadContext(&x64::cur->ctx);
     }
 }
 
-static auto& CreateThread(size_t i, void* function, vaddr_t stack)
-{
-    using namespace x64;
-    memzero(&threads[i], sizeof Thread);
-    threads[i].ctx.rip = ( u64 )function;
-    threads[i].ctx.rsp = stack;
-    threads[i].ctx.rflags = ( u64 )RFLAGS::IF | 2;
-    threads[i].id = i + 1;
-    return threads[i];
+#pragma data_seg(".data")
+static u64 thread_i = 0;
+#pragma data_seg()
+
+EXTERN_C void Switch(x64::Context* ctx);
+
+namespace ke {
+
+    static auto CreateThread(void(*function)(), vaddr_t stack)
+    {
+        using namespace x64;
+        auto thread = &threads[thread_i];
+        memzero(thread, sizeof Thread);
+        thread->ctx.rip = ( u64 )function;
+        thread->ctx.rsp = stack;
+        thread->ctx.rflags = ( u64 )RFLAGS::IF | 2;
+        thread->id = ++thread_i;
+        return thread;
+    }
+
 }
 
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
@@ -263,7 +287,8 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     // SerialPrintDescriptors(memory_map);
 
-    vaddr_t stk_va = kva::kernel.base + (200*page_size), stk_va2 = stk_va + page_size;
+    vaddr_t stk_va = kva::kernel.base + (200 * page_size);
+    vaddr_t stk_va2 = stk_va + page_size;
     Print("stk_va 0x%llx stk_va2 0x%llx\n", stk_va + page_size, stk_va2 + page_size);
     {
         paddr_t tmp_stk;
@@ -273,26 +298,26 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
         mm::MapPage(pool, stk_va2, tmp_stk);
     }
 
-    paddr_t user_page;
-    vaddr_t user_page_va = 0x7ff7f0000000;
-    vaddr_t user_stack_va = 0x7ff7f0001000;
-
-    mm::AllocatePhysical(pool, &user_page);
-    mm::MapPage(pool, user_page_va, user_page, true);
-
-    mm::AllocatePhysical(pool, &user_page);
-    mm::MapPage(pool, user_stack_va, user_page, true);
+    // paddr_t user_page;
+    // vaddr_t user_page_va = 0x7ff7f0000000;
+    // vaddr_t user_stack_va = 0x7ff7f0001000;
+    //
+    // mm::AllocatePhysical(pool, &user_page);
+    // mm::MapPage(pool, user_page_va, user_page, true);
+    //
+    // mm::AllocatePhysical(pool, &user_page);
+    // mm::MapPage(pool, user_stack_va, user_page, true);
 
     __writecr3(pool.root);
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
 
-    {
-        x64::SmapSetAc();
-        memzero(( void* )user_stack_va, page_size);
-        memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 40);
-        x64::SmapClearAc();
-    }
+    // {
+    //     x64::SmapSetAc();
+    //     memzero(( void* )user_stack_va, page_size);
+    //     memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 40);
+    //     x64::SmapClearAc();
+    // }
 
     timer::Initialize(hpet);
 
@@ -307,15 +332,17 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     x64::unmask_interrupts();
 
-    CreateThread(0, ThreadAFunc, stk_va + page_size);
-    CreateThread(1, ThreadBFunc, stk_va2 + page_size);
-    x64::cur = &x64::threads[0];
-    x64::next = &x64::threads[1];
+    x64::cur        = ke::CreateThread(ThreadAFunc, stk_va + page_size);
+    x64::cur->next  = ke::CreateThread(ThreadBFunc, stk_va2 + page_size);
+
+    // Link back
+    x64::cur->next->next = x64::cur;
+
     x64::schedule = true;
 
-    // x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
+    Switch(&x64::cur->ctx);
 
-    x64::LoadContext(&x64::cur->ctx);
+    // x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
 
     x64::Idle();
 }

@@ -131,42 +131,31 @@ namespace x64
     } inline cpu_info;
 
 #pragma pack(1)
+    struct Context
+    {
+        u64 rax, rcx, rdx, rbx, rsi, rdi;
+        u64 r8, r9, r10, r11, r12, r13, r14, r15;
+        u64 rbp, rsp;
+        u64 rip;
+        u64 rflags;
+    };
+
     struct InterruptFrame
     {
         u64 rax, rcx, rdx, rbx, rsi, rdi;
         u64 r8, r9, r10, r11, r12, r13, r14, r15;
-        u64 fs, gs;
         u64 rbp;
         u64 error_code;
         u64 rip, cs, rflags, rsp, ss;
     };
 
-    // struct Context
-    // {
-    //     // u64 rax, rcx, rdx, rbx, rsi, rdi;
-    //     // u64 r8, r9, r10, r11, r12, r13, r14, r15;
-    //     // u64 rbp, rsp;
-    //     // u64 rip;
-    //     // u64 rflags;
-    //     u64 _r12;
-    //     u64 _r13;
-    //     u64 _r14;
-    //     u64 _r15;
-    //     u64 _rdi;
-    //     u64 _rsi;
-    //     u64 _rbx;
-    //     u64 _rbp;
-    //     u64 _rsp;
-    //     u64 _rip;
-    //     u64 _rflags;
-    // };
-
     // TEMP
     // this goes into ke/
     struct Thread
     {
-        InterruptFrame ctx;
+        Context ctx;
         u64 id;
+        Thread* next;
     };
 
     static constexpr size_t threadcount = 2;
@@ -175,9 +164,6 @@ namespace x64
     inline Thread threads[threadcount]{};
     inline bool schedule = false;
 #pragma data_seg()
-
-    EXTERN_C void SaveContext(InterruptFrame* context);
-    EXTERN_C void LoadContext(InterruptFrame* context);
 
     struct DescriptorTable
     {
@@ -496,7 +482,7 @@ namespace x64
 
     INLINE void TlbFlush()
     {
-        // Reloading CR3 invalidates all TLB entries
+        // Reloading CR3 invalidates all non-global TLB entries
         __writecr3(__readcr3());
     }
 

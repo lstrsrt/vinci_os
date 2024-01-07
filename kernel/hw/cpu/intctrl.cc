@@ -56,6 +56,58 @@ namespace x64
 
     EXTERN_C u64 spurious_irqs = 0;
 
+    void SaveContext(Context* ctx, InterruptFrame* frame)
+    {
+        ctx->rax = frame->rax;
+        ctx->rcx = frame->rcx;
+        ctx->rdx = frame->rdx;
+        ctx->rbx = frame->rbx;
+        ctx->rsi = frame->rsi;
+        ctx->rdi = frame->rdi;
+
+        ctx->r8 = frame->r8;
+        ctx->r9 = frame->r9;
+        ctx->r10 = frame->r10;
+        ctx->r11 = frame->r11;
+        ctx->r12 = frame->r12;
+        ctx->r13 = frame->r13;
+        ctx->r14 = frame->r14;
+        ctx->r15 = frame->r15;
+
+        ctx->rsp = frame->rsp;
+        ctx->rbp = frame->rbp;
+
+        ctx->rip = frame->rip;
+
+        ctx->rflags = frame->rflags;
+    }
+
+    void LoadContext(InterruptFrame* frame, Context* ctx)
+    {
+        frame->rax = ctx->rax;
+        frame->rcx = ctx->rcx;
+        frame->rdx = ctx->rdx;
+        frame->rbx = ctx->rbx;
+        frame->rsi = ctx->rsi;
+        frame->rdi = ctx->rdi;
+
+        frame->r8 = ctx->r8;
+        frame->r9 = ctx->r9;
+        frame->r10 = ctx->r10;
+        frame->r11 = ctx->r11;
+        frame->r12 = ctx->r12;
+        frame->r13 = ctx->r13;
+        frame->r14 = ctx->r14;
+        frame->r15 = ctx->r15;
+
+        frame->rsp = ctx->rsp;
+        frame->rbp = ctx->rbp;
+
+        frame->rip = ctx->rip;
+
+        frame->rflags = ctx->rflags;
+    }
+
     EXTERN_C void IsrCommon(InterruptFrame* frame, u8 int_no)
     {
         if (int_no < irq_base)
@@ -78,6 +130,13 @@ namespace x64
             u8 irq = int_no - irq_base;
             if (cpu_info.using_apic || pic::ConfirmIrq(irq))
             {
+                if (irq == 0 && schedule)
+                {
+                    SaveContext(&x64::cur->ctx, frame);
+                    x64::cur = x64::cur->next;
+                    LoadContext(frame, &x64::cur->ctx);
+                }
+
                 if (irq_handlers[irq])
                     irq_handlers[irq]();
                 send_eoi(irq);

@@ -50,9 +50,6 @@ _Isr&int_no& proc
 
     ; Generate rest of interrupt frame
     push rbp
-    mov rbp, rsp
-    push gs
-    push fs
     PUSH_GPR
 
     ; Call generic handler
@@ -64,7 +61,6 @@ _Isr&int_no& proc
 
     ; Free interrupt frame
     POP_GPR
-    add rsp, 16 ; fs and gs
     pop rbp
 
     ; Free error code
