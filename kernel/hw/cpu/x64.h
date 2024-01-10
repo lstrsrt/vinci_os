@@ -282,7 +282,7 @@ namespace x64
         constexpr GdtEntry() = default;
 
         explicit constexpr GdtEntry(u8 dpl, u8 type, bool long_mode = true)
-            : limit_low(ec::u16_max),
+            : limit_low(ec::umax_v<u16>),
             base_low(0),
             base_mid(0),
             base_high(0)

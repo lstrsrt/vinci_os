@@ -45,7 +45,7 @@ namespace ec
         return __builtin_is_constant_evaluated();
     }
 
-    template<is_array A>
+    template<$array A>
     constexpr size_t array_size(const A& a)
     {
         return sizeof a / sizeof a[0];

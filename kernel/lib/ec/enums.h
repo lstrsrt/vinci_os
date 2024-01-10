@@ -7,7 +7,7 @@
 
 namespace ec
 {
-    template<is_enum E>
+    template<$enum E>
     constexpr auto to_underlying(E e)
     {
         return static_cast<underlying_t<E>>(e);

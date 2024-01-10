@@ -2,8 +2,6 @@
 
 #include "keyboard.h"
 
-namespace kbd {
-
 // temporary..
 #define EXTENDED   0xe0
 #define RELEASE    0xf0
@@ -13,11 +11,12 @@ namespace kbd {
 #define CAPS_LOCK  0x58
 #define R_SHIFT    0x59
 
-//
+namespace kbd
+{
+
 // The compiler thinks these aren't used because they are
 // only referenced by an ISR, which isn't directly called.
 // This forces them into .data as initialized values.
-//
 #pragma data_seg(".data")
     static ec::bitfield<KeyFlag> flags{};
     static ec::array<KeyboardCallback, 3> callbacks{};

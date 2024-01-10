@@ -19,18 +19,16 @@ namespace ec::inline concepts
         template<class T> struct remove_cv<volatile T> { using type = T; };
         template<class T> struct remove_cv<const volatile T> { using type = T; };
 
-        template<class> struct make_unsigned { using type = void; };
-        template<> struct make_unsigned<i8> { using type = u8; };
-        template<> struct make_unsigned<i16> { using type = u16; };
-        template<> struct make_unsigned<i32> { using type = u32; };
-        template<> struct make_unsigned<i64> { using type = u64; };
+        template<class> struct as_unsigned { using type = void; };
+        template<> struct as_unsigned<i8> { using type = u8; };
+        template<> struct as_unsigned<i16> { using type = u16; };
+        template<> struct as_unsigned<i32> { using type = u32; };
+        template<> struct as_unsigned<i64> { using type = u64; };
 
         template<class, class> constexpr bool is_same = false;
         template<class T> constexpr bool is_same<T, T> = true;
 
         template<class T, class... Ts> constexpr bool is_any_of = (is_same<T, Ts> || ...);
-
-        template<class T> constexpr bool is_unsigned = is_same<T, make_unsigned<T>>;
 
         template<class> constexpr bool is_pointer = false;
         template<class T> constexpr bool is_pointer<T*> = true;
@@ -49,62 +47,65 @@ namespace ec::inline concepts
 
     template<class T> using remove_volatile = typename impl::remove_volatile<T>::type;
 
-    template <class T> using remove_cv = typename impl::remove_cv<T>::type;
+    template<class T> using remove_cv = typename impl::remove_cv<T>::type;
 
-    template <class T> using remove_reference = typename impl::remove_reference<T>::type;
+    template<class T> using remove_reference = typename impl::remove_reference<T>::type;
 
-    template <class T> using unqualified [[msvc::known_semantics]] = remove_cv<remove_reference<T>>;
+    template<class T> using unqualified [[msvc::known_semantics]] = remove_cv<remove_reference<T>>;
 
     template<class T>
     auto declval() -> T;
 
     template<class T, class U>
-    concept is_same = impl::is_same<T, U>;
+    concept $same = impl::is_same<T, U>;
 
     template<class T, class... Ts>
-    concept is_any_of = impl::is_any_of<T, Ts...>;
+    concept $any_of = impl::is_any_of<T, Ts...>;
 
     template<class T>
-    concept is_integral = is_any_of<remove_cv<T>,
+    concept $integral = $any_of<remove_cv<T>,
         bool, unsigned char, char8_t, char16_t, char32_t, wchar_t,
         u8, u16, u32, u64, i8, i16, i32, i64>;
 
     template<class T>
-    concept is_float = is_any_of<remove_cv<T>, f32, f64>;
+    concept $float = $any_of<remove_cv<T>, f32, f64>;
 
     template<class T>
-    concept is_char = is_any_of<remove_cv<T>, char, wchar_t, char8_t, char16_t, char32_t>;
+    concept $char = $any_of<remove_cv<T>, char, wchar_t, char8_t, char16_t, char32_t>;
 
     template<class T>
-    concept is_number = is_integral<T> || is_float<T>;
+    concept $number = $integral<T> || $float<T>;
 
     template<class T>
-    concept is_unsigned = is_integral<T> && static_cast<remove_cv<T>>(-1) < static_cast<remove_cv<T>>(0);
+    concept $signed_int = $integral<T> && static_cast<remove_cv<T>>(-1) < static_cast<remove_cv<T>>(0);
 
     template<class T>
-    concept is_signed = is_integral<T> && !is_unsigned<T>;
+    concept $unsigned_int = $integral<T> && !$signed_int<T>;
 
     template<class T, class... Args>
-    concept is_callable = requires(T t) { T(declval<Args>()...); };
+    concept $callable = requires(T t) { T(declval<Args>()...); };
 
     template<class T>
-    concept is_enum = __is_enum(T);
+    concept $enum = __is_enum(T);
 
     template<class T>
-    concept is_class = __is_class(T);
+    concept $class = __is_class(T);
 
     template<class T>
-    concept is_union = __is_union(T);
+    concept $union = __is_union(T);
 
     template<class T>
-    concept is_pointer = impl::is_pointer<T>;
+    concept $pointer = impl::is_pointer<T>;
 
     template<class T>
-    concept is_array = impl::is_array<T>;
+    concept $array = impl::is_array<T>;
 
     template<class T, class U>
-    concept convertible = impl::is_convertible<T, U> && requires { static_cast<U>(declval<T>()); };;
+    concept $convertible = impl::is_convertible<T, U> && requires { static_cast<U>(declval<T>()); };
 
-    template<is_enum T>
+    template<class T>
+    using unsigned_t = impl::as_unsigned<T>::type;
+
+    template<$enum T>
     using underlying_t = __underlying_type(T);
 }

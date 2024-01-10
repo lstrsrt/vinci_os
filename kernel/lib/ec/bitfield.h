@@ -7,7 +7,7 @@
 
 namespace ec
 {
-    template<is_enum E>
+    template<$enum E>
     struct bitfield
     {
         using U = underlying_t<E>;
@@ -30,7 +30,7 @@ namespace ec
         auto value() const { return bits.value; }
         auto raw() const { return bits.raw; }
 
-        template<class... Ts> requires(is_same<Ts, E> && ...)
+        template<class... Ts> requires($same<Ts, E> && ...)
         constexpr bool is_set(Ts... t) const
         {
             return bits.raw & (to_underlying(t) | ...);
@@ -41,19 +41,19 @@ namespace ec
             return !bits.raw;
         }
 
-        template<class... Ts> requires(is_same<Ts, E> && ...)
+        template<class... Ts> requires($same<Ts, E> && ...)
         constexpr void set(Ts... t)
         {
             bits.raw |= (to_underlying(t) | ...);
         }
 
-        template<class... Ts> requires(is_same<Ts, E> && ...)
+        template<class... Ts> requires($same<Ts, E> && ...)
         constexpr void unset(Ts... t)
         {
             bits.raw &= ~(to_underlying(t) | ...);
         }
 
-        template<class... Ts> requires(is_same<Ts, E> && ...)
+        template<class... Ts> requires($same<Ts, E> && ...)
         constexpr void toggle(Ts... t)
         {
             bits.raw ^= (to_underlying(t) | ...);

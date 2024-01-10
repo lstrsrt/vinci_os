@@ -79,7 +79,7 @@ namespace ke
 
         for (u32 i = 0; i < alloc_map.size(); i++)
         {
-            if (alloc_map[i] == ec::u8_max)
+            if (alloc_map[i] == ec::umax_v<u8>)
             {
                 // No free bits means no available blocks
                 free_blocks = 0;
