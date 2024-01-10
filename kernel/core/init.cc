@@ -1,8 +1,8 @@
 ﻿#include <ec/util.h>
 #include <libc/str.h>
 
-#include "../../boot/boot.h"
 #include "../common/mm.h"
+#include "../../boot/boot.h"
 #include "../hw/acpi/acpi.h"
 #include "../hw/cmos/cmos.h"
 #include "../hw/cpu/isr.h"
@@ -11,7 +11,7 @@
 #include "../hw/ps2/ps2.h"
 #include "../hw/serial/serial.h"
 #include "../hw/timer/timer.h"
-#include "gfx/output.h"
+#include "ke.h"
 
 static constexpr size_t kernel_stack_size = KiB(8);
 alignas(page_size) volatile u8 kernel_stack[kernel_stack_size];
@@ -103,12 +103,12 @@ static IMAGE_NT_HEADERS* ImageNtHeaders(void* image_base)
 
 static void FinalizeKernelMapping(mm::PagePool& pool)
 {
-    auto kernel_nt = ImageNtHeaders(( void* )kva::kernel.base);
+    auto kernel_nt = ImageNtHeaders(( void* )kva::kernel_image.base);
     auto section = IMAGE_FIRST_SECTION(kernel_nt);
 
     for (u16 i = 0; i < kernel_nt->FileHeader.NumberOfSections; i++, section++)
     {
-        const auto start = kva::kernel.base + section->VirtualAddress;
+        const auto start = kva::kernel_image.base + section->VirtualAddress;
         const auto size = section->Misc.VirtualSize;
         const auto end = start + size;
 
@@ -167,15 +167,11 @@ static void ThreadAFunc()
     int i = 0;
     while (1)
     {
-        // x64::SaveContext(&x64::cur->ctx);
-
         _disable();
-        serial::Write("AAAAAAA %d\n", i++);
+        Print("AAAAAAA %d\n", i++);
         serial::Write("********* Reg Dump A:\n");
-        PrintContext(&x64::cur->ctx);
+        PrintContext(&ke::cur_thread->ctx);
         _enable();
-
-        // x64::LoadContext(&x64::next->ctx);
     }
 }
 
@@ -184,15 +180,11 @@ static void ThreadBFunc()
     int i = 0;
     while (1)
     {
-        // x64::SaveContext(&x64::next->ctx);
-
         _disable();
-        serial::Write("BBBBBBB %d\n", i++);
+        Print("BBBBBBB %d\n", i++);
         serial::Write("********* Reg Dump B:\n");
-        PrintContext(&x64::cur->ctx);
+        PrintContext(&ke::cur_thread->ctx);
         _enable();
-
-        // x64::LoadContext(&x64::cur->ctx);
     }
 }
 
@@ -201,22 +193,6 @@ static u64 thread_i = 0;
 #pragma data_seg()
 
 EXTERN_C void Switch(x64::Context* ctx);
-
-namespace ke {
-
-    static auto CreateThread(void(*function)(), vaddr_t stack)
-    {
-        using namespace x64;
-        auto thread = &threads[thread_i];
-        memzero(thread, sizeof Thread);
-        thread->ctx.rip = ( u64 )function;
-        thread->ctx.rsp = stack;
-        thread->ctx.rflags = ( u64 )RFLAGS::IF | 2;
-        thread->id = ++thread_i;
-        return thread;
-    }
-
-}
 
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 {
@@ -250,7 +226,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     const auto kernel_pages = SizeToPages(kernel.size);
     const auto frame_buffer_pages = SizeToPages(display.frame_buffer_size);
 
-    mm::MapPages(pool, kva::kernel.base, kernel.physical_base, kernel_pages);
+    mm::MapPages(pool, kva::kernel_image.base, kernel.physical_base, kernel_pages);
     mm::MapPages(pool, kva::kernel_pt.base, pt_physical, pt_pages);
 
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
@@ -287,16 +263,16 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     // SerialPrintDescriptors(memory_map);
 
-    vaddr_t stk_va = kva::kernel.base + (200 * page_size);
-    vaddr_t stk_va2 = stk_va + page_size;
-    Print("stk_va 0x%llx stk_va2 0x%llx\n", stk_va + page_size, stk_va2 + page_size);
-    {
-        paddr_t tmp_stk;
-        mm::AllocatePhysical(pool, &tmp_stk);
-        mm::MapPage(pool, stk_va, tmp_stk);
-        mm::AllocatePhysical(pool, &tmp_stk);
-        mm::MapPage(pool, stk_va2, tmp_stk);
-    }
+    // vaddr_t stk_va = kva::kernel_image.base + (200 * page_size);
+    // vaddr_t stk_va2 = stk_va + page_size;
+    // Print("stk_va 0x%llx stk_va2 0x%llx\n", stk_va + page_size, stk_va2 + page_size);
+    // {
+    //     paddr_t tmp_stk;
+    //     mm::AllocatePhysical(pool, &tmp_stk);
+    //     mm::MapPage(pool, stk_va, tmp_stk);
+    //     mm::AllocatePhysical(pool, &tmp_stk);
+    //     mm::MapPage(pool, stk_va2, tmp_stk);
+    // }
 
     // paddr_t user_page;
     // vaddr_t user_page_va = 0x7ff7f0000000;
@@ -305,8 +281,13 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // mm::AllocatePhysical(pool, &user_page);
     // mm::MapPage(pool, user_page_va, user_page, true);
     //
+    // FIXME why does this set 4 pages to present instead of 1?
     // mm::AllocatePhysical(pool, &user_page);
     // mm::MapPage(pool, user_stack_va, user_page, true);
+
+    uptr_t kpool;
+    mm::AllocatePhysical(pool, &kpool, kva::kernel_pool.PageCount());
+    mm::MapPagesInRegion<kva::kernel_pool>(pool, &kpool, kva::kernel_pool.PageCount());
 
     __writecr3(pool.root);
 
@@ -332,15 +313,16 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     x64::unmask_interrupts();
 
-    x64::cur        = ke::CreateThread(ThreadAFunc, stk_va + page_size);
-    x64::cur->next  = ke::CreateThread(ThreadBFunc, stk_va2 + page_size);
+    ke::InitializeAllocator();
 
-    // Link back
-    x64::cur->next->next = x64::cur;
+    // ke::StartScheduler();
+    // ke::CreateThread(ThreadAFunc, stk_va + page_size);
+    // ke::CreateThread(ThreadBFunc, stk_va2 + page_size);
+    //
+    // for (auto thread = ke::first_thread; thread != nullptr; thread->next)
+    //     Print("    0x%llx\n", thread);
 
-    x64::schedule = true;
-
-    Switch(&x64::cur->ctx);
+    // Switch(&ke::cur_thread->ctx);
 
     // x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
 

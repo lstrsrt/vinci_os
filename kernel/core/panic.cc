@@ -4,7 +4,7 @@
 
 namespace ke
 {
-    void Panic(Status status)
+    NO_RETURN void Panic(Status status)
     {
         Print("Kernel panic! Status: %d\n", status);
         x64::Halt();

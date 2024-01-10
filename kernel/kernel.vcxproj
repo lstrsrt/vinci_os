@@ -133,6 +133,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="core\alloc.cc" />
     <ClCompile Include="core\init.cc" />
     <ClCompile Include="core\gfx\output.cc" />
     <ClCompile Include="core\panic.cc" />

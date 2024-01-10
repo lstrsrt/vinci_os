@@ -159,7 +159,7 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     }
 
     // Set image base to our virtual address for later mapping
-    nt->OptionalHeader.ImageBase = kva::kernel.base;
+    nt->OptionalHeader.ImageBase = kva::kernel_image.base;
 
     loader_block->kernel.size = image_size;
     loader_block->kernel.entry_point = nt->OptionalHeader.ImageBase + entry_point;
@@ -474,7 +474,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     for (u32 i4 = 256; i4 < 512; i4++)
         pml4[i4].value = 0;
 
-    mm::MapPages(pool, kva::kernel.base, loader_block->kernel.physical_base, kernel_pages);
+    mm::MapPages(pool, kva::kernel_image.base, loader_block->kernel.physical_base, kernel_pages);
     mm::MapPages(pool, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
     mm::MapPages(pool, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
 
@@ -532,7 +532,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     // }
 
     // Execute kernel .CRT* functions
-    run_cxx_initializers(kva::kernel.base);
+    run_cxx_initializers(kva::kernel_image.base);
 
     // Exit boot services
     g_leaving_boot_services = true;

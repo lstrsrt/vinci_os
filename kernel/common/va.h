@@ -35,14 +35,14 @@ struct Region
 namespace kva
 {
     // Kernel image: 0xffffffff'80000000 - 0xffffffff'81000000
-    constexpr Region kernel{
+    constexpr Region kernel_image{
         0xffffffff'80000000,
         MiB(16)
     };
 
     // Page tables: 0xffffffff'81000000 - 0xffffffff'85000000
     constexpr Region kernel_pt{
-        kernel.End(),
+        kernel_image.End(),
         MiB(64)
     };
 
@@ -58,9 +58,15 @@ namespace kva
         MiB(64)
     };
 
-    // UEFI runtime: 0xffffffff'8a000000 - 0xffffffff'9a000000
-    constexpr Region uefi{
+    // Kernel pool: 0xffffffff8a000000 - 0xffffffff8a100000
+    constexpr Region kernel_pool{
         frame_buffer.End(),
+        MiB(1)
+    };
+
+    // UEFI runtime: 0xffffffff'8a100000 - 0xffffffff'9a100000
+    constexpr Region uefi{
+        kernel_pool.End(),
         MiB(256)
     };
 }

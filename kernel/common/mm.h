@@ -192,7 +192,7 @@ namespace mm
             return 0;
 
         paddr_t tmp;
-        for (size_t i = 0; i < count; i++)
+        for (size_t i = 1; i < count; i++)
         {
             if (!AllocatePhysical(pool, &tmp))
                 return 0;
@@ -242,7 +242,7 @@ namespace mm
         return pte ? pte->present : false;
     }
 
-    bool UnmapPage(mm::PagePool& pool, vaddr_t virt)
+    bool UnmapPage(PagePool& pool, vaddr_t virt)
     {
         auto pte = GetPresentPte(pool, virt);
         if (pte)
