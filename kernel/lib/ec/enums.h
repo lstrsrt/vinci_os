@@ -35,6 +35,10 @@ namespace ec
     constexpr type operator~(const type x) noexcept \
     { \
         return static_cast<type>(~ec::to_underlying(x)); \
+    } \
+    constexpr auto operator!(const type x) noexcept \
+    { \
+        return !ec::to_underlying(x); \
     }
 
 #define EC_ENUM_MATH_OPS(type) \

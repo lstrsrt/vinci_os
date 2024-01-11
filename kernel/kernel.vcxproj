@@ -75,7 +75,7 @@
       <CompileAs />
       <AdditionalOptions>/Zc:threadSafeInit- /source-charset:.1252 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
-      <DisableSpecificWarnings>4201;4458;26495</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4201;4458;4505;26495</DisableSpecificWarnings>
       <FloatingPointExceptions>false</FloatingPointExceptions>
     </ClCompile>
     <Link>
@@ -89,6 +89,7 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
       <SpecifySectionAttributes>PROTDATA,!W;INIT,D;.CRT,D</SpecifySectionAttributes>
+      <AdditionalOptions>/ignore:4210 %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>$(SolutionDir)\bin\$(Configuration)\copy_to_flash.cmd $(OutDir)\$(TargetName)$(TargetExt)</Command>
@@ -130,6 +131,7 @@
       <FixedBaseAddress>false</FixedBaseAddress>
       <SpecifySectionAttributes>PROTDATA,!W;INIT,D;.CRT,D</SpecifySectionAttributes>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <AdditionalOptions>/ignore:4210 %(AdditionalOptions)</AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
