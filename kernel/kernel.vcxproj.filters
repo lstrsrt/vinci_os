@@ -60,6 +60,9 @@
     <ClCompile Include="core\panic.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="core\thread.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="core\alloc.cc">
       <Filter>Source Files</Filter>
     </ClCompile>

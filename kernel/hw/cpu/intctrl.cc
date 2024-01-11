@@ -4,7 +4,7 @@
 #include "isr.h"
 #include "msr.h"
 #include "../serial/serial.h"
-#include "../../core/gfx/output.h"
+#include "../../core/ke.h"
 
 namespace x64
 {
@@ -130,11 +130,11 @@ namespace x64
             u8 irq = int_no - irq_base;
             if (cpu_info.using_apic || pic::ConfirmIrq(irq))
             {
-                if (irq == 0 && schedule)
+                if (irq == 0 && ke::schedule)
                 {
-                    SaveContext(&x64::cur->ctx, frame);
-                    x64::cur = x64::cur->next;
-                    LoadContext(frame, &x64::cur->ctx);
+                    SaveContext(&ke::cur_thread->ctx, frame);
+                    ke::SelectNextThread();
+                    LoadContext(frame, &ke::cur_thread->ctx);
                 }
 
                 if (irq_handlers[irq])

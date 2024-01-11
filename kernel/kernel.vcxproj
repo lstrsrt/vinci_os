@@ -139,6 +139,7 @@
     <ClCompile Include="core\init.cc" />
     <ClCompile Include="core\gfx\output.cc" />
     <ClCompile Include="core\panic.cc" />
+    <ClCompile Include="core\thread.cc" />
     <ClCompile Include="hw\acpi\acpi.cc" />
     <ClCompile Include="hw\cmos\cmos.cc" />
     <ClCompile Include="hw\cpu\intctrl.cc" />

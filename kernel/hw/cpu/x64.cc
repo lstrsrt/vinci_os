@@ -490,7 +490,7 @@ namespace x64
 
         // Mask interrupts and traps on syscalls
         WriteMsr(Msr::LSTAR, ( uptr_t )x64Syscall);
-        WriteMsr(Msr::FMASK, ( u64 )(RFLAGS::IF | RFLAGS::TF));
+        WriteMsr(Msr::FMASK, ( u64 )(RFLAG::IF | RFLAG::TF));
 
         // Enable syscall extensions
         auto efer = ReadMsr(Msr::EFER);

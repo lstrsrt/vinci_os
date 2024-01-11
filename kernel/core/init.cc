@@ -13,7 +13,7 @@
 #include "../hw/timer/timer.h"
 #include "ke.h"
 
-static constexpr size_t kernel_stack_size = KiB(8);
+static constexpr size_t kernel_stack_size = KiB(4);
 alignas(page_size) volatile u8 kernel_stack[kernel_stack_size];
 EXTERN_C auto kernel_stack_top = ( uptr_t )&kernel_stack[kernel_stack_size];
 
@@ -162,30 +162,49 @@ void PrintContext(x64::Context* ctx)
     serial::Write("*********\n");
 }
 
-static void ThreadAFunc()
+static void ThreadAFunc(void*)
 {
     int i = 0;
     while (1)
     {
         _disable();
-        Print("AAAAAAA %d\n", i++);
-        serial::Write("********* Reg Dump A:\n");
-        PrintContext(&ke::cur_thread->ctx);
+        i++;
+        //Print("AAAAAAA %d\n", i++);
+        // serial::Write("********* Reg Dump A:\n");
+        // PrintContext(&ke::cur_thread->ctx);
         _enable();
     }
+    Print("returning from A\n");
 }
 
-static void ThreadBFunc()
+static void ThreadBFunc(void*)
 {
     int i = 0;
     while (1)
     {
         _disable();
-        Print("BBBBBBB %d\n", i++);
-        serial::Write("********* Reg Dump B:\n");
-        PrintContext(&ke::cur_thread->ctx);
+        i++;
+        //Print("BBBBBBB %d\n", i++);
+        // serial::Write("********* Reg Dump B:\n");
+        // PrintContext(&ke::cur_thread->ctx);
         _enable();
     }
+    Print("returning from B\n");
+}
+
+static void ThreadCFunc(void*)
+{
+    int i = 0;
+    while (i < 20)
+    {
+        _disable();
+        i++;
+        //Print("CCCCCCC %d\n", i++);
+        // serial::Write("********* Reg Dump C:\n");
+        // PrintContext(&ke::cur_thread->ctx);
+        _enable();
+    }
+    Print("returning from C\n");
 }
 
 #pragma data_seg(".data")
@@ -263,16 +282,18 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     // SerialPrintDescriptors(memory_map);
 
-    // vaddr_t stk_va = kva::kernel_image.base + (200 * page_size);
-    // vaddr_t stk_va2 = stk_va + page_size;
-    // Print("stk_va 0x%llx stk_va2 0x%llx\n", stk_va + page_size, stk_va2 + page_size);
-    // {
-    //     paddr_t tmp_stk;
-    //     mm::AllocatePhysical(pool, &tmp_stk);
-    //     mm::MapPage(pool, stk_va, tmp_stk);
-    //     mm::AllocatePhysical(pool, &tmp_stk);
-    //     mm::MapPage(pool, stk_va2, tmp_stk);
-    // }
+    vaddr_t stk_va = kva::kernel_image.base + (100 * page_size);
+    vaddr_t stk_va2 = stk_va + page_size;
+    vaddr_t stk_va3 = stk_va2 + page_size;
+    {
+        paddr_t tmp_stk;
+        mm::AllocatePhysical(pool, &tmp_stk);
+        mm::MapPage(pool, stk_va, tmp_stk);
+        mm::AllocatePhysical(pool, &tmp_stk);
+        mm::MapPage(pool, stk_va2, tmp_stk);
+        mm::AllocatePhysical(pool, &tmp_stk);
+        mm::MapPage(pool, stk_va3, tmp_stk);
+    }
 
     // paddr_t user_page;
     // vaddr_t user_page_va = 0x7ff7f0000000;
@@ -311,16 +332,14 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // and write-protect every section not marked writable.
     FinalizeKernelMapping(pool);
 
-    x64::unmask_interrupts();
-
     ke::InitializeAllocator();
 
-    // ke::StartScheduler();
-    // ke::CreateThread(ThreadAFunc, stk_va + page_size);
-    // ke::CreateThread(ThreadBFunc, stk_va2 + page_size);
-    //
-    // for (auto thread = ke::first_thread; thread != nullptr; thread->next)
-    //     Print("    0x%llx\n", thread);
+    x64::unmask_interrupts();
+
+    ke::StartScheduler();
+    ke::CreateThread(ThreadAFunc, nullptr, stk_va + page_size);
+    ke::CreateThread(ThreadBFunc, nullptr, stk_va2 + page_size);
+    ke::CreateThread(ThreadCFunc, nullptr, stk_va3 + page_size);
 
     // Switch(&ke::cur_thread->ctx);
 

@@ -18,9 +18,10 @@ namespace x64
 {
     EARLY void Initialize(uptr_t kernel_stack);
 
-    enum class RFLAGS : u64
+    enum class RFLAG : u64
     {
         CF = 1 << 0,                  // Carry Flag
+        ALWAYS = 1 << 1,              // Reserved (always 1)
         PF = 1 << 2,                  // Parity Flag
         AF = 1 << 4,                  // Auxiliary Carry Flag
         ZF = 1 << 6,                  // Zero Flag
@@ -39,7 +40,7 @@ namespace x64
         VIP = 1 << 20,                // Virtual Interrupt Pending
         ID = 1 << 21                  // CPUID Support
     };
-    EC_ENUM_BIT_OPS(RFLAGS)
+    EC_ENUM_BIT_OPS(RFLAG)
 
     enum class Cr0 : u64
     {
@@ -149,21 +150,8 @@ namespace x64
         u64 rip, cs, rflags, rsp, ss;
     };
 
-    // TEMP
-    // this goes into ke/
-    struct Thread
-    {
-        Context ctx;
-        u64 id;
-        Thread* next;
-    };
-
-    static constexpr size_t threadcount = 2;
-#pragma data_seg(".data")
-    inline Thread* cur, * next;
-    inline Thread threads[threadcount]{};
-    inline bool schedule = false;
-#pragma data_seg()
+    void SaveContext(Context* ctx, InterruptFrame* frame);
+    void LoadContext(InterruptFrame* frame, Context* ctx);
 
     struct DescriptorTable
     {

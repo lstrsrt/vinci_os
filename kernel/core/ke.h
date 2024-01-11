@@ -2,6 +2,8 @@
 
 #include <base.h>
 
+#include "../hw/cpu/x64.h"
+
 enum class Status
 {
     Success = 0,
@@ -12,6 +14,30 @@ enum class Status
 
 namespace ke
 {
+    struct SList
+    {
+        SList* next;
+    };
+
+    struct Thread
+    {
+        SList* next;
+        x64::Context ctx;
+        void(*function)(void*);
+        void* arg;
+        u64 id;
+    };
+
+#pragma data_seg(".data")
+    inline Thread* first_thread{};
+    inline Thread* cur_thread{};
+    inline bool schedule = false;
+#pragma data_seg()
+
+    Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t stack);
+    void SelectNextThread();
+    void StartScheduler();
+
     void InitializeAllocator();
     void* Allocate(size_t size);
     void Free(void* address);
