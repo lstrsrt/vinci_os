@@ -21,6 +21,13 @@ namespace gfx
             ssfn_putc(ssfn_utf8(&s));
     }
 
+    void PutChar(char c)
+    {
+        char* s = &c;
+        while (*s)
+            ssfn_putc(ssfn_utf8(&s));
+    }
+
     void SetFrameBufferAddress(u64 address)
     {
         ssfn_dst.ptr = ( uint8_t* )address;

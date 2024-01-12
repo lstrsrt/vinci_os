@@ -5,11 +5,27 @@
 #include "../cpu/isr.h"
 #include "../../core/gfx/output.h"
 
+#define SERIAL_STDIO 0
+
 namespace serial
 {
     static u16 output_port;
+    static bool has_com1, has_com2;
 
-    void InitPort(u16 port)
+    void Isr()
+    {
+        char c = ReadPort8(output_port);
+        if (c == '\r')
+            c = '\n';
+
+        PutChar(c); // Just send it to our framebuffer
+
+#if SERIAL_STDIO == 1
+        Write(output_port, reg::data, c); // Send to the console as well
+#endif
+    }
+
+    EARLY bool InitPort(u16 port)
     {
         auto write_reg = [port](u16 reg, u8 data)
         {
@@ -18,8 +34,18 @@ namespace serial
             WritePort8(port + reg, data);
         };
 
-        // Disable interrupts
-        write_reg(reg::int_enabled, 0);
+#if SERIAL_STDIO == 1
+        // Hardcode this to COM1 for now...
+        if (port == port::com1)
+        {
+            write_reg(reg::int_enabled, 1);
+            x64::ConnectIsr(Isr, 4);
+        }
+        else
+#endif
+        {
+            write_reg(reg::int_enabled, 0);
+        }
 
         // Enable the Divisor Latch Access Bit and set divisor to 2 (57600 baud)
         write_reg(reg::line_ctrl, ( u8 )Line::Dlab);
@@ -40,26 +66,38 @@ namespace serial
 
         if (ReadPort8(port + reg::data) != 0xff)
         {
-            Print("Serial: Port %x returned an invalid response\n", port);
-            return;
+            Print("Serial: Port 0x%x returned an invalid response\n", port);
+            return false;
         }
 
         // Test was successful, unset loopback again
         write_reg(reg::modem_ctrl, ( u8 )(Modem::DataReady | Modem::RequestSend));
+        return true;
     }
 
     EARLY void Initialize()
     {
         // Try to initialize COM1 and COM2.
         // TODO - Add support for finding more ports
-        InitPort(port::com1);
-        InitPort(port::com2);
-        SetPort(port::com1);
+        has_com1 = InitPort(port::com1);
+        has_com2 = InitPort(port::com2);
+        if (!SetPort(port::com1))
+            Print("Serial port debugging unavailable.\n");
     }
 
-    void SetPort(u16 port)
+    bool SetPort(u16 port)
     {
-        output_port = port;
+        if ((port == port::com1 && has_com1) || (port == port::com2 && has_com2))
+        {
+            output_port = port;
+            return true;
+        }
+        return false;
+    }
+
+    u16 GetPort()
+    {
+        return output_port;
     }
 
     u8 Read(u16 port, u16 reg)

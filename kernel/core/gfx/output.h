@@ -44,8 +44,10 @@ namespace gfx
     void OnKey(const kbd::Key& key);
 
     void Print(_Printf_format_string_ const char* fmt, ...);
+    void PutChar(char c);
 
     EARLY void Initialize(const DisplayInfo& display);
 }
 
 using gfx::Print;
+using gfx::PutChar;

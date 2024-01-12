@@ -66,28 +66,30 @@ namespace serial
 
     namespace port
     {
-        constexpr u16 com1 = 0x3f8;
-        constexpr u16 com2 = 0x2f8;
+        static constexpr u16 com1 = 0x3f8;
+        static constexpr u16 com2 = 0x2f8;
     }
 
     namespace reg
     {
-        constexpr u16 data = 0;              // DLAB = 0
-        constexpr u16 int_enabled = 1;       // DLAB = 0
-        constexpr u16 baud_divisor_low = 0;  // DLAB = 1
-        constexpr u16 baud_divisor_high = 1; // DLAB = 1
-        constexpr u16 fifo_ctrl = 2;
-        constexpr u16 line_ctrl = 3;
-        constexpr u16 modem_ctrl = 4;
-        constexpr u16 line_status = 5;
-        constexpr u16 modem_status = 6;
-        constexpr u16 scratch = 7;
+        static constexpr u16 data = 0;              // DLAB = 0
+        static constexpr u16 int_enabled = 1;       // DLAB = 0
+        static constexpr u16 baud_divisor_low = 0;  // DLAB = 1
+        static constexpr u16 baud_divisor_high = 1; // DLAB = 1
+        static constexpr u16 fifo_ctrl = 2;
+        static constexpr u16 line_ctrl = 3;
+        static constexpr u16 modem_ctrl = 4;
+        static constexpr u16 line_status = 5;
+        static constexpr u16 modem_status = 6;
+        static constexpr u16 scratch = 7;
     }
 
     EARLY void Initialize();
 
-    // Default is COM1
-    void SetPort(u16 port);
+    // Default is COM1.
+    // Returns false without changes if the port is invalid.
+    bool SetPort(u16 port);
+    u16 GetPort();
 
     u8 Read(u16 port, u16 reg = reg::data);
     void Write(u16 port, u16 reg, u8 data);
