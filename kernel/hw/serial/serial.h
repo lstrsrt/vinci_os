@@ -5,7 +5,7 @@
 
 namespace serial
 {
-    enum class Fifo : u8
+    enum_flags(Fifo, u8)
     {
         Enable = 1 << 0,
         ClearReceive = 1 << 1,
@@ -16,9 +16,8 @@ namespace serial
         TriggerLvl3 = 2 << 6,
         TriggerLvl4 = 3 << 6
     };
-    EC_ENUM_BIT_OPS(Fifo)
 
-    enum class Line : u8
+    enum_flags(Line, u8)
     {
         // Data bits
         DataFive,
@@ -39,9 +38,8 @@ namespace serial
 
         Dlab = 1 << 7
     };
-    EC_ENUM_BIT_OPS(Line)
 
-    enum class Modem
+    enum_flags(Modem, u8)
     {
         DataReady = 1 << 0, // DTR
         RequestSend = 1 << 1, // RTS
@@ -50,7 +48,6 @@ namespace serial
         Loopback = 1 << 4,
         AutoflowCtrl = 1 << 5
     };
-    EC_ENUM_BIT_OPS(Modem)
 
     enum class LineStatus
     {

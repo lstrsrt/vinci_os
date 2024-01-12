@@ -38,6 +38,12 @@ namespace ke
     void SelectNextThread();
     void StartScheduler();
 
+    enum_flags(AllocFlag, u32)
+    {
+        None = 0,
+        Uninitialized = 1 << 0, // Ignored with ALLOC_POISON
+    };
+
     void InitializeAllocator();
     void* Allocate(size_t size);
     void Free(void* address);

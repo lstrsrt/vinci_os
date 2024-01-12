@@ -33,8 +33,12 @@ namespace timer::pit
 {
     EARLY void Initialize()
     {
-        WritePort8(port::ctrl, ( u8 )(Channel::Zero | Access::LowHigh |
-            Mode::RateGenerator | BcdBinary::Binary));
+        const auto channel = ( u8 )Channel::Zero;
+        const auto access = ( u8 )Access::LowHigh;
+        const auto mode = ( u8 )Mode::RateGenerator;
+        const auto bcd_binary = ( u8 )BcdBinary::Binary;
+
+        WritePort8(port::ctrl, channel | access | mode | bcd_binary);
         WritePort8(port::data0, LOW8(divisor));
         WritePort8(port::data0, HIGH8(divisor));
     }

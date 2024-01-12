@@ -8,13 +8,13 @@
 namespace ec
 {
     template<$enum E>
-    constexpr auto to_underlying(E e)
+    [[msvc::intrinsic]] constexpr auto to_underlying(E e)
     {
         return static_cast<underlying_t<E>>(e);
     }
 }
 
-#define ENUM_OPERATOR(type, op) \
+#define EC_ENUM_OPERATOR(type, op) \
     template<class U = type> \
     constexpr type operator op(const type lhs, const U rhs) noexcept \
     { \
@@ -27,11 +27,11 @@ namespace ec
     }
 
 #define EC_ENUM_BIT_OPS(type) \
-    ENUM_OPERATOR(type, &) \
-    ENUM_OPERATOR(type, |) \
-    ENUM_OPERATOR(type, ^) \
-    ENUM_OPERATOR(type, >>) \
-    ENUM_OPERATOR(type, <<) \
+    EC_ENUM_OPERATOR(type, &) \
+    EC_ENUM_OPERATOR(type, |) \
+    EC_ENUM_OPERATOR(type, ^) \
+    EC_ENUM_OPERATOR(type, >>) \
+    EC_ENUM_OPERATOR(type, <<) \
     constexpr type operator~(const type x) noexcept \
     { \
         return static_cast<type>(~ec::to_underlying(x)); \
@@ -41,13 +41,7 @@ namespace ec
         return !ec::to_underlying(x); \
     }
 
-#define EC_ENUM_MATH_OPS(type) \
-    ENUM_OPERATOR(type, +) \
-    ENUM_OPERATOR(type, -) \
-    ENUM_OPERATOR(type, *) \
-    ENUM_OPERATOR(type, /)
-
-#define EC_ENUM_OPS(type) \
-    EC_ENUM_BIT_OPS(type) \
-    EC_ENUM_MATH_OPS(type)
-
+#define enum_flags(name, underlying) \
+  enum class name : underlying; \
+  EC_ENUM_BIT_OPS(name) \
+  enum class name : underlying

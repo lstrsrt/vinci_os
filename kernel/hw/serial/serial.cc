@@ -25,7 +25,7 @@ namespace serial
 #endif
     }
 
-    EARLY bool InitPort(u16 port)
+    EARLY static bool InitializePort(u16 port)
     {
         auto write_reg = [port](u16 reg, u8 data)
         {
@@ -79,8 +79,8 @@ namespace serial
     {
         // Try to initialize COM1 and COM2.
         // TODO - Add support for finding more ports
-        has_com1 = InitPort(port::com1);
-        has_com2 = InitPort(port::com2);
+        has_com1 = InitializePort(port::com1);
+        has_com2 = InitializePort(port::com2);
         if (!SetPort(port::com1))
             Print("Serial port debugging unavailable.\n");
     }

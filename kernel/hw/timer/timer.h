@@ -15,13 +15,11 @@ namespace timer
 
     namespace pit
     {
-        enum class Access : u8
+        enum class BcdBinary : u8
         {
-            Low = 1 << 4,
-            High = 1 << 5,
-            LowHigh = 3 << 4
+            Binary,
+            Bcd = 1 << 0,
         };
-        EC_ENUM_BIT_OPS(Access)
 
         enum class Mode : u8
         {
@@ -32,19 +30,22 @@ namespace timer
             SwStrobe = 4 << 1,
             HwStrobe = 5 << 1
         };
-        EC_ENUM_BIT_OPS(Mode)
+
+        enum class Access : u8
+        {
+            LatchCountValue = 0 << 4,
+            Low = 1 << 4,
+            High = 1 << 5,
+            LowHigh = 3 << 4
+        };
 
         enum class Channel : u8
         {
-            Zero, One, Two
+            Zero = 0 << 6,
+            One = 1 << 6,
+            Two = 1 << 7,
+            ReadBack = 3 << 6
         };
-        EC_ENUM_BIT_OPS(Channel)
-
-        enum class BcdBinary : u8
-        {
-            Binary, Bcd
-        };
-        EC_ENUM_BIT_OPS(BcdBinary)
 
         namespace port
         {
