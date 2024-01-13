@@ -13,7 +13,7 @@ namespace gfx
         char str[512]{};
         va_list ap;
         va_start(ap, fmt);
-        size_t len = vsnprintf(str, sizeof str, fmt, ap);
+        vsnprintf(str, sizeof str, fmt, ap);
         va_end(ap);
 
         char* s = str;

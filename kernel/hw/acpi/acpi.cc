@@ -6,7 +6,8 @@ namespace acpi
 {
     EARLY void ParseMadt(acpi::Madt* header, x64::ProcessorInfo& info)
     {
-        if (info.pic_present = header->Flags & ACPI_MADT_PCAT_COMPAT)
+        info.pic_present = header->Flags & ACPI_MADT_PCAT_COMPAT;
+        if (info.pic_present)
             Print("PIC compatibility mode supported\n");
 
         Print("Local APIC: 0x%x\n", header->LocalApicAddress);
