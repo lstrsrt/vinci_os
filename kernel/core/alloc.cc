@@ -62,7 +62,7 @@ namespace ke
         }
     }
 
-    void* Allocate(size_t size)
+    ALLOC_FN void* Allocate(size_t size, AllocFlag flags)
     {
         size += sizeof Allocation;
         size = AlignUp(size, block_size);
@@ -109,8 +109,12 @@ namespace ke
 
                         // This can be too aggressive - for example if we want to allocate 112 bytes,
                         // alignment will give us 8 extra bytes to memset.
+#if ALLOC_POISON == 0
+                        if (!(flags & AllocFlag::Uninitialized))
+                            memzero(memory, size - sizeof Allocation);
+#else
                         SetMemory(memory, fresh, size - sizeof Allocation);
-
+#endif
                         total_used += size;
                         total_free -= size;
 
@@ -137,8 +141,11 @@ namespace ke
         // Assume that this is the address returned by Allocate()
         // i.e. starting after the allocation info.
         const auto real_address = ( uptr_t )address - sizeof Allocation;
-        if (( vaddr_t )real_address < kva::kernel_pool.base || ( vaddr_t )real_address > kva::kernel_pool.End())
+        if (!kva::kernel_pool.Contains(( vaddr_t )real_address))
+        {
+            DbgPrint("Invalid address passed to Free (0x%llx, 0x%llx), returning.\n", address, real_address);
             return;
+        }
 
         DbgPrint("Freeing 0x%llx\n", real_address);
         const auto alloc = ( Allocation* )real_address;
@@ -151,5 +158,15 @@ namespace ke
 
         total_used -= bytes;
         total_free += bytes;
+    }
+
+    void PrintAllocations()
+    {
+        Print("Total used: %llu bytes, free: %llu bytes\n", total_used, total_free);
+        for (size_t i = 0; i < alloc_map.size(); i++)
+        {
+            if (u8 b = alloc_map[i])
+                Print("[%llu]: %u ( bytes)\n", i, b);
+        }
     }
 }

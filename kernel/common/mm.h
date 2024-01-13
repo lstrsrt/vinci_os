@@ -168,7 +168,7 @@ namespace mm
     // https://github.com/toddsharpe/MetalOS/blob/master/src/arch/x64/PageTables.cpp
     //
 
-    size_t AllocatePhysical(PagePool& pool, paddr_t* phys_out)
+    static size_t AllocatePhysical(PagePool& pool, paddr_t* phys_out)
     {
         for (size_t page = 1 /* Skip ourselves */; page < pool.pages; page++)
         {
@@ -185,7 +185,7 @@ namespace mm
         return 0;
     }
 
-    size_t AllocatePhysical(PagePool& pool, paddr_t* phys_out, size_t count)
+    static size_t AllocatePhysical(PagePool& pool, paddr_t* phys_out, size_t count)
     {
         size_t page = AllocatePhysical(pool, phys_out);
         if (!page)
@@ -219,7 +219,7 @@ namespace mm
 #define GetPtEntry(pool, pde, virt) \
     ((( x64::PageTable )GetPoolEntryVa(pool, pde.value & ~page_mask))[VA_PT_INDEX(virt)])
 
-    x64::PageTableEntry* GetPresentPte(PagePool& pool, vaddr_t virt)
+    static x64::PageTableEntry* GetPresentPte(PagePool& pool, vaddr_t virt)
     {
         const auto pml4e = GetPml4Entry(pool, virt);
         if (pml4e.present)
@@ -236,13 +236,13 @@ namespace mm
         return nullptr;
     }
 
-    bool IsPagePresent(PagePool& pool, vaddr_t virt)
+    INLINE bool IsPagePresent(PagePool& pool, vaddr_t virt)
     {
         auto pte = GetPresentPte(pool, virt);
         return pte ? pte->present : false;
     }
 
-    bool UnmapPage(PagePool& pool, vaddr_t virt)
+    INLINE bool UnmapPage(PagePool& pool, vaddr_t virt)
     {
         auto pte = GetPresentPte(pool, virt);
         if (pte)
@@ -250,7 +250,7 @@ namespace mm
         return pte != nullptr;
     }
 
-    x64::PageTableEntry* MapPage(PagePool& pool, vaddr_t virt, paddr_t phys, bool user = false)
+    static x64::PageTableEntry* MapPage(PagePool& pool, vaddr_t virt, paddr_t phys, bool user = false)
     {
         if (!IsPageAligned(virt) || !IsPageAligned(phys))
             return nullptr;
@@ -305,7 +305,7 @@ namespace mm
         return pte;
     }
 
-    bool MapPages(PagePool& pool, vaddr_t virt, paddr_t phys, size_t count)
+    static bool MapPages(PagePool& pool, vaddr_t virt, paddr_t phys, size_t count)
     {
         for (vaddr_t page_offset = 0; page_offset < (count * page_size); page_offset += page_size)
         {
@@ -321,7 +321,7 @@ namespace mm
 
     // phys_virt is the physical address on input and the virtual address on return (if successful).
     template<Region rg>
-    bool MapPagesInRegion(PagePool& pool, uptr_t* phys_virt, size_t count)
+    static bool MapPagesInRegion(PagePool& pool, uptr_t* phys_virt, size_t count)
     {
         if ((*phys_virt + count * page_size) > rg.End())
             return false;

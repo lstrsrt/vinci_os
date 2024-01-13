@@ -30,6 +30,7 @@ struct Region
 
     consteval vaddr_t End() const { return base + size; }
     consteval size_t PageCount() const { return SizeToPages(size); }
+    constexpr bool Contains(vaddr_t addr) const { return addr >= base && addr < (base + size); }
 };
 
 namespace kva
