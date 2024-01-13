@@ -2,11 +2,9 @@
 
 #include "ke.h"
 #include "gfx/output.h"
+#include "../common/mm.h"
 
 EXTERN_C uptr_t kernel_stack_top;
-
-EXTERN_C void Switch(x64::Context* ctx);
-
 
 namespace ke
 {
@@ -26,20 +24,20 @@ namespace ke
 
     static void EntryPointThread()
     {
-        ke::cur_thread->function(ke::cur_thread->arg);
+        auto cur_thread = GetCurrentThread();
+        auto first_thread = GetFirstThread();
 
-        Free(ke::cur_thread);
-        RemoveListEntry(ke::first_thread, ke::cur_thread);
+        cur_thread->function(cur_thread->arg);
 
-        for (auto p = ke::first_thread; p; p = ( Thread* )p->next)
-            Print("0x%llx\n", ( u64 )p);
+        Free(cur_thread);
+        RemoveListEntry(first_thread, cur_thread);
 
         // Wait for a new thread to take over.
-        // TODO - is this right?
+        // TODO - is this right? maybe call the scheduler instead
         x64::Idle();
     }
 
-    static Thread* CreateThreadInternal(void(*function)(void*), void* arg, vaddr_t stack)
+    static Thread* CreateThreadInternal(void(*function)(void*), void* arg, vaddr_t kstack)
     {
         static size_t thread_i = 0;
 
@@ -50,7 +48,7 @@ namespace ke
         thread->arg = arg;
 
         thread->ctx.rip = ( u64 )EntryPointThread;
-        thread->ctx.rsp = stack;
+        thread->ctx.rsp = kstack;
         thread->ctx.rflags = ( u64 )(x64::RFLAG::IF | x64::RFLAG::ALWAYS);
 
         return thread;
@@ -61,23 +59,37 @@ namespace ke
         // FIXME - can we use kernel_stack_top here?
         // since every thread is going to have its own kernel stack,
         // we should be able to use the boot stack for the idle loop
-        first_thread = CreateThreadInternal(IdleLoop, nullptr, kernel_stack_top);
-        cur_thread = first_thread;
+
+        auto idle_thread = CreateThreadInternal(IdleLoop, nullptr, kernel_stack_top);
+
+        WriteCore64(first_thread, idle_thread); // set first thread
+        SetCurrentThread(idle_thread);
+
         schedule = true;
     }
 
-    Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t stack)
+    Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t kstack)
     {
-        auto thread = CreateThreadInternal(function, arg, stack);
-        PushListEntry(first_thread, thread);
+        if (!kstack)
+        {
+            kstack = ( vaddr_t )Allocate(page_size);
+            kstack += page_size; // Stack starts at the top...
+        }
+
+        auto thread = CreateThreadInternal(function, arg, kstack);
+        PushListEntry(GetFirstThread(), thread);
         return thread;
     }
 
     void SelectNextThread()
     {
-        cur_thread = ( Thread* )cur_thread->next;
-        if (!cur_thread)
-            cur_thread = first_thread;
+        auto cur = GetCurrentThread();
+        if (!cur->next)
+            cur = GetFirstThread();
+        else
+            cur = ( Thread* )cur->next;
+
+        SetCurrentThread(cur);
     }
 
 

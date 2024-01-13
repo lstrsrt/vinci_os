@@ -122,7 +122,7 @@ namespace x64
             }
             else
             {
-                Print("IsrCommon: Received interrupt %d (%s)\n", int_no, exception_strings[int_no]);
+                Print("IsrCommon: Received interrupt %u (%llu) (%s)\n", int_no, frame->error_code, exception_strings[int_no]);
             }
         }
         else if (int_no < irq_base + irq_count)
@@ -132,9 +132,9 @@ namespace x64
             {
                 if (irq == 0 && ke::schedule)
                 {
-                    SaveContext(&ke::cur_thread->ctx, frame);
+                    SaveContext(&ke::GetCurrentThread()->ctx, frame);
                     ke::SelectNextThread();
-                    LoadContext(frame, &ke::cur_thread->ctx);
+                    LoadContext(frame, &ke::GetCurrentThread()->ctx);
                 }
 
                 if (irq_handlers[irq])

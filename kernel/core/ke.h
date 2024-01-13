@@ -28,13 +28,43 @@ namespace ke
         u64 id;
     };
 
+    //
+    // This is like the KPRCB on Windows.
+    // It contains (or will contain) per-core kernel data and is stored in GS.
+    // This kernel only supports one core right now so this only exists once.
+    //
+    struct Core
+    {
+        Core* self; // avoid having to rdgsbase
+        Thread* first_thread;
+        Thread* current_thread;
+    };
+
+    void InitializeCore();
+
+#define ReadCore64(field) ( decltype(Core::##field) )__readgsqword(__builtin_offsetof(Core, field))
+#define WriteCore64(field, x) __writegsqword(__builtin_offsetof(Core, field), ( u64 )x)
+
+    INLINE Thread* GetCurrentThread()
+    {
+        return ReadCore64(current_thread);
+    }
+
+    INLINE Thread* GetFirstThread()
+    {
+        return ReadCore64(first_thread);
+    }
+
+    INLINE void SetCurrentThread(Thread* thread)
+    {
+        WriteCore64(current_thread, thread);
+    }
+
 #pragma data_seg(".data")
-    inline Thread* first_thread{};
-    inline Thread* cur_thread{};
     inline bool schedule = false;
 #pragma data_seg()
 
-    Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t stack);
+    Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t kstack = 0);
     void SelectNextThread();
     void StartScheduler();
 
@@ -45,14 +75,16 @@ namespace ke
     };
 
     void InitializeAllocator();
-    void* Allocate(size_t size);
-    void Free(void* address);
+    ALLOC_FN void* Allocate(size_t size, AllocFlag flags = AllocFlag::None);
 
     template<class T>
-    INLINE T* Allocate(size_t size = sizeof(T))
+    ALLOC_FN INLINE T* Allocate(size_t size = sizeof T, AllocFlag flags = AllocFlag::None)
     {
-        return ( T* )Allocate(size);
+        return ( T* )Allocate(size, flags);
     }
+
+    void Free(void* address);
+    void PrintAllocations();
 
     NO_RETURN void Panic(Status);
 }

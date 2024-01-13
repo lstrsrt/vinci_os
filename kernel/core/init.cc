@@ -1,13 +1,13 @@
 ﻿#include <ec/util.h>
 #include <libc/str.h>
 
-#include "../common/mm.h"
 #include "../../boot/boot.h"
+#include "../common/mm.h"
 #include "../hw/acpi/acpi.h"
 #include "../hw/cmos/cmos.h"
 #include "../hw/cpu/isr.h"
 #include "../hw/cpu/x64.h"
-#include "../hw/cpu/cpuid.h"
+#include "../hw/cpu/msr.h"
 #include "../hw/ps2/ps2.h"
 #include "../hw/serial/serial.h"
 #include "../hw/timer/timer.h"
@@ -88,6 +88,23 @@ EARLY static void CoalesceMemoryDescriptors(const MemoryMap& memory_map)
     Print("Coalesced %llu memory descriptors.\n", count);
 }
 
+EARLY static void MapUefiRuntime(const MemoryMap& memory_map, mm::PagePool& pool)
+{
+    IterateMemoryDescriptors(memory_map, [&pool](uefi::memory_descriptor* desc)
+    {
+        if (desc->attribute & uefi::memory_runtime)
+        {
+            Print(
+                "Mapping UEFI runtime: 0x%llx -> 0x%llx (%llu pages)\n",
+                desc->physical_start,
+                desc->virtual_start,
+                desc->number_of_pages
+            );
+            mm::MapPages(pool, desc->virtual_start, desc->physical_start, desc->number_of_pages);
+        }
+    });
+}
+
 static IMAGE_NT_HEADERS* ImageNtHeaders(void* image_base)
 {
     auto dos_header = ( IMAGE_DOS_HEADER* )image_base;
@@ -135,93 +152,22 @@ static void FinalizeKernelMapping(mm::PagePool& pool)
     }
 }
 
-void PrintContext(x64::Context* ctx)
+namespace ke
 {
-    serial::Write("RAX: 0x%llx\n", ctx->rax);
-    serial::Write("RCX: 0x%llx\n", ctx->rcx);
-    serial::Write("RDX: 0x%llx\n", ctx->rdx);
-    serial::Write("RBX: 0x%llx\n", ctx->rbx);
-    serial::Write("RSI: 0x%llx\n", ctx->rsi);
-    serial::Write("RDI: 0x%llx\n", ctx->rdi);
-
-    serial::Write("R8 : 0x%llx\n", ctx->r8);
-    serial::Write("R9 : 0x%llx\n", ctx->r9);
-    serial::Write("R10: 0x%llx\n", ctx->r10);
-    serial::Write("R11: 0x%llx\n", ctx->r11);
-    serial::Write("R12: 0x%llx\n", ctx->r12);
-    serial::Write("R13: 0x%llx\n", ctx->r13);
-    serial::Write("R14: 0x%llx\n", ctx->r14);
-    serial::Write("R15: 0x%llx\n", ctx->r15);
-
-    serial::Write("RSP: 0x%llx\n", ctx->rsp);
-    serial::Write("RBP: 0x%llx\n", ctx->rbp);
-
-    serial::Write("RIP: 0x%llx\n", ctx->rip);
-
-    serial::Write("RFL: 0x%llx\n", ctx->rflags);
-    serial::Write("*********\n");
-}
-
-static void ThreadAFunc(void*)
-{
-    int i = 0;
-    while (1)
+    void InitializeCore()
     {
-        _disable();
-        i++;
-        //Print("AAAAAAA %d\n", i++);
-        // serial::Write("********* Reg Dump A:\n");
-        // PrintContext(&ke::cur_thread->ctx);
-        _enable();
+        auto core = Allocate<Core>();
+        core->self = core;
+        // current_thread is initialized by the first call to SelectNextThread
+
+        WriteMsr(x64::Msr::KERNEL_GS_BASE, ( uptr_t )core);
+        _writegsbase_u64(( uptr_t )core);
     }
-    Print("returning from A\n");
 }
-
-static void ThreadBFunc(void*)
-{
-    int i = 0;
-    while (1)
-    {
-        _disable();
-        i++;
-        //Print("BBBBBBB %d\n", i++);
-        // serial::Write("********* Reg Dump B:\n");
-        // PrintContext(&ke::cur_thread->ctx);
-        _enable();
-    }
-    Print("returning from B\n");
-}
-
-static void ThreadCFunc(void*)
-{
-    int i = 0;
-    while (i < 20)
-    {
-        _disable();
-        i++;
-        //Print("CCCCCCC %d\n", i++);
-        // serial::Write("********* Reg Dump C:\n");
-        // PrintContext(&ke::cur_thread->ctx);
-        _enable();
-    }
-    Print("returning from C\n");
-}
-
-#pragma data_seg(".data")
-static u64 thread_i = 0;
-#pragma data_seg()
-
-EXTERN_C void Switch(x64::Context* ctx);
 
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 {
     gfx::Initialize(loader_block->display);
-
-    // Init COM ports so we have early debugging capabilities.
-    // TODO - Remap APIC earlier when we use serial interrupts
-    serial::Initialize();
-
-    acpi::ParseMadt(loader_block->madt_header, x64::cpu_info);
 
     // Copy all the important stuff because the loader block gets freed in ReclaimBootPages
     MemoryMap memory_map = loader_block->memory_map;
@@ -235,8 +181,13 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     ReclaimBootPages(memory_map);
     CoalesceMemoryDescriptors(memory_map);
 
+    acpi::ParseMadt(loader_block->madt_header, x64::cpu_info);
+
     x64::cpu_info.using_apic = false;
     x64::Initialize(kernel_stack_top);
+
+    // Init COM ports so we have early debugging capabilities.
+    serial::Initialize();
 
     // Build a new page table (the bootloader one is temporary)
     mm::PagePool pool(kva::kernel_pt.base, pt_physical, pt_pages);
@@ -255,6 +206,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
         mm::GetPresentPte(pool, page)->pat = true;
 
+    // Map devices and set CD bit
     {
         mm::MapPagesInRegion<kva::devices>(pool, &hpet, 1);
         mm::GetPresentPte(pool, hpet)->cache_disable = true;
@@ -266,60 +218,20 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
         mm::GetPresentPte(pool, apic::local)->cache_disable = true;
     }
 
-    IterateMemoryDescriptors(memory_map, [&pool](uefi::memory_descriptor* desc)
-    {
-        if (desc->attribute & uefi::memory_runtime)
-        {
-            Print(
-                "Mapping UEFI runtime: 0x%llx -> 0x%llx (%llu pages)\n",
-                desc->physical_start,
-                desc->virtual_start,
-                desc->number_of_pages
-            );
-            mm::MapPages(pool, desc->virtual_start, desc->physical_start, desc->number_of_pages);
-        }
-    });
-
-    // SerialPrintDescriptors(memory_map);
-
-    vaddr_t stk_va = kva::kernel_image.base + (100 * page_size);
-    vaddr_t stk_va2 = stk_va + page_size;
-    vaddr_t stk_va3 = stk_va2 + page_size;
-    {
-        paddr_t tmp_stk;
-        mm::AllocatePhysical(pool, &tmp_stk);
-        mm::MapPage(pool, stk_va, tmp_stk);
-        mm::AllocatePhysical(pool, &tmp_stk);
-        mm::MapPage(pool, stk_va2, tmp_stk);
-        mm::AllocatePhysical(pool, &tmp_stk);
-        mm::MapPage(pool, stk_va3, tmp_stk);
-    }
-
-    // paddr_t user_page;
-    // vaddr_t user_page_va = 0x7ff7f0000000;
-    // vaddr_t user_stack_va = 0x7ff7f0001000;
-    //
-    // mm::AllocatePhysical(pool, &user_page);
-    // mm::MapPage(pool, user_page_va, user_page, true);
-    //
-    // FIXME why does this set 4 pages to present instead of 1?
-    // mm::AllocatePhysical(pool, &user_page);
-    // mm::MapPage(pool, user_stack_va, user_page, true);
+    MapUefiRuntime(memory_map, pool);
 
     uptr_t kpool;
     mm::AllocatePhysical(pool, &kpool, kva::kernel_pool.PageCount());
     mm::MapPagesInRegion<kva::kernel_pool>(pool, &kpool, kva::kernel_pool.PageCount());
 
+    uptr_t stack;
+    vaddr_t stack_va = kva::kernel_image.base + (200 * page_size);
+    mm::AllocatePhysical(pool, &stack);
+    mm::MapPage(pool, stack_va, stack);
+
     __writecr3(pool.root);
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
-
-    // {
-    //     x64::SmapSetAc();
-    //     memzero(( void* )user_stack_va, page_size);
-    //     memcpy(( void* )user_page_va, ( const void* )x64::Ring3Function, 40);
-    //     x64::SmapClearAc();
-    // }
 
     timer::Initialize(hpet);
 
@@ -333,17 +245,11 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     FinalizeKernelMapping(pool);
 
     ke::InitializeAllocator();
+    ke::InitializeCore();
 
     x64::unmask_interrupts();
 
     ke::StartScheduler();
-    ke::CreateThread(ThreadAFunc, nullptr, stk_va + page_size);
-    ke::CreateThread(ThreadBFunc, nullptr, stk_va2 + page_size);
-    ke::CreateThread(ThreadCFunc, nullptr, stk_va3 + page_size);
-
-    // Switch(&ke::cur_thread->ctx);
-
-    // x64::EnterUserMode(user_page_va, user_stack_va + page_size /* stack starts at top */);
 
     x64::Idle();
 }
