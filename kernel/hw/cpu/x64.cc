@@ -7,8 +7,6 @@
 #include "../../core/ke.h"
 #include "../../core/gfx/output.h"
 
-#include "../timer/timer.h"
-
 namespace x64
 {
 #pragma data_seg("PROTDATA")
@@ -23,13 +21,270 @@ namespace x64
         GdtEntry::TssHigh(&kernel_tss)                 // TSS high
     };
 
-    alignas(64) static ec::array<IdtEntry, 256> idt;
+    alignas(64) static ec::array<IdtEntry, 256> idt{
+        IdtEntry(_Isr0, 0), // Only has to be explicit the first time
+        { _Isr1, 0, DebugIst },
+        { _Isr2, 0, NmiIst },
+        { _Isr3, 0, DebugIst },
+        { _Isr4, 0 },
+        { _Isr5, 0 },
+        { _Isr6, 0 },
+        { _Isr7, 0 },
+        { _Isr8, 0, DoubleFaultIst },
+        { _Isr9, 0 },
+        { _Isr10, 0 },
+        { _Isr11, 0 },
+        { _Isr12, 0 },
+        { _Isr13, 0 },
+        { _Isr14, 0 },
+        { _Isr15, 0 },
+        { _Isr16, 0 },
+        { _Isr17, 0 },
+        { _Isr18, 0, MachineCheckIst },
+        { _Isr19, 0 },
+        { _Isr20, 0 },
+        { _Isr21, 0 },
+        { _Isr22, 0 },
+        { _Isr23, 0 },
+        { _Isr24, 0 },
+        { _Isr25, 0 },
+        { _Isr26, 0 },
+        { _Isr27, 0 },
+        { _Isr28, 0 },
+        { _Isr29, 0 },
+        { _Isr30, 0 },
+        { _Isr31, 0 },
+        { _Isr32, 0 },
+        { _Isr33, 0 },
+        { _Isr34, 0 },
+        { _Isr35, 0 },
+        { _Isr36, 0 },
+        { _Isr37, 0 },
+        { _Isr38, 0 },
+        { _Isr39, 0 },
+        { _Isr40, 0 },
+        { _Isr41, 0 },
+        { _Isr42, 0 },
+        { _Isr43, 0 },
+        { _Isr44, 0 },
+        { _Isr45, 0 },
+        { _Isr46, 0 },
+        { _Isr47, 0 },
+        { _Isr48, 0 },
+        { _Isr49, 0 },
+        { _Isr50, 0 },
+        { _Isr51, 0 },
+        { _Isr52, 0 },
+        { _Isr53, 0 },
+        { _Isr54, 0 },
+        { _Isr55, 0 },
+        { _Isr56, 0 },
+        { _Isr57, 0 },
+        { _Isr58, 0 },
+        { _Isr59, 0 },
+        { _Isr60, 0 },
+        { _Isr61, 0 },
+        { _Isr62, 0 },
+        { _Isr63, 0 },
+        { _Isr64, 0 },
+        { _Isr65, 0 },
+        { _Isr66, 0 },
+        { _Isr67, 0 },
+        { _Isr68, 0 },
+        { _Isr69, 0 },
+        { _Isr70, 0 },
+        { _Isr71, 0 },
+        { _Isr72, 0 },
+        { _Isr73, 0 },
+        { _Isr74, 0 },
+        { _Isr75, 0 },
+        { _Isr76, 0 },
+        { _Isr77, 0 },
+        { _Isr78, 0 },
+        { _Isr79, 0 },
+        { _Isr80, 0 },
+        { _Isr81, 0 },
+        { _Isr82, 0 },
+        { _Isr83, 0 },
+        { _Isr84, 0 },
+        { _Isr85, 0 },
+        { _Isr86, 0 },
+        { _Isr87, 0 },
+        { _Isr88, 0 },
+        { _Isr89, 0 },
+        { _Isr90, 0 },
+        { _Isr91, 0 },
+        { _Isr92, 0 },
+        { _Isr93, 0 },
+        { _Isr94, 0 },
+        { _Isr95, 0 },
+        { _Isr96, 0 },
+        { _Isr97, 0 },
+        { _Isr98, 0 },
+        { _Isr99, 0 },
+        { _Isr100, 0 },
+        { _Isr101, 0 },
+        { _Isr102, 0 },
+        { _Isr103, 0 },
+        { _Isr104, 0 },
+        { _Isr105, 0 },
+        { _Isr106, 0 },
+        { _Isr107, 0 },
+        { _Isr108, 0 },
+        { _Isr109, 0 },
+        { _Isr110, 0 },
+        { _Isr111, 0 },
+        { _Isr112, 0 },
+        { _Isr113, 0 },
+        { _Isr114, 0 },
+        { _Isr115, 0 },
+        { _Isr116, 0 },
+        { _Isr117, 0 },
+        { _Isr118, 0 },
+        { _Isr119, 0 },
+        { _Isr120, 0 },
+        { _Isr121, 0 },
+        { _Isr122, 0 },
+        { _Isr123, 0 },
+        { _Isr124, 0 },
+        { _Isr125, 0 },
+        { _Isr126, 0 },
+        { _Isr127, 0 },
+        { _Isr128, 0 },
+        { _Isr129, 0 },
+        { _Isr130, 0 },
+        { _Isr131, 0 },
+        { _Isr132, 0 },
+        { _Isr133, 0 },
+        { _Isr134, 0 },
+        { _Isr135, 0 },
+        { _Isr136, 0 },
+        { _Isr137, 0 },
+        { _Isr138, 0 },
+        { _Isr139, 0 },
+        { _Isr140, 0 },
+        { _Isr141, 0 },
+        { _Isr142, 0 },
+        { _Isr143, 0 },
+        { _Isr144, 0 },
+        { _Isr145, 0 },
+        { _Isr146, 0 },
+        { _Isr147, 0 },
+        { _Isr148, 0 },
+        { _Isr149, 0 },
+        { _Isr150, 0 },
+        { _Isr151, 0 },
+        { _Isr152, 0 },
+        { _Isr153, 0 },
+        { _Isr154, 0 },
+        { _Isr155, 0 },
+        { _Isr156, 0 },
+        { _Isr157, 0 },
+        { _Isr158, 0 },
+        { _Isr159, 0 },
+        { _Isr160, 0 },
+        { _Isr161, 0 },
+        { _Isr162, 0 },
+        { _Isr163, 0 },
+        { _Isr164, 0 },
+        { _Isr165, 0 },
+        { _Isr166, 0 },
+        { _Isr167, 0 },
+        { _Isr168, 0 },
+        { _Isr169, 0 },
+        { _Isr170, 0 },
+        { _Isr171, 0 },
+        { _Isr172, 0 },
+        { _Isr173, 0 },
+        { _Isr174, 0 },
+        { _Isr175, 0 },
+        { _Isr176, 0 },
+        { _Isr177, 0 },
+        { _Isr178, 0 },
+        { _Isr179, 0 },
+        { _Isr180, 0 },
+        { _Isr181, 0 },
+        { _Isr182, 0 },
+        { _Isr183, 0 },
+        { _Isr184, 0 },
+        { _Isr185, 0 },
+        { _Isr186, 0 },
+        { _Isr187, 0 },
+        { _Isr188, 0 },
+        { _Isr189, 0 },
+        { _Isr190, 0 },
+        { _Isr191, 0 },
+        { _Isr192, 0 },
+        { _Isr193, 0 },
+        { _Isr194, 0 },
+        { _Isr195, 0 },
+        { _Isr196, 0 },
+        { _Isr197, 0 },
+        { _Isr198, 0 },
+        { _Isr199, 0 },
+        { _Isr200, 0 },
+        { _Isr201, 0 },
+        { _Isr202, 0 },
+        { _Isr203, 0 },
+        { _Isr204, 0 },
+        { _Isr205, 0 },
+        { _Isr206, 0 },
+        { _Isr207, 0 },
+        { _Isr208, 0 },
+        { _Isr209, 0 },
+        { _Isr210, 0 },
+        { _Isr211, 0 },
+        { _Isr212, 0 },
+        { _Isr213, 0 },
+        { _Isr214, 0 },
+        { _Isr215, 0 },
+        { _Isr216, 0 },
+        { _Isr217, 0 },
+        { _Isr218, 0 },
+        { _Isr219, 0 },
+        { _Isr220, 0 },
+        { _Isr221, 0 },
+        { _Isr222, 0 },
+        { _Isr223, 0 },
+        { _Isr224, 0 },
+        { _Isr225, 0 },
+        { _Isr226, 0 },
+        { _Isr227, 0 },
+        { _Isr228, 0 },
+        { _Isr229, 0 },
+        { _Isr230, 0 },
+        { _Isr231, 0 },
+        { _Isr232, 0 },
+        { _Isr233, 0 },
+        { _Isr234, 0 },
+        { _Isr235, 0 },
+        { _Isr236, 0 },
+        { _Isr237, 0 },
+        { _Isr238, 0 },
+        { _Isr239, 0 },
+        { _Isr240, 0 },
+        { _Isr241, 0 },
+        { _Isr242, 0 },
+        { _Isr243, 0 },
+        { _Isr244, 0 },
+        { _Isr245, 0 },
+        { _Isr246, 0 },
+        { _Isr247, 0 },
+        { _Isr248, 0 },
+        { _Isr249, 0 },
+        { _Isr250, 0 },
+        { _Isr251, 0 },
+        { _Isr252, 0 },
+        { _Isr253, 0 },
+        { _Isr254, 0 },
+        { _Isr255, 0 }
+    };
 
     alignas(sizeof u16) static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
     alignas(sizeof u16) static DescriptorTable idt_desc(&idt, sizeof idt - 1);
 #pragma data_seg()
 
-    EARLY static void CheckFeatures()
+    EARLY static void GetCpuModel()
     {
         Print("CPU vendor: %s\n", GetVendorString(cpu_info.vendor_string));
 
@@ -47,27 +302,49 @@ namespace x64
         }
 
         Print("F %u M %u S %u\n", cpu_info.family, cpu_info.model, cpu_info.stepping);
+    }
+
+    NO_RETURN EARLY static void CpuidPanic(const char* feature)
+    {
+        Print("\nMissing required feature: %s\n", feature);
+        ke::Panic(Status::UnsupportedSystem);
+    }
+
+#define CheckRequiredFeature(reg, feat) \
+    if (!CheckCpuid(reg, feat)) { \
+        CpuidPanic(#feat); \
+    } else { \
+        Print(#feat ## " "); \
+    }
+
+#define CheckOptionalFeature(info, reg, feat) \
+    info = CheckCpuid(reg, feat); \
+    if (info) { \
+        Print(#feat ## " "); \
+    }
+
+    EARLY static void CheckFeatures()
+    {
+        using enum CpuidFeature;
+
         Print("CPUID: ");
 
-        if (CheckCpuid(ids.ecx, CpuidFeature::HYPERVISOR))
-            Print("HV ");
+        {
+            Cpuid ids(CpuidLeaf::Info);
 
-        // Supported features
-        if (cpu_info.tsc_supported = CheckCpuid(ids.edx, CpuidFeature::TSC))
-            Print("TSC ");
-        if (cpu_info.msr_supported = CheckCpuid(ids.edx, CpuidFeature::MSR))
-            Print("MSR ");
-        if (cpu_info.pat_supported = CheckCpuid(ids.edx, CpuidFeature::PAT))
-            Print("PAT ");
-        // if (cpu_info.using_apic = CheckCpuid(ids.edx, CpuidFeature::APIC))
-        //     Print("APIC ");
-        if (CheckCpuid(ids.ecx, ( CpuidFeature )(1 << 21)))
-            Print("X2APIC ");
+            CheckOptionalFeature(cpu_info.tsc_supported, ids.ecx, TSC);
+            CheckOptionalFeature(cpu_info.hypervisor, ids.ecx, HYPERVISOR);
+            CheckOptionalFeature(cpu_info.has_x2apic, ids.ecx, X2APIC);
 
-        ids = Cpuid(CpuidLeaf::ExtendedInfo);
+            // TODO - do this when it works on hardware
+            // CheckOptionalFeature(cpu_info.using_apic, ids.edx, APIC);
+        }
 
-        if (!CheckCpuid(ids.edx, CpuidFeature::SYSCALL))
-            ke::Panic(Status::UnsupportedSystem);
+        {
+            Cpuid ids(CpuidLeaf::ExtendedInfo);
+
+            CheckRequiredFeature(ids.edx, SYSCALL);
+        }
 
         Print("\n");
     }
@@ -97,8 +374,8 @@ namespace x64
             Print("SMEP ");
         }
 
-        if (cpu_info.smap_supported =
-            CheckCpuid(ids.ebx, CpuidFeature::SMAP))
+        cpu_info.smap_supported = CheckCpuid(ids.ebx, CpuidFeature::SMAP);
+        if (cpu_info.smap_supported)
         {
             cr4 |= Cr4::SMAP;
             Print("SMAP ");
@@ -133,12 +410,6 @@ namespace x64
 
     EARLY static void LoadPageAttributeTable()
     {
-        if (!cpu_info.pat_supported)
-        {
-            Print("PAT not supported, skipping initialization.\n");
-            return;
-        }
-
         // This is the same as the default PAT entries
         // but with one exception: PAT4 selects WC instead of WB
         static constexpr auto pat_entries = (
@@ -158,286 +429,22 @@ namespace x64
         TlbFlush();
     }
 
-    EARLY static void InitGdt()
+    EARLY static void LoadGdt(x64::DescriptorTable* desc)
     {
-        _lgdt(&gdt_desc);
+        _lgdt(desc);
         ReloadSegments(GetGdtOffset(GdtIndex::R0Code), GetGdtOffset(GdtIndex::R0Data));
         LoadTr(GetGdtOffset(GdtIndex::TssLow));
     }
 
-    EARLY static void InitIdt()
+    EARLY static void LoadIdt(x64::DescriptorTable* desc)
     {
-        // TODO - can probably do this in a constructor
-
-        memzero(&idt, sizeof idt);
-
-        idt[0].Set(_Isr0, 0);
-        idt[1].Set(_Isr1, 0, DebugIst);
-        idt[2].Set(_Isr2, 0, NmiIst);
-        idt[3].Set(_Isr3, 0, DebugIst);
-        idt[4].Set(_Isr4, 0);
-        idt[5].Set(_Isr5, 0);
-        idt[6].Set(_Isr6, 0);
-        idt[7].Set(_Isr7, 0);
-        idt[8].Set(_Isr8, 0, DoubleFaultIst);
-        idt[9].Set(_Isr9, 0);
-        idt[10].Set(_Isr10, 0);
-        idt[11].Set(_Isr11, 0);
-        idt[12].Set(_Isr12, 0);
-        idt[13].Set(_Isr13, 0);
-        idt[14].Set(_Isr14, 0);
-        idt[15].Set(_Isr15, 0);
-        idt[16].Set(_Isr16, 0);
-        idt[17].Set(_Isr17, 0);
-        idt[18].Set(_Isr18, 0, MachineCheckIst);
-        idt[19].Set(_Isr19, 0);
-        idt[20].Set(_Isr20, 0);
-        idt[21].Set(_Isr21, 0);
-        idt[22].Set(_Isr22, 0);
-        idt[23].Set(_Isr23, 0);
-        idt[24].Set(_Isr24, 0);
-        idt[25].Set(_Isr25, 0);
-        idt[26].Set(_Isr26, 0);
-        idt[27].Set(_Isr27, 0);
-        idt[28].Set(_Isr28, 0);
-        idt[29].Set(_Isr29, 0);
-        idt[30].Set(_Isr30, 0);
-        idt[31].Set(_Isr31, 0);
-
-        idt[32].Set(_Isr32, 0);
-        idt[33].Set(_Isr33, 0);
-        idt[34].Set(_Isr34, 0);
-        idt[35].Set(_Isr35, 0);
-        idt[36].Set(_Isr36, 0);
-        idt[37].Set(_Isr37, 0);
-        idt[38].Set(_Isr38, 0);
-        idt[39].Set(_Isr39, 0);
-        idt[40].Set(_Isr40, 0);
-        idt[41].Set(_Isr41, 0);
-        idt[42].Set(_Isr42, 0);
-        idt[43].Set(_Isr43, 0);
-        idt[44].Set(_Isr44, 0);
-        idt[45].Set(_Isr45, 0);
-        idt[46].Set(_Isr46, 0);
-        idt[47].Set(_Isr47, 0);
-
-        idt[48].Set(_Isr48, 0);
-        idt[49].Set(_Isr49, 0);
-        idt[50].Set(_Isr50, 0);
-        idt[51].Set(_Isr51, 0);
-        idt[52].Set(_Isr52, 0);
-        idt[53].Set(_Isr53, 0);
-        idt[54].Set(_Isr54, 0);
-        idt[55].Set(_Isr55, 0);
-        idt[56].Set(_Isr56, 0);
-        idt[57].Set(_Isr57, 0);
-        idt[58].Set(_Isr58, 0);
-        idt[59].Set(_Isr59, 0);
-        idt[60].Set(_Isr60, 0);
-        idt[61].Set(_Isr61, 0);
-        idt[62].Set(_Isr62, 0);
-        idt[63].Set(_Isr63, 0);
-        idt[64].Set(_Isr64, 0);
-        idt[65].Set(_Isr65, 0);
-        idt[66].Set(_Isr66, 0);
-        idt[67].Set(_Isr67, 0);
-        idt[68].Set(_Isr68, 0);
-        idt[69].Set(_Isr69, 0);
-        idt[70].Set(_Isr70, 0);
-        idt[71].Set(_Isr71, 0);
-        idt[72].Set(_Isr72, 0);
-        idt[73].Set(_Isr73, 0);
-        idt[74].Set(_Isr74, 0);
-        idt[75].Set(_Isr75, 0);
-        idt[76].Set(_Isr76, 0);
-        idt[77].Set(_Isr77, 0);
-        idt[78].Set(_Isr78, 0);
-        idt[79].Set(_Isr79, 0);
-        idt[80].Set(_Isr80, 0);
-        idt[81].Set(_Isr81, 0);
-        idt[82].Set(_Isr82, 0);
-        idt[83].Set(_Isr83, 0);
-        idt[84].Set(_Isr84, 0);
-        idt[85].Set(_Isr85, 0);
-        idt[86].Set(_Isr86, 0);
-        idt[87].Set(_Isr87, 0);
-        idt[88].Set(_Isr88, 0);
-        idt[89].Set(_Isr89, 0);
-        idt[90].Set(_Isr90, 0);
-        idt[91].Set(_Isr91, 0);
-        idt[92].Set(_Isr92, 0);
-        idt[93].Set(_Isr93, 0);
-        idt[94].Set(_Isr94, 0);
-        idt[95].Set(_Isr95, 0);
-        idt[96].Set(_Isr96, 0);
-        idt[97].Set(_Isr97, 0);
-        idt[98].Set(_Isr98, 0);
-        idt[99].Set(_Isr99, 0);
-
-        idt[100].Set(_Isr100, 0);
-        idt[101].Set(_Isr101, 0);
-        idt[102].Set(_Isr102, 0);
-        idt[103].Set(_Isr103, 0);
-        idt[104].Set(_Isr104, 0);
-        idt[105].Set(_Isr105, 0);
-        idt[106].Set(_Isr106, 0);
-        idt[107].Set(_Isr107, 0);
-        idt[108].Set(_Isr108, 0);
-        idt[109].Set(_Isr109, 0);
-        idt[110].Set(_Isr110, 0);
-        idt[111].Set(_Isr111, 0);
-        idt[112].Set(_Isr112, 0);
-        idt[113].Set(_Isr113, 0);
-        idt[114].Set(_Isr114, 0);
-        idt[115].Set(_Isr115, 0);
-        idt[116].Set(_Isr116, 0);
-        idt[117].Set(_Isr117, 0);
-        idt[118].Set(_Isr118, 0);
-        idt[119].Set(_Isr119, 0);
-        idt[120].Set(_Isr120, 0);
-        idt[121].Set(_Isr121, 0);
-        idt[122].Set(_Isr122, 0);
-        idt[123].Set(_Isr123, 0);
-        idt[124].Set(_Isr124, 0);
-        idt[125].Set(_Isr125, 0);
-        idt[126].Set(_Isr126, 0);
-        idt[127].Set(_Isr127, 0);
-        idt[128].Set(_Isr128, 0);
-        idt[129].Set(_Isr129, 0);
-        idt[130].Set(_Isr130, 0);
-        idt[131].Set(_Isr131, 0);
-        idt[132].Set(_Isr132, 0);
-        idt[133].Set(_Isr133, 0);
-        idt[134].Set(_Isr134, 0);
-        idt[135].Set(_Isr135, 0);
-        idt[136].Set(_Isr136, 0);
-        idt[137].Set(_Isr137, 0);
-        idt[138].Set(_Isr138, 0);
-        idt[139].Set(_Isr139, 0);
-        idt[140].Set(_Isr140, 0);
-        idt[141].Set(_Isr141, 0);
-        idt[142].Set(_Isr142, 0);
-        idt[143].Set(_Isr143, 0);
-        idt[144].Set(_Isr144, 0);
-        idt[145].Set(_Isr145, 0);
-        idt[146].Set(_Isr146, 0);
-        idt[147].Set(_Isr147, 0);
-        idt[148].Set(_Isr148, 0);
-        idt[149].Set(_Isr149, 0);
-        idt[150].Set(_Isr150, 0);
-        idt[151].Set(_Isr151, 0);
-        idt[152].Set(_Isr152, 0);
-        idt[153].Set(_Isr153, 0);
-        idt[154].Set(_Isr154, 0);
-        idt[155].Set(_Isr155, 0);
-        idt[156].Set(_Isr156, 0);
-        idt[157].Set(_Isr157, 0);
-        idt[158].Set(_Isr158, 0);
-        idt[159].Set(_Isr159, 0);
-        idt[160].Set(_Isr160, 0);
-        idt[161].Set(_Isr161, 0);
-        idt[162].Set(_Isr162, 0);
-        idt[163].Set(_Isr163, 0);
-        idt[164].Set(_Isr164, 0);
-        idt[165].Set(_Isr165, 0);
-        idt[166].Set(_Isr166, 0);
-        idt[167].Set(_Isr167, 0);
-        idt[168].Set(_Isr168, 0);
-        idt[169].Set(_Isr169, 0);
-        idt[170].Set(_Isr170, 0);
-        idt[171].Set(_Isr171, 0);
-        idt[172].Set(_Isr172, 0);
-        idt[173].Set(_Isr173, 0);
-        idt[174].Set(_Isr174, 0);
-        idt[175].Set(_Isr175, 0);
-        idt[176].Set(_Isr176, 0);
-        idt[177].Set(_Isr177, 0);
-        idt[178].Set(_Isr178, 0);
-        idt[179].Set(_Isr179, 0);
-        idt[180].Set(_Isr180, 0);
-        idt[181].Set(_Isr181, 0);
-        idt[182].Set(_Isr182, 0);
-        idt[183].Set(_Isr183, 0);
-        idt[184].Set(_Isr184, 0);
-        idt[185].Set(_Isr185, 0);
-        idt[186].Set(_Isr186, 0);
-        idt[187].Set(_Isr187, 0);
-        idt[188].Set(_Isr188, 0);
-        idt[189].Set(_Isr189, 0);
-        idt[190].Set(_Isr190, 0);
-        idt[191].Set(_Isr191, 0);
-        idt[192].Set(_Isr192, 0);
-        idt[193].Set(_Isr193, 0);
-        idt[194].Set(_Isr194, 0);
-        idt[195].Set(_Isr195, 0);
-        idt[196].Set(_Isr196, 0);
-        idt[197].Set(_Isr197, 0);
-        idt[198].Set(_Isr198, 0);
-        idt[199].Set(_Isr199, 0);
-        idt[200].Set(_Isr200, 0);
-        idt[201].Set(_Isr201, 0);
-        idt[202].Set(_Isr202, 0);
-        idt[203].Set(_Isr203, 0);
-        idt[204].Set(_Isr204, 0);
-        idt[205].Set(_Isr205, 0);
-        idt[206].Set(_Isr206, 0);
-        idt[207].Set(_Isr207, 0);
-        idt[208].Set(_Isr208, 0);
-        idt[209].Set(_Isr209, 0);
-        idt[210].Set(_Isr210, 0);
-        idt[211].Set(_Isr211, 0);
-        idt[212].Set(_Isr212, 0);
-        idt[213].Set(_Isr213, 0);
-        idt[214].Set(_Isr214, 0);
-        idt[215].Set(_Isr215, 0);
-        idt[216].Set(_Isr216, 0);
-        idt[217].Set(_Isr217, 0);
-        idt[218].Set(_Isr218, 0);
-        idt[219].Set(_Isr219, 0);
-        idt[220].Set(_Isr220, 0);
-        idt[221].Set(_Isr221, 0);
-        idt[222].Set(_Isr222, 0);
-        idt[223].Set(_Isr223, 0);
-        idt[224].Set(_Isr224, 0);
-        idt[225].Set(_Isr225, 0);
-        idt[226].Set(_Isr226, 0);
-        idt[227].Set(_Isr227, 0);
-        idt[228].Set(_Isr228, 0);
-        idt[229].Set(_Isr229, 0);
-        idt[230].Set(_Isr230, 0);
-        idt[231].Set(_Isr231, 0);
-        idt[232].Set(_Isr232, 0);
-        idt[233].Set(_Isr233, 0);
-        idt[234].Set(_Isr234, 0);
-        idt[235].Set(_Isr235, 0);
-        idt[236].Set(_Isr236, 0);
-        idt[237].Set(_Isr237, 0);
-        idt[238].Set(_Isr238, 0);
-        idt[239].Set(_Isr239, 0);
-        idt[240].Set(_Isr240, 0);
-        idt[241].Set(_Isr241, 0);
-        idt[242].Set(_Isr242, 0);
-        idt[243].Set(_Isr243, 0);
-        idt[244].Set(_Isr244, 0);
-        idt[245].Set(_Isr245, 0);
-        idt[246].Set(_Isr246, 0);
-        idt[247].Set(_Isr247, 0);
-        idt[248].Set(_Isr248, 0);
-        idt[249].Set(_Isr249, 0);
-        idt[250].Set(_Isr250, 0);
-        idt[251].Set(_Isr251, 0);
-        idt[252].Set(_Isr252, 0);
-        idt[253].Set(_Isr253, 0);
-        idt[254].Set(_Isr254, 0);
-        idt[255].Set(_Isr255, 0);
-
         if (cpu_info.using_apic)
             idt[apic::spurious_int_vec].Set(_IsrSpurious, 0);
 
-        __lidt(&idt_desc);
+        __lidt(desc);
     }
 
-    EARLY static void InitInterrupts()
+    EARLY static void InitializeInterrupts()
     {
         if (cpu_info.pic_present)
             pic::InitializeController();
@@ -468,9 +475,9 @@ namespace x64
         EnableNmi();
     }
 
-    EARLY void InitSyscalls()
+    EARLY void InitializeSyscalls()
     {
-        x64::MsrStar star{};
+        MsrStar star{};
 
         // On syscall:
         // ss = IA32_STAR[47:32] + 8
@@ -513,30 +520,18 @@ namespace x64
     {
         kernel_tss.rsp0 = kernel_stack;
 
-        // Fill out cpu_info and initialize CR0
+        GetCpuModel();
         CheckFeatures();
         SetCr0Bits();
-
-        // Enable extended features
         SetCr4Bits();
 
-        // Update PAT
         LoadPageAttributeTable();
 
-        // Set up descriptor tables
-        InitGdt();
-        InitIdt();
+        LoadGdt(&gdt_desc);
+        LoadIdt(&idt_desc);
 
-        // Initialize interrupt controllers
-        InitInterrupts();
+        InitializeInterrupts();
 
-        InitSyscalls();
-
-        core.kernel_stack = kernel_stack; // FIXME
-        _writegsbase_u64(( uptr_t )&core);
-        Print("GS base: 0x%llx\n", _readgsbase_u64());
-
-        WriteMsr(Msr::KERNEL_GS_BASE, ( uptr_t )&core);
-        WriteMsr(Msr::GS_BASE, 0); // User space has nothing stored here for now
+        InitializeSyscalls();
     }
 }

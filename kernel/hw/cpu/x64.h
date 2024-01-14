@@ -18,7 +18,7 @@ namespace x64
 {
     EARLY void Initialize(uptr_t kernel_stack);
 
-    enum class RFLAG : u64
+    enum_flags(RFLAG, u64)
     {
         CF = 1 << 0,                  // Carry Flag
         ALWAYS = 1 << 1,              // Reserved (always 1)
@@ -40,9 +40,8 @@ namespace x64
         VIP = 1 << 20,                // Virtual Interrupt Pending
         ID = 1 << 21                  // CPUID Support
     };
-    EC_ENUM_BIT_OPS(RFLAG)
 
-    enum class Cr0 : u64
+    enum_flags(Cr0, u64)
     {
         PE = 1 << 0,   // Protected Mode
         MP = 1 << 1,   // Monitor co-processor
@@ -56,9 +55,8 @@ namespace x64
         CD = 1 << 30,  // Cache disable
         PG = 1 << 31,  // Paging
     };
-    EC_ENUM_BIT_OPS(Cr0)
 
-    enum class Cr4 : u64
+    enum_flags(Cr4, u64)
     {
         VME = 1 << 0,          // Virtual 8086 Mode Extensions
         PVI = 1 << 1,          // Protected-mode Virtual Extensions
@@ -86,7 +84,6 @@ namespace x64
         PKS = 1 << 24,         // Protection Keys for Supervisor-Mode Pages
         UINTR = 1 << 25,       // User Interrupts
     };
-    EC_ENUM_BIT_OPS(Cr4)
 
     INLINE Cr0 ReadCr0()
     {
@@ -121,11 +118,11 @@ namespace x64
             {
                 bool pic_present;
                 bool using_apic; // PIC if 0
+                bool has_x2apic;
                 bool apic_nmi_pin; // LINT0/LINT1
-                bool pat_supported;
                 bool tsc_supported;
-                bool msr_supported;
                 bool smap_supported;
+                bool hypervisor;
             };
             u32 support_flags;
         };
@@ -358,7 +355,12 @@ namespace x64
         u32 isr_high;
         u32 reserved1;
 
-        void Set(void* function, u32 dpl, u8 ist = 0)
+        constexpr IdtEntry(void* function, u32 dpl, u8 ist = 0)
+        {
+            Set(function, dpl, ist);
+        }
+
+        constexpr void Set(void* function, u32 dpl, u8 ist = 0)
         {
             this->isr_low = EXTRACT64(function, 0, 16);
             this->isr_mid = EXTRACT64(function, 16, 32);
@@ -392,14 +394,6 @@ namespace x64
 #pragma pack()
 
     static constexpr u64 max_idt_entry = 256;
-
-    struct Core
-    {
-        uptr_t kernel_stack;
-        uptr_t user_stack;
-    };
-
-    inline Core core{}; // This goes into GS.
 
     struct SyscallFrame
     {
