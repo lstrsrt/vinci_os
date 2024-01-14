@@ -149,6 +149,8 @@
     <ClCompile Include="hw\serial\serial.cc" />
     <ClCompile Include="hw\timer\timer.cc" />
     <ClCompile Include="lib\crt.cc" />
+    <ClCompile Include="lib\ec\new.cc" />
+    <ClCompile Include="lib\ec\string.cc" />
     <ClCompile Include="lib\libc\mem.cc" />
     <ClCompile Include="lib\libc\print.cc" />
     <ClCompile Include="lib\libc\str.cc" />
@@ -180,6 +182,7 @@
     <ClInclude Include="lib\ec\enums.h" />
     <ClInclude Include="lib\ec\format.h" />
     <ClInclude Include="lib\ec\iterator.h" />
+    <ClInclude Include="lib\ec\new.h" />
     <ClInclude Include="lib\ec\string.h" />
     <ClInclude Include="lib\ec\util.h" />
     <ClInclude Include="lib\libc\args.h" />

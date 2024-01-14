@@ -102,6 +102,37 @@ char* strstr(const char* haystack, const char* needle)
     return nullptr;
 }
 
+char* stristr(const char* haystack, const char* needle)
+{
+    size_t hlen = strlen(haystack);
+    size_t nlen = strlen(needle);
+
+    if (nlen > hlen)
+        return nullptr;
+
+    auto h = (char*)haystack;
+
+    while (*h)
+    {
+        auto s1 = h;
+        auto s2 = needle;
+
+        while (*s1 && *s2)
+        {
+            if (tolower(*s1) - tolower(*s2))
+                break;
+            s1++, s2++;
+        }
+
+        if (*s2 == '\0')
+            return h;
+
+        h++;
+    }
+
+    return nullptr;
+}
+
 char* strchr(const char* dst, char c)
 {
     auto d = ( char* )dst;
@@ -180,12 +211,16 @@ char* strnset(char* dst, int c, size_t n)
 
 char* strrev(char* str)
 {
-    size_t len = strlen(str) - 1;
+    size_t i = 0;
+    size_t j = strlen(str) - 1;
 
-    for (size_t i = 0; i < len / 2; i++) {
-        char tmp = *(str + i);
-        *(str + i) = *(str + len - i);
-        *(str + len - i) = tmp;
+    while (i < j)
+    {
+        char c = str[i];
+        str[i] = str[j];
+        str[j] = c;
+        i++;
+        j--;
     }
 
     return str;

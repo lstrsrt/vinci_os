@@ -66,6 +66,12 @@
     <ClCompile Include="core\alloc.cc">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="lib\ec\string.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="lib\ec\new.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="lib\ec\bitfield.h">
@@ -162,6 +168,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="lib\ec\string.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lib\ec\new.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

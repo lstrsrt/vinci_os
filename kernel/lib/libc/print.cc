@@ -4,7 +4,7 @@
 #include "mem.h"
 #include "str.h"
 
-static char* my_i64toa(int64_t val, char* str, int32_t radix = 10, bool sign = true)
+char* i64toa(int64_t val, char* str, int32_t radix, bool sign)
 {
     static const char table[] = {
         "0123456789abcdefghijklmnopqrstuvwxyz"
@@ -41,7 +41,7 @@ static char* my_i64toa(int64_t val, char* str, int32_t radix = 10, bool sign = t
     return str;
 }
 
-static char* my_itoa(int32_t val, char* str, int32_t radix, bool sign)
+char* i32toa(int32_t val, char* str, int32_t radix, bool sign)
 {
     static const char table[] = {
         "0123456789abcdefghijklmnopqrstuvwxyz"
@@ -151,12 +151,12 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
                 if (f & FMT_LLONG)
                 {
                     auto tmp_llong = va_arg(ap, long long);
-                    my_i64toa(tmp_llong, buf, (f & FMT_HEX) ? 16 : 10, !(f & (FMT_UNSIGNED | FMT_HEX)));
+                    i64toa(tmp_llong, buf, (f & FMT_HEX) ? 16 : 10, !(f & (FMT_UNSIGNED | FMT_HEX)));
                 }
                 else
                 {
                     auto tmp_int = va_arg(ap, int);
-                    my_itoa(tmp_int, buf, (f & FMT_HEX) ? 16 : 10, !(f & (FMT_UNSIGNED | FMT_HEX)));
+                    i32toa(tmp_int, buf, (f & FMT_HEX) ? 16 : 10, !(f & (FMT_UNSIGNED | FMT_HEX)));
                 }
                 len += strlcpy(&str[len], buf, n - len);
             }

@@ -11,6 +11,7 @@ i32 stricmp(const char* str1, const char* str2);
 i32 strncmp(const char* str1, const char* str2, size_t n);
 i32 strnicmp(const char* str1, const char* str2, size_t n);
 char* strstr(const char* haystack, const char* needle);
+char* stristr(const char* haystack, const char* needle);
 char* strchr(const char* dst, char c);
 char* strrchr(const char* dst, char c);
 size_t strlcat(char* dst, const char* src, size_t n);
@@ -19,7 +20,6 @@ char* strnset(char* str, int c, size_t n);
 char* strrev(char* str);
 char* strlwr(char* str);
 char* strupr(char* str);
-char* itoa(i32 val, char* str, i32 radix = 10, bool sign = true);
 
 EXTERN_C_END
 
