@@ -4,7 +4,7 @@
 #include "ke.h"
 #include "gfx/output.h"
 
-#define ALLOC_DBG_PRINT 0
+#define ALLOC_DBG_PRINT 1
 #define ALLOC_POISON    0
 
 #if ALLOC_DBG_PRINT == 0
@@ -64,6 +64,8 @@ namespace ke
 
     ALLOC_FN void* Allocate(size_t size, AllocFlag flags)
     {
+        DbgPrint("Allocate() - size %llu\n", size);
+
         size += sizeof Allocation;
         size = AlignUp(size, block_size);
 
@@ -135,6 +137,8 @@ namespace ke
 
     void Free(void* address)
     {
+        DbgPrint("Free() - address 0x%llx\n", address);
+
         if (!address)
             return;
 
@@ -166,7 +170,7 @@ namespace ke
         for (size_t i = 0; i < alloc_map.size(); i++)
         {
             if (u8 b = alloc_map[i])
-                Print("[%llu]: %u ( bytes)\n", i, b);
+                Print("[%llu]: %u\n", i, b);
         }
     }
 }
