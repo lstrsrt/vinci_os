@@ -49,7 +49,7 @@
     <GenerateManifest>false</GenerateManifest>
     <OutDir>$(SolutionDir)\bin\$(Configuration)\vdisk\EFI\BOOT\</OutDir>
     <IntDir>$(ProjectDir)\int\$(Configuration)\</IntDir>
-    <IncludePath>$(SolutionDir)\kernel\lib\;$(SolutionDir)\kernel\common\;$(ProjectDir)\efi\;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\kernel\lib\;$(SolutionDir)\kernel\common\;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -58,7 +58,7 @@
     <GenerateManifest>false</GenerateManifest>
     <OutDir>$(SolutionDir)\bin\$(Configuration)\vdisk\EFI\BOOT\</OutDir>
     <IntDir>$(ProjectDir)\int\$(Configuration)\</IntDir>
-    <IncludePath>$(SolutionDir)\kernel\lib\;$(SolutionDir)\kernel\common\;$(ProjectDir)\efi\;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)\kernel\lib\;$(SolutionDir)\kernel\common\;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

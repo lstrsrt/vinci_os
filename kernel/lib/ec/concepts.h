@@ -2,7 +2,7 @@
 
 #include <base.h>
 
-namespace ec::inline concepts
+namespace ec::concepts
 {
     namespace impl
     {
@@ -52,6 +52,8 @@ namespace ec::inline concepts
     template<class T> using remove_reference = typename impl::remove_reference<T>::type;
 
     template<class T> using unqualified [[msvc::known_semantics]] = remove_cv<remove_reference<T>>;
+
+    template<class T> using unsigned_t = impl::as_unsigned<T>::type;
 
     template<class T>
     auto declval() -> T;
@@ -103,9 +105,7 @@ namespace ec::inline concepts
     template<class T, class U>
     concept $convertible = impl::is_convertible<T, U> && requires { static_cast<U>(declval<T>()); };
 
-    template<class T>
-    using unsigned_t = impl::as_unsigned<T>::type;
-
-    template<$enum T>
-    using underlying_t = __underlying_type(T);
+    template<$enum T> using underlying_t = __underlying_type(T);
 }
+
+using namespace ec::concepts;

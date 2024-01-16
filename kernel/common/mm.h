@@ -6,7 +6,7 @@
 
 #include <libc/mem.h>
 
-#include "../common/va.h"
+#include "va.h"
 
 static constexpr size_t va_index_mask = 0x1ff;
 

@@ -124,11 +124,9 @@ EnterUserMode endp
 x64Syscall proc
     swapgs            ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
 
-    mov gs:[8], rsp   ; Store user stack
+    ; mov gs xxx, rsp   ; Store user stack
 
-    ; TODO - currently this is just kernel_stack_top,
-    ; have to store the kernel stack location first...
-    mov rsp, gs:[0]   ; Switch to kernel stack
+    ; mov rsp, gs xxx   ; Switch to kernel stack
 
     push r11 ; rflags
     push r10
