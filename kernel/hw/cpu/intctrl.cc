@@ -1,9 +1,11 @@
+#include <libc/mem.h>
 #include <ec/const.h>
 
 #include "x64.h"
 #include "isr.h"
 #include "msr.h"
 #include "../serial/serial.h"
+#include "../timer/timer.h"
 #include "../../core/ke.h"
 
 namespace x64
@@ -58,6 +60,13 @@ namespace x64
 
     void SaveContext(Context* ctx, InterruptFrame* frame)
     {
+#if 1
+        memcpy(ctx, frame, 15*8);
+        ctx->rsp = frame->rsp;
+        ctx->rip = frame->rip;
+        ctx->rflags = frame->rflags;
+#else
+
         ctx->rax = frame->rax;
         ctx->rcx = frame->rcx;
         ctx->rdx = frame->rdx;
@@ -80,10 +89,17 @@ namespace x64
         ctx->rip = frame->rip;
 
         ctx->rflags = frame->rflags;
+#endif
     }
 
     void LoadContext(InterruptFrame* frame, Context* ctx)
     {
+#if 1
+        memcpy(frame, ctx, 15*8);
+        frame->rsp = ctx->rsp;
+        frame->rip = ctx->rip;
+        frame->rflags = ctx->rflags;
+#else
         frame->rax = ctx->rax;
         frame->rcx = ctx->rcx;
         frame->rdx = ctx->rdx;
@@ -106,6 +122,7 @@ namespace x64
         frame->rip = ctx->rip;
 
         frame->rflags = ctx->rflags;
+#endif
     }
 
     EXTERN_C void IsrCommon(InterruptFrame* frame, u8 int_no)
@@ -130,7 +147,7 @@ namespace x64
             u8 irq = int_no - irq_base;
             if (cpu_info.using_apic || pic::ConfirmIrq(irq))
             {
-                if (irq == 0 && ke::schedule)
+                if (!(timer::ticks % 1000) && irq == 0 && ke::schedule)
                 {
                     SaveContext(&ke::GetCurrentThread()->ctx, frame);
                     ke::SelectNextThread();

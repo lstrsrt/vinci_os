@@ -31,7 +31,7 @@ namespace ke
     //
     // This is like the KPRCB on Windows.
     // It contains (or will contain) per-core kernel data and is stored in GS.
-    // This kernel only supports one core right now so this only exists once.
+    // The kernel only supports one core right now so this only exists once in memory.
     //
     struct Core
     {
@@ -42,22 +42,17 @@ namespace ke
 
     void InitializeCore();
 
-#define ReadCore64(field) ( decltype(Core::##field) )__readgsqword(__builtin_offsetof(Core, field))
-#define WriteCore64(field, x) __writegsqword(__builtin_offsetof(Core, field), ( u64 )x)
+#define ReadCore64(field) (( decltype(Core::##field) )__readgsqword(__builtin_offsetof(Core, field)))
+#define WriteCore64(field, x) (__writegsqword(__builtin_offsetof(Core, field), ( u64 )x))
+
+    INLINE Core* GetCore()
+    {
+        return ReadCore64(self);
+    }
 
     INLINE Thread* GetCurrentThread()
     {
         return ReadCore64(current_thread);
-    }
-
-    INLINE Thread* GetFirstThread()
-    {
-        return ReadCore64(first_thread);
-    }
-
-    INLINE void SetCurrentThread(Thread* thread)
-    {
-        WriteCore64(current_thread, thread);
     }
 
 #pragma data_seg(".data")

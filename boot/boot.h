@@ -33,7 +33,7 @@ struct KernelData
 {
     physical_address physical_base;
     virtual_address entry_point;
-    uint32 size;
+    uintn size;
 };
 
 struct LoaderBlock
@@ -45,7 +45,9 @@ struct LoaderBlock
     uintn config_table_entries;
     MemoryMap memory_map;
     physical_address page_table;
-    uint32 page_table_size;
+    uintn page_table_size;
+    physical_address page_pool;
+    uintn page_pool_size;
     KernelData kernel;
     DisplayInfo display;
 };

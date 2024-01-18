@@ -39,7 +39,7 @@ namespace ke
     void InitializeAllocator()
     {
         memzero(alloc_map.data(), alloc_map.size());
-        total_free = kva::kernel_pool.size;
+        total_free = kva::kernel_pool.size; // FIXME - This is wrong; it depends on how much is mapped!
         total_used = 0;
     }
 

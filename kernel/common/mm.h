@@ -137,6 +137,9 @@ namespace mm
     };
     static_assert(sizeof PhysicalPage == sizeof u8);
 
+    struct PagePool;
+    static size_t AllocatePhysical(PagePool&, paddr_t*);
+
     // One byte is one PageInfo, which means that one page can store information about 4096 pages.
     // So the maximum size of a page pool is 4096 pages, of which 4095 can be used.
     static constexpr size_t max_page_pool_pages = (page_size / sizeof PhysicalPage);
@@ -147,10 +150,14 @@ namespace mm
     // Remaining pages are used for the other paging structures (one page per entry).
     struct PagePool
     {
-        PagePool(vaddr_t virtual_base, paddr_t physical_base, size_t page_count)
+        PagePool(vaddr_t virtual_base, paddr_t physical_base, size_t page_count, paddr_t cr3 = 0)
             : virt(virtual_base), phys(physical_base), pages(page_count)
         {
             phys_info[0].present = true;
+            if (cr3 == 0)
+                AllocatePhysical(*this, &root);
+            else
+                root = cr3;
         }
 
         size_t pages;

@@ -14,6 +14,8 @@ namespace ke
 
     static void IdleLoop(void*)
     {
+        schedule = true;
+
         while (1)
         {
             _disable();
@@ -24,8 +26,9 @@ namespace ke
 
     static void EntryPointThread()
     {
-        auto cur_thread = GetCurrentThread();
-        auto first_thread = GetFirstThread();
+        auto core = GetCore();
+        auto cur_thread = core->current_thread;
+        auto first_thread = core->first_thread;
 
         cur_thread->function(cur_thread->arg);
 
@@ -60,12 +63,11 @@ namespace ke
         // since every thread is going to have its own kernel stack,
         // we should be able to use the boot stack for the idle loop
 
+        auto core = GetCore();
         auto idle_thread = CreateThreadInternal(IdleLoop, nullptr, kernel_stack_top);
 
-        WriteCore64(first_thread, idle_thread); // set first thread
-        SetCurrentThread(idle_thread);
-
-        schedule = true;
+        core->first_thread = idle_thread;
+        core->current_thread = idle_thread;
     }
 
     Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t kstack)
@@ -77,19 +79,20 @@ namespace ke
         }
 
         auto thread = CreateThreadInternal(function, arg, kstack);
-        PushListEntry(GetFirstThread(), thread);
+        PushListEntry(GetCore()->first_thread, thread);
         return thread;
     }
 
     void SelectNextThread()
     {
-        auto cur = GetCurrentThread();
+        auto core = GetCore();
+        auto cur = core->current_thread;
         if (!cur->next)
-            cur = GetFirstThread();
+            cur = core->first_thread;
         else
             cur = ( Thread* )cur->next;
 
-        SetCurrentThread(cur);
+        core->current_thread = cur;
     }
 
 

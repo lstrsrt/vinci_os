@@ -349,9 +349,9 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     efi_check(g_bs->allocate_pool(alloc_type, 256 * sizeof(char16_t), ( void** )&kernel_path));
     strcpy16(kernel_path, path);
 
-    // Allocate boot loader page pool
+    // Allocate boot loader page tables
     uefi::physical_address bl_page_table;
-    static constexpr uintn bl_page_pool_pages = 512; // 2 MiB
+    static constexpr auto bl_page_pool_pages = uefi::size_to_pages(MiB(2));
 
     efi_check(
         zero_allocate_pages(
@@ -362,8 +362,9 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
         )
     );
 
-    // Allocate kernel page pool
-    static constexpr uintn kernel_page_table_pages = 4096; // 16 MiB
+    // Allocate kernel page tables
+    // TODO - what is a good size for this?
+    static constexpr auto kernel_page_table_pages = uefi::size_to_pages(MiB(16));
     loader_block->page_table_size = kernel_page_table_pages;
 
     efi_check(
@@ -372,6 +373,19 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
             alloc_type,
             loader_block->page_table_size,
             &loader_block->page_table
+        )
+    );
+
+    // Allocate kernel page pool
+    static constexpr auto kernel_page_pool_pages = kva::kernel_pool.PageCount();
+    loader_block->page_pool_size = kernel_page_pool_pages;
+
+    efi_check(
+        zero_allocate_pages(
+            uefi::allocation_type::any_pages,
+            alloc_type,
+            loader_block->page_pool_size,
+            &loader_block->page_pool
         )
     );
 
@@ -460,22 +474,25 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     // Clear WP flag to allow rewriting page tables
     __writecr0(__readcr0() & ~CR0_WP);
 
-    // UEFI identity maps the address space so both addresses are the same
-    mm::PagePool pool(bl_page_table, bl_page_table, bl_page_pool_pages);
-
-    // Take the current page tables
-    pool.root = __readcr3();
+    // Everything is identity mapped, so virtual and physical bases for the page table are the same.
+    mm::PagePool pool(
+        bl_page_table,
+        bl_page_table,
+        bl_page_pool_pages,
+        __readcr3() // Use UEFI page tables because we still need the boot services etc.
+    );
 
     const auto kernel_pages = uefi::size_to_pages(loader_block->kernel.size);
     const auto frame_buffer_pages = uefi::size_to_pages(loader_block->display.frame_buffer_size);
 
     const auto pml4 = ( x64::Pml4 )GetPoolEntryVa(pool, pool.root);
     // Clear out PML4 entries starting from higher half
-    for (u32 i4 = 256; i4 < 512; i4++)
-        pml4[i4].value = 0;
+    for (u32 i = 256; i < 512; i++)
+        pml4[i].value = 0;
 
     mm::MapPages(pool, kva::kernel_image.base, loader_block->kernel.physical_base, kernel_pages);
     mm::MapPages(pool, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
+    mm::MapPages(pool, kva::kernel_pool.base, loader_block->page_pool, loader_block->page_pool_size);
     mm::MapPages(pool, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
 
     // TODO - print runtime descriptors

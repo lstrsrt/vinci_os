@@ -158,11 +158,40 @@ namespace ke
     {
         auto core = Allocate<Core>();
         core->self = core;
-        // current_thread is initialized by the first call to SelectNextThread
-
         WriteMsr(x64::Msr::KERNEL_GS_BASE, ( uptr_t )core);
         _writegsbase_u64(( uptr_t )core);
     }
+}
+
+void test(void*)
+{
+    int i = 0;
+    //volatile u64 next = timer::ticks + 1000;
+    while (1)
+    {
+        Print("thread A %d\n", i++);
+        //while (next > timer::ticks)
+        //    ;
+        //next = timer::ticks + 1000;
+    }
+}
+
+void test2(void*)
+{
+    int i = 0;
+    //volatile u64 next = timer::ticks + 1000;
+    while (1)
+    {
+        Print("thread B %d\n", i++);
+        //while (next > timer::ticks)
+        //    ;
+        //next = timer::ticks + 1000;
+    }
+}
+
+namespace x64
+{
+    EXTERN_C void Switch(x64::Context*);
 }
 
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
@@ -177,6 +206,8 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     auto i8042 = loader_block->i8042;
     const auto pt_physical = loader_block->page_table;
     const auto pt_pages = loader_block->page_table_size;
+    const auto pp_physical = loader_block->page_pool;
+    const auto pp_pages = loader_block->page_pool_size;
 
     ReclaimBootPages(memory_map);
     CoalesceMemoryDescriptors(memory_map);
@@ -189,47 +220,43 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // Init COM ports so we have early debugging capabilities.
     serial::Initialize();
 
+    // From here on we can use the heap.
+    ke::InitializeAllocator();
+
     // Build a new page table (the bootloader one is temporary)
-    mm::PagePool pool(kva::kernel_pt.base, pt_physical, pt_pages);
-    mm::AllocatePhysical(pool, &pool.root);
+    // TODO - store somewhere so it's accessible elsewhere
+    auto pool = new mm::PagePool(kva::kernel_pt.base, pt_physical, pt_pages);
 
     const auto kernel_pages = SizeToPages(kernel.size);
     const auto frame_buffer_pages = SizeToPages(display.frame_buffer_size);
 
-    mm::MapPages(pool, kva::kernel_image.base, kernel.physical_base, kernel_pages);
-    mm::MapPages(pool, kva::kernel_pt.base, pt_physical, pt_pages);
+    mm::MapPages(*pool, kva::kernel_image.base, kernel.physical_base, kernel_pages);
+    mm::MapPages(*pool, kva::kernel_pt.base, pt_physical, pt_pages);
 
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
-    mm::MapPagesInRegion<kva::frame_buffer>(pool, &display.frame_buffer, kva::frame_buffer.PageCount());
+    mm::MapPagesInRegion<kva::frame_buffer>(*pool, &display.frame_buffer, kva::frame_buffer.PageCount());
 
     // Map the framebuffer as write combining (PAT4)
     for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
-        mm::GetPresentPte(pool, page)->pat = true;
+        mm::GetPresentPte(*pool, page)->pat = true;
 
     // Map devices and set CD bit
     {
-        mm::MapPagesInRegion<kva::devices>(pool, &hpet, 1);
-        mm::GetPresentPte(pool, hpet)->cache_disable = true;
+        mm::MapPagesInRegion<kva::devices>(*pool, &hpet, 1);
+        mm::GetPresentPte(*pool, hpet)->cache_disable = true;
 
-        mm::MapPagesInRegion<kva::devices>(pool, &apic::io, 1);
-        mm::GetPresentPte(pool, apic::io)->cache_disable = true;
+        mm::MapPagesInRegion<kva::devices>(*pool, &apic::io, 1);
+        mm::GetPresentPte(*pool, apic::io)->cache_disable = true;
 
-        mm::MapPagesInRegion<kva::devices>(pool, &apic::local, 1);
-        mm::GetPresentPte(pool, apic::local)->cache_disable = true;
+        mm::MapPagesInRegion<kva::devices>(*pool, &apic::local, 1);
+        mm::GetPresentPte(*pool, apic::local)->cache_disable = true;
     }
 
-    MapUefiRuntime(memory_map, pool);
+    MapUefiRuntime(memory_map, *pool);
 
-    uptr_t kpool;
-    mm::AllocatePhysical(pool, &kpool, kva::kernel_pool.PageCount());
-    mm::MapPagesInRegion<kva::kernel_pool>(pool, &kpool, kva::kernel_pool.PageCount());
+    mm::MapPages(*pool, kva::kernel_pool.base, pp_physical, pp_pages);
 
-    uptr_t stack;
-    vaddr_t stack_va = kva::kernel_image.base + (200 * page_size);
-    mm::AllocatePhysical(pool, &stack);
-    mm::MapPage(pool, stack_va, stack);
-
-    __writecr3(pool.root);
+    __writecr3(pool->root);
 
     gfx::SetFrameBufferAddress(display.frame_buffer); // TODO - set this earlier?
 
@@ -242,14 +269,19 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     // Now that kernel init has completed, zero out discardable sections
     // and write-protect every section not marked writable.
-    FinalizeKernelMapping(pool);
+    FinalizeKernelMapping(*pool);
 
-    ke::InitializeAllocator();
     ke::InitializeCore();
 
     x64::unmask_interrupts();
 
     ke::StartScheduler();
+
+    ke::CreateThread(test, nullptr);
+    ke::CreateThread(test2, nullptr);
+
+    // Enter idle loop!
+    x64::Switch(&ke::GetCore()->first_thread->ctx);
 
     x64::Idle();
 }
