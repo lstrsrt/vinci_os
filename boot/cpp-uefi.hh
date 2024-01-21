@@ -1,11 +1,13 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
+#ifndef __clang__
 #ifdef _MSC_VER
 #define EFIAPI __cdecl
+#endif
 #else
-#define EFIAPI __attribute__((ms_abi))
+// #define EFIAPI __attribute__((ms_abi))
 #endif
 
 #define THISPTR_FN(ret, name, args, ...) using name##_t = ret(EFIAPI*)(void* thisptr, __VA_ARGS__); \

@@ -1,19 +1,42 @@
-#include <intrin.h>
-
 #include "boot.h"
 
-#include <pe64.h>
-#include <va.h>
-#include <mm.h>
+#include "../kernel/common/pe64.h"
+#include "../kernel/common/va.h"
+#include "../kernel/common/mm.h"
 
 #include "mini-libc.h"
 #include "cpp-uefi.hh"
+
+#ifndef __clang__
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+INLINE void __writecr0(u64 cr0)
+{
+    asm volatile("mov %%rax, %%cr0" :: "a"(cr0));
+}
+
+INLINE u64 __readcr0()
+{
+    u64 cr0;
+    asm("mov %%cr0, %%rax" : "=a"(cr0));
+    return cr0;
+}
+
+INLINE u64 __readcr3()
+{
+    u64 cr3;
+    asm("mov %%cr3, %%rax" : "=a"(cr3));
+    return cr3;
+}
+#endif
+#endif
 
 static uefi::simple_text_output_protocol* g_con_out;
 static uefi::simple_text_input_protocol* g_con_in;
 static bool g_leaving_boot_services;
 
-static void print_string(_Printf_format_string_ const char16_t* fmt, ...)
+static void print_string(const char16_t* fmt, ...)
 {
     char16_t str[512]{};
     va_list ap;
@@ -85,7 +108,7 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
         return uefi::err_invalid_parameter;
 
     // Read DOS header
-    uintn size = sizeof IMAGE_DOS_HEADER;
+    uintn size = sizeof(IMAGE_DOS_HEADER);
     IMAGE_DOS_HEADER dos;
     efi_check(file->read(&size, &dos));
 
@@ -97,7 +120,7 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
 
     // Read NT headers
     IMAGE_NT_HEADERS64 nt_header;
-    size = sizeof IMAGE_NT_HEADERS64;
+    size = sizeof(IMAGE_NT_HEADERS64);
     efi_check(file->set_position(( uint64 )dos.e_lfanew));
     efi_check(file->read(&size, &nt_header));
 
@@ -182,7 +205,7 @@ static acpi::Xsdt* locate_xsdt()
     for (uintn i = 0; i < g_st->number_of_table_entries; i++)
     {
         auto table = &g_st->configuration_table[i];
-        if (!memcmp(&table->vendor_guid, &xsdt_guid, sizeof uefi::guid))
+        if (!memcmp(&table->vendor_guid, &xsdt_guid, sizeof(uefi::guid)))
         {
             auto entry = ( acpi::Rsdp* )table->vendor_table;
             auto xsdt = ( acpi::Xsdt* )entry->XsdtAddress;
@@ -205,7 +228,7 @@ static uefi::status acpi_initialize(acpi::Xsdt* xsdt, LoaderBlock* loader_block)
 {
     loader_block->madt_header = nullptr;
     bool found_fadt = false;
-    auto table_count = (xsdt->Header.Length - sizeof xsdt->Header) / sizeof uint64;
+    auto table_count = (xsdt->Header.Length - sizeof xsdt->Header) / sizeof(uint64);
 
     for (uint64 i = 0; i < table_count; i++)
     {
@@ -259,13 +282,13 @@ static uefi::status acpi_initialize(acpi::Xsdt* xsdt, LoaderBlock* loader_block)
         {
             char8 signature_u8[4];
             char16 signature[5];
-            __movsb(( u8* )signature_u8, ( const u8* )&header->Signature, sizeof uint32);
+            memcpy(( u8* )signature_u8, ( const u8* )&header->Signature, sizeof(uint32));
 
             if (utf8_to_ucs2(
                 signature,
-                ec::array_size(signature),
+                ARRAY_SIZE(signature),
                 signature_u8,
-                ec::array_size(signature_u8))
+                ARRAY_SIZE(signature_u8))
             )
             {
                 signature[4] = u'\0';
@@ -295,7 +318,10 @@ static void run_cxx_initializers(vaddr_t image_base)
     auto section = IMAGE_FIRST_SECTION(nt_header);
     for (uint16 i = 0; i < nt_header->FileHeader.NumberOfSections; i++)
     {
-        if (!strncmp(( char* )&section[i].Name, ".CRT", 4))
+        char8 name[IMAGE_SIZEOF_SHORT_NAME+1];
+        memcpy(( u8* )name, ( const u8* )section[i].Name, IMAGE_SIZEOF_SHORT_NAME);
+
+        if (!strncmp(( char* )name, ".CRT", 4))
         {
             auto crt = &section[i];
             auto initializer = ( PFVF* )(image_base + crt->VirtualAddress);

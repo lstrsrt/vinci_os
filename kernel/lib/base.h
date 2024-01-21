@@ -1,22 +1,61 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
+#ifdef __clang__
+#define COMPILER_CLANG
+#else
+#ifdef _MSC_VER
+#define COMPILER_MSVC
+#else
+#error Unsupported compiler, use clang or msvc
+#endif
+#endif
+
+#ifdef COMPILER_CLANG
+#define INLINE          __attribute__((always_inline)) __inline__
+#define NO_INLINE       __attribute__((noinline))
+#else
 #define INLINE          __forceinline
 #define NO_INLINE       __declspec(noinline)
-#define NO_RETURN       [[noreturn]]
-#define UNUSED          [[maybe_unused]]
+#endif
+
+#ifdef COMPILER_MSVC
+#define MSVC_INTRINSIC  [[msvc::intrinsic]]
+#else
+#define MSVC_INTRINSIC
+#endif
+
+#ifdef COMPILER_CLANG
+#define CODE_SEG(name)  __attribute__((section(name)))
+#define ALLOC_FN        __attribute__((malloc))
+#else
+#define CODE_SEG(name)  __declspec(code_seg(name))
+#define ALLOC_FN        __declspec(restrict)
+#endif
+
+#define EARLY           NO_INLINE CODE_SEG("INIT")
 #define SUPPRESS(x)     (( void )x)
 #define EMPTY_STMT      (( void )0)
 #define EXTERN_C        extern "C"
 #define EXTERN_C_START  EXTERN_C {
 #define EXTERN_C_END    }
+#define NO_RETURN       [[noreturn]]
+#define UNUSED          [[maybe_unused]]
 #define LIKELY          [[likely]]
 #define UNLIKELY        [[unlikely]]
-#define CODE_SEG(name)  __declspec(code_seg(name))
-#define ALLOC_FN        __declspec(restrict)
-#define EARLY           NO_INLINE CODE_SEG("INIT")
 
+#ifdef COMPILER_CLANG
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+#else
 typedef __int8 i8;
 typedef __int16 i16;
 typedef __int32 i32;
@@ -26,12 +65,14 @@ typedef unsigned __int8 u8;
 typedef unsigned __int16 u16;
 typedef unsigned __int32 u32;
 typedef unsigned __int64 u64;
+#endif
 
 typedef float f32;
 typedef double f64;
 
 typedef u8 byte;
 typedef u8 uchar;
+typedef u64 size_t;
 typedef i64 ssize_t;
 typedef uintptr_t uptr_t;
 typedef intptr_t iptr_t;

@@ -1,15 +1,20 @@
 #pragma once
 
+#ifdef COMPILER_MSVC
 #define va_start __crt_va_start
 #define va_arg __crt_va_arg
 #define va_end __crt_va_end
+#else
+#include <stdarg.h>
+#endif
 
-#include <base.h>
-#include <ec/util.h>
+#include "../kernel/lib/base.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#ifdef COMPILER_MSVC
 #pragma function(memcpy)
+#endif
 void* memcpy(void* dst, const void* src, size_t n)
 {
     u8* d = ( u8* )dst;
@@ -21,7 +26,9 @@ void* memcpy(void* dst, const void* src, size_t n)
     return dst;
 }
 
+#ifdef COMPILER_MSVC
 #pragma function(memset)
+#endif
 void* memset(void* dst, u32 val, size_t n)
 {
     u8* d = ( u8* )dst;
@@ -32,7 +39,9 @@ void* memset(void* dst, u32 val, size_t n)
     return dst;
 }
 
+#ifdef COMPILER_MSVC
 #pragma function(memcmp)
+#endif
 int memcmp(const void* buf1, const void* buf2, size_t n)
 {
     const u8* a = ( const u8* )buf1;
@@ -49,13 +58,18 @@ int memcmp(const void* buf1, const void* buf2, size_t n)
 
 constexpr i32 strncmp(const char* str1, const char* str2, size_t n)
 {
-    if (!n)
-        return 0;
+    const u8 *c1 = (const u8 *)str1;
+    const u8 *c2 = (const u8 *)str2;
+    u8 ch = 0;
+    i32 d = 0;
 
-    while (n-- && *str1 && *str1 == *str2)
-        str1++, str2++;
+    while (n--) {
+        d = (i32)(ch = *c1++) - (i32)*c2++;
+        if (d || !ch)
+            break;
+    }
 
-    return *( i32* )str1 - *( i32* )str2;
+    return d;
 }
 
 constexpr size_t strlen16(const char16_t* s)
@@ -326,7 +340,7 @@ size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list ap)
             }
             else if (f & SPEC_CHAR)
             {
-                auto tmp_ch = va_arg(ap, char16_t);
+                auto tmp_ch = ( char16_t )va_arg(ap, int);
                 str[len++] = tmp_ch;
             }
             else if (f & SPEC_STRING)
@@ -336,7 +350,7 @@ size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list ap)
             }
             else if (f & SPEC_BOOL)
             {
-                auto tmp_bool = va_arg(ap, bool);
+                auto tmp_bool = ( bool )va_arg(ap, int);
                 str[len++] = tmp_bool;
             }
             else if (f & SPEC_PERCENT)
