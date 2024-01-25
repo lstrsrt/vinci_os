@@ -1,20 +1,25 @@
 #pragma once
 
+// #include <cstdint>
 #include <stdint.h>
 
 #ifndef __clang__
 #ifdef _MSC_VER
+#ifndef EFIAPI
 #define EFIAPI __cdecl
 #endif
+#endif
 #else
-// #define EFIAPI __attribute__((ms_abi))
+#ifndef EFIAPI
+#define EFIAPI __attribute__((ms_abi))
+#endif
 #endif
 
-#define THISPTR_FN(ret, name, args, ...) using name##_t = ret(EFIAPI*)(void* thisptr, __VA_ARGS__); \
+#define THISPTR_FN(ret, name, args, ...) using name##_t = ret(EFIAPI*)(void* thisptr __VA_OPT__(, __VA_ARGS__)); \
     private: name##_t _##name; \
-    public: inline auto name(__VA_ARGS__) { return _##name args; }
+    public: inline auto name(__VA_OPT__(__VA_ARGS__)) { return _##name args; }
 
-#define MEMBER_FN(ret, name, ...) using name##_t = ret(EFIAPI*)(__VA_ARGS__); \
+#define MEMBER_FN(ret, name, ...) using name##_t = ret(EFIAPI*)(__VA_OPT__(__VA_ARGS__)); \
     public: name##_t name
 
 namespace uefi {

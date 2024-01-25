@@ -1,7 +1,6 @@
 #pragma once
 
-#include <libc/print.h>
-
+#include "../../lib/libc/print.h"
 #include "../../../boot/boot.h"
 #include "../../hw/ps2/keyboard.h"
 
@@ -43,7 +42,7 @@ namespace gfx
 
     void OnKey(const kbd::Key& key);
 
-    void Print(_Printf_format_string_ const char* fmt, ...);
+    void Print(const char* fmt, ...);
     void PutChar(char c);
 
     EARLY void Initialize(const DisplayInfo& display);

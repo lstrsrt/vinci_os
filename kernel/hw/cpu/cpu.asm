@@ -1,31 +1,29 @@
-extern kernel_stack_top: qword
-extern OsInitialize: proc
-extern x64SyscallCxx: proc
+extern kernel_stack_top
+extern OsInitialize
+extern x64SyscallCxx
 
-.data
+struc Context
+    ._rax    resq 1
+    ._rcx    resq 1
+    ._rdx    resq 1
+    ._rbx    resq 1
+    ._rsi    resq 1
+    ._rdi    resq 1
+    ._r8     resq 1
+    ._r9     resq 1
+    ._r10    resq 1
+    ._r11    resq 1
+    ._r12    resq 1
+    ._r13    resq 1
+    ._r14    resq 1
+    ._r15    resq 1
+    ._rbp    resq 1
+    ._rsp    resq 1
+    ._rip    resq 1
+    ._rflags resq 1
+endstruc
 
-Context struct
-    _rax qword ?
-    _rcx qword ?
-    _rdx qword ?
-    _rbx qword ?
-    _rsi qword ?
-    _rdi qword ?
-    _r8 qword ?
-    _r9 qword ?
-    _r10 qword ?
-    _r11 qword ?
-    _r12 qword ?
-    _r13 qword ?
-    _r14 qword ?
-    _r15 qword ?
-    _rbp qword ?
-    _rsp qword ?
-    _rip qword ?
-    _rflags qword ?
-Context ends
-
-.code
+section .text
 
 ;
 ; NO_RETURN void x64Entry(LoaderBlock*)
@@ -34,12 +32,12 @@ Context ends
 ;
 ; rcx = Loader block (used by OsInitialize)
 ;
-x64Entry proc
+global x64Entry
+x64Entry:
     cli
+    ; FIXME - spill area on msvc
     mov rsp, kernel_stack_top
-    sub rsp, 32 ; shadow space
     jmp OsInitialize
-x64Entry endp
 
 ;
 ; void ReloadSegments(u16 code_selector, u16 data_selector)
@@ -50,7 +48,8 @@ x64Entry endp
 ; dx = New data selector
 ; cx = New code selector
 ;
-ReloadSegments proc
+global ReloadSegments
+ReloadSegments:
     ; Loading data segments can be done with simple movs
     mov ds, dx
     mov es, dx
@@ -60,14 +59,12 @@ ReloadSegments proc
     ; This will reload cs with whatever is in rcx
     ; (as long as the corresponding GDT entry is valid)
     movzx rcx, cx
-    lea rdx, exit
+    lea rdx, .exit
     push rcx
     push rdx
     retfq
-
-exit:
+.exit:
     ret
-ReloadSegments endp
 
 ;
 ; void LoadTr(u16 offset)
@@ -76,10 +73,10 @@ ReloadSegments endp
 ;
 ; cx = New task register offset
 ;
-LoadTr proc
+global LoadTr
+LoadTr:
     ltr cx
     ret
-LoadTr endp
 
 ;
 ; NO_RETURN void Ring3Function()
@@ -87,14 +84,13 @@ LoadTr endp
 ; Sample function to demonstrate entering ring 3.
 ; Never returns!
 ;
-Ring3Function proc
+Ring3Function:
     mov rdi, 1000
     mov rax, 2
     syscall
-inf_loop:
-    jmp inf_loop
+.inf_loop:
+    jmp .inf_loop
     ret
-Ring3Function endp
 
 ;
 ; void EnterUserMode(vaddr_t code, vaddr_t stack)
@@ -104,13 +100,12 @@ Ring3Function endp
 ; rcx = User code address
 ; rdx = User stack address
 ;
-EnterUserMode proc
+EnterUserMode:
     mov r11, 202h ; new rflags
     mov rsp, rdx
+    sysret
     ; sysret jumps to rcx, which should be a canonical VA
     ; mapped with the user mode bit set.
-    sysretq
-EnterUserMode endp
 
 ;
 ; u64 x64Syscall()
@@ -121,7 +116,8 @@ EnterUserMode endp
 ;
 ; Result is returned in rax.
 ;
-x64Syscall proc
+global x64Syscall
+x64Syscall:
     swapgs            ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
 
     ; mov gs xxx, rsp   ; Store user stack
@@ -158,13 +154,13 @@ x64Syscall proc
 
     ; Back to user mode
     swapgs
-    sysretq
-x64Syscall endp
+    sysret
 
 ;
 ; void Switch(Context* ctx)
 ;
-Switch proc
+global Switch
+Switch:
     mov rsp, [rcx + Context._rsp]
     mov rbp, [rcx + Context._rbp]
     mov rbx, [rcx + Context._rbx]
@@ -181,6 +177,3 @@ Switch proc
 
     mov r9, [rcx + Context._rip]
     jmp r9
-Switch endp
-
-end

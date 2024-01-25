@@ -1468,7 +1468,7 @@ int ssfn_putc(uint32_t unicode)
 #  endif
 # endif
     SSFN_PIXEL *o, *p;
-    uint8_t *ptr, *chr = NULL, *frg;
+    uint8_t *ptr, *chr = 0, *frg;
     int i, j, k, l, m, x, y, w, s = ssfn_dst.p / sizeof(SSFN_PIXEL);
 
     if (!ssfn_src || !ssfn_dst.ptr || !ssfn_dst.p)

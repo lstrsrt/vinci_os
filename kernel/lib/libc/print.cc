@@ -1,5 +1,4 @@
-#include <ec/util.h>
-
+#include "../ec/util.h"
 #include "print.h"
 #include "mem.h"
 #include "str.h"
@@ -162,7 +161,7 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
             }
             else if (f & FMT_CHAR)
             {
-                auto tmp_ch = va_arg(ap, char);
+                auto tmp_ch = ( char )va_arg(ap, int);
                 str[len++] = tmp_ch;
             }
             else if (f & FMT_STRING)
@@ -172,7 +171,7 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
             }
             else if (f & FMT_BOOL)
             {
-                auto tmp_bool = va_arg(ap, bool);
+                auto tmp_bool = ( bool )va_arg(ap, int);
                 str[len++] = tmp_bool;
             }
             else if (f & FMT_PERCENT)

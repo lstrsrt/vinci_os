@@ -42,17 +42,34 @@ namespace ke
 
     void InitializeCore();
 
-#define ReadCore64(field) (( decltype(Core::##field) )__readgsqword(__builtin_offsetof(Core, field)))
-#define WriteCore64(field, x) (__writegsqword(__builtin_offsetof(Core, field), ( u64 )x))
+    INLINE u64 __readgsqword(u64 offset)
+    {
+        u64 value;
+        asm volatile(
+            "mov %%gs:%a[off], %[val]"
+            : [val] "=r"(value)
+            : [off] "ir"(offset)
+        );
+        return value;
+    }
+
+    INLINE void __writegsqword(u64 offset, u64 value)
+    {
+        asm volatile(
+            "mov %[val], %%gs:%a[off]"
+            :: [off] "ir"(offset), [val] "r"(value)
+            : "memory"
+        );
+    }
 
     INLINE Core* GetCore()
     {
-        return ReadCore64(self);
+        return ( Core* )(__readgsqword(__builtin_offsetof(Core, self)));
     }
 
     INLINE Thread* GetCurrentThread()
     {
-        return ReadCore64(current_thread);
+        return ( Thread* )(__readgsqword(__builtin_offsetof(Core, current_thread)));
     }
 
 #pragma data_seg(".data")
@@ -73,7 +90,7 @@ namespace ke
     ALLOC_FN void* Allocate(size_t size, AllocFlag flags = AllocFlag::None);
 
     template<class T>
-    ALLOC_FN INLINE T* Allocate(size_t size = sizeof T, AllocFlag flags = AllocFlag::None)
+    ALLOC_FN INLINE T* Allocate(size_t size = sizeof(T), AllocFlag flags = AllocFlag::None)
     {
         return ( T* )Allocate(size, flags);
     }

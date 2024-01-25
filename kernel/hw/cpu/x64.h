@@ -3,16 +3,141 @@
 #include <base.h>
 #include <ec/const.h>
 #include <ec/enums.h>
-#include <intrin.h>
 
 #include "../common/va.h"
 
+#ifdef COMPILER_MSVC
+#include <intrin.h>
 #define ReadPort8 __inbyte
 #define ReadPort16 __inword
 #define ReadPort32 __indword
 #define WritePort8 __outbyte
 #define WritePort16 __outword
 #define WritePort32 __outdword
+#else
+INLINE u8 ReadPort8(u16 port)
+{
+    u8 value;
+    asm volatile("inb %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+INLINE u16 ReadPort16(u16 port)
+{
+    u16 value;
+    asm volatile("inw %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+INLINE u32 ReadPort32(u16 port)
+{
+    u32 value;
+    asm volatile("inl %1, %0" : "=a"(value) : "Nd"(port));
+    return value;
+}
+
+INLINE void WritePort8(u16 port, u8 data)
+{
+    asm volatile("outb %0, %1" ::"a"(data), "Nd"(port));
+}
+
+INLINE void WritePort16(u16 port, u16 data)
+{
+    asm volatile("outw %0, %1" ::"a"(data), "Nd"(port));
+}
+
+INLINE void WritePort32(u16 port, u32 data)
+{
+    asm volatile("outl %0, %1" ::"a"(data), "Nd"(port));
+}
+
+INLINE u64 __readcr0()
+{
+    u64 cr0;
+    asm("mov %%cr0, %%rax" : "=a"(cr0));
+    return cr0;
+}
+
+INLINE void __writecr0(u64 cr0)
+{
+    asm volatile("mov %%rax, %%cr0" :: "a"(cr0));
+}
+
+INLINE u64 __readcr2()
+{
+    u64 cr2;
+    asm("mov %%cr2, %%rax" : "=a"(cr2));
+    return cr2;
+}
+
+INLINE u64 __readcr3()
+{
+    u64 cr3;
+    asm("mov %%cr4, %%rax" : "=a"(cr3));
+    return cr3;
+}
+
+INLINE void __writecr3(u64 cr3)
+{
+    asm volatile("mov %%rax, %%cr3" :: "a"(cr3));
+}
+
+INLINE u64 __readcr4()
+{
+    u64 cr4;
+    asm("mov %%cr4, %%rax" : "=a"(cr4));
+    return cr4;
+}
+
+INLINE void __writecr4(u64 cr4)
+{
+    asm volatile("mov %%rax, %%cr4" :: "a"(cr4));
+}
+
+INLINE u64 __readmsr(u32 msr)
+{
+    u32 low, high;
+    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+    return MAKE64(high, low);
+}
+
+INLINE void __writemsr(u32 msr, u64 data)
+{
+    u32 low = LOW32(data);
+    u32 high = HIGH32(data);
+    asm volatile("wrmsr" :: "c"(msr), "a"(low), "d"(high) : "memory");
+}
+
+INLINE void _disable()
+{
+    asm("cli");
+}
+
+INLINE void _enable()
+{
+    asm("sti");
+}
+
+INLINE void __halt()
+{
+    asm("hlt");
+}
+
+INLINE void _clac()
+{
+    asm("clac");
+}
+
+INLINE void _stac()
+{
+    asm("stac");
+}
+
+INLINE void __invlpg(void* addr)
+{
+    asm volatile("invlpg (%0)" :: "r"(addr) : "memory");
+}
+#endif
 
 namespace x64
 {
@@ -53,7 +178,7 @@ namespace x64
         AM = 1 << 18,  // Alignment mask
         NW = 1 << 29,  // Not-write through
         CD = 1 << 30,  // Cache disable
-        PG = 1 << 31,  // Paging
+        PG = 1ULL << 31,  // Paging
     };
 
     enum_flags(Cr4, u64)
@@ -160,7 +285,7 @@ namespace x64
         {
         }
     };
-    static_assert(sizeof DescriptorTable == 0xa);
+    static_assert(sizeof(DescriptorTable) == 0xa);
 
     struct Tss
     {
@@ -181,15 +306,15 @@ namespace x64
         u16 iomap_base;
 
         constexpr Tss(u64 ist1_addr, u64 ist2_addr, u64 ist3_addr, u64 ist4_addr)
-            : iomap_base(sizeof Tss),
-            ist1(ist1_addr),
+            : ist1(ist1_addr),
             ist2(ist2_addr),
             ist3(ist3_addr),
-            ist4(ist4_addr)
+            ist4(ist4_addr),
+            iomap_base(sizeof(Tss))
         {
         }
     };
-    static_assert(sizeof Tss == 0x68);
+    static_assert(sizeof(Tss) == 0x68);
 
     enum IstIndex
     {
@@ -289,11 +414,11 @@ namespace x64
             return GdtEntry();
         }
 
-        static constexpr GdtEntry TssLow(const Tss* tss)
+        static GdtEntry TssLow(const Tss* tss)
         {
             GdtEntry entry{};
 
-            entry.limit_low = sizeof Tss - 1;
+            entry.limit_low = sizeof(Tss) - 1;
 
             entry.base_low = EXTRACT64(tss, 0, 16);
             entry.base_mid = EXTRACT64(tss, 16, 24);
@@ -305,14 +430,14 @@ namespace x64
             return entry;
         }
 
-        static constexpr GdtEntry TssHigh(const Tss* tss)
+        static GdtEntry TssHigh(const Tss* tss)
         {
             GdtEntry entry{};
             entry.bits = HIGH32(tss);
             return entry;
         }
     };
-    static_assert(sizeof GdtEntry == 0x8);
+    static_assert(sizeof(GdtEntry) == 0x8);
 
     enum class GdtIndex
     {
@@ -328,7 +453,7 @@ namespace x64
 
     consteval u16 GetGdtOffset(GdtIndex index)
     {
-        return ( u16 )(sizeof GdtEntry * ( u16 )index);
+        return ( u16 )(sizeof(GdtEntry) * ( u16 )index);
     }
 
 #define INT_GATE 0xe
@@ -360,7 +485,7 @@ namespace x64
             Set(function, dpl, ist);
         }
 
-        constexpr void Set(void* function, u32 dpl, u8 ist = 0)
+        inline void Set(void* function, u32 dpl, u8 ist = 0)
         {
             this->isr_low = EXTRACT64(function, 0, 16);
             this->isr_mid = EXTRACT64(function, 16, 32);
@@ -375,7 +500,7 @@ namespace x64
             this->present = TRUE;
         }
     };
-    static_assert(sizeof IdtEntry == 0x10);
+    static_assert(sizeof(IdtEntry) == 0x10);
 
 #define TABLE_GDT 0
 #define TABLE_LDT 1
@@ -390,7 +515,7 @@ namespace x64
         };
         u16 bits;
     };
-    static_assert(sizeof SegmentSelector == sizeof u16);
+    static_assert(sizeof(SegmentSelector) == sizeof(u16));
 #pragma pack()
 
     static constexpr u64 max_idt_entry = 256;

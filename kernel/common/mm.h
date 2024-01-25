@@ -4,7 +4,7 @@
 *  Shared x64 virtual memory mapping code.
 */
 
-#include <libc/mem.h>
+#include "../lib/libc/mem.h"
 
 #include "va.h"
 
@@ -45,7 +45,7 @@ namespace x64
 
         operator bool() { return value; }
     };
-    static_assert(sizeof Pml4Entry == sizeof u64);
+    static_assert(sizeof(Pml4Entry) == sizeof(u64));
     using Pml4 = Pml4Entry*;
 
     union PdptEntry
@@ -67,7 +67,7 @@ namespace x64
 
         operator bool() { return value; }
     };
-    static_assert(sizeof PdptEntry == sizeof u64);
+    static_assert(sizeof(PdptEntry) == sizeof(u64));
     using Pdpt = PdptEntry*;
 
     union PageDirEntry
@@ -92,7 +92,7 @@ namespace x64
 
         operator bool() { return value; }
     };
-    static_assert(sizeof PageDirEntry == sizeof u64);
+    static_assert(sizeof(PageDirEntry) == sizeof(u64));
     using PageDir = PageDirEntry*;
 
     union PageTableEntry
@@ -119,7 +119,7 @@ namespace x64
 
         operator bool() { return value; }
     };
-    static_assert(sizeof PageTableEntry == sizeof u64);
+    static_assert(sizeof(PageTableEntry) == sizeof(u64));
     using PageTable = PageTableEntry*;
 #pragma pack()
 }
@@ -135,14 +135,14 @@ namespace mm
         };
         u8 value;
     };
-    static_assert(sizeof PhysicalPage == sizeof u8);
+    static_assert(sizeof(PhysicalPage) == sizeof(u8));
 
     struct PagePool;
     static size_t AllocatePhysical(PagePool&, paddr_t*);
 
     // One byte is one PageInfo, which means that one page can store information about 4096 pages.
     // So the maximum size of a page pool is 4096 pages, of which 4095 can be used.
-    static constexpr size_t max_page_pool_pages = (page_size / sizeof PhysicalPage);
+    static constexpr size_t max_page_pool_pages = (page_size / sizeof(PhysicalPage));
 
     // This structure is used when allocating physical pages.
     // The first page in a pool stores information about the remaining pages.
@@ -151,13 +151,13 @@ namespace mm
     struct PagePool
     {
         PagePool(vaddr_t virtual_base, paddr_t physical_base, size_t page_count, paddr_t cr3 = 0)
-            : virt(virtual_base), phys(physical_base), pages(page_count)
+            : pages(page_count), virt(virtual_base), phys(physical_base)
         {
             phys_info[0].present = true;
-            if (cr3 == 0)
-                AllocatePhysical(*this, &root);
-            else
-                root = cr3;
+            //if (cr3 == 0)
+            //    AllocatePhysical(*this, &root);
+            //else
+            //    root = cr3;
         }
 
         size_t pages;

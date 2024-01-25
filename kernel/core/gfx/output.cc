@@ -8,7 +8,7 @@
 
 namespace gfx
 {
-    void Print(_Printf_format_string_ const char* fmt, ...)
+    void Print(const char* fmt, ...)
     {
         char str[512]{};
         va_list ap;

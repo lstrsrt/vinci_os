@@ -1,7 +1,7 @@
 #pragma once
 
-#include <libc/mem.h>
-#include <libc/str.h>
+#include "../libc/mem.h"
+#include "../libc/str.h"
 
 #include "const.h"
 #include "iterator.h"

@@ -16,7 +16,7 @@ namespace acpi
 
         // First entry is located after the main MADT header.
         // Every entry starts with its type and length.
-        auto entry = ( SubtableHeader* )(( u64 )header + sizeof * header);
+        auto entry = ( SubtableHeader* )(( u64 )header + sizeof(*header));
 
         while (( u64 )entry < ( u64 )header + header->Header.Length)
         {

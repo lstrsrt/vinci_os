@@ -1,5 +1,6 @@
 #pragma once
 
+#include <base.h>
 #include <libc/mem.h>
 
 namespace x64
@@ -180,6 +181,15 @@ namespace x64
         _3DNOW_EXT = 1 << 30,
         _3DNOW = 1 << 31,
     };
+
+#ifdef COMPILER_CLANG
+    void __cpuidex(i32 regs[4], i32 leaf, i32 subleaf)
+    {
+        asm volatile("cpuid"
+                     : "=a"(regs[0]), "=b"(regs[1]), "=c"(regs[2]), "=d"(regs[3])
+                     : "a"(leaf), "c"(subleaf));
+    }
+#endif
 
     union Cpuid
     {

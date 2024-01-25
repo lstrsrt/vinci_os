@@ -4,12 +4,17 @@
 #ifndef _PE_H
 #define _PE_H
 
+#include <stdint.h>
+
 #define IMAGE_DOS_SIGNATURE                 0x5A4D      // MZ
 #define IMAGE_OS2_SIGNATURE                 0x454E      // NE
 #define IMAGE_OS2_SIGNATURE_LE              0x454C      // LE
 #define IMAGE_NT_SIGNATURE                  0x00004550  // PE00
 #define IMAGE_EDOS_SIGNATURE                0x44454550  // PEED
 
+typedef uint8_t UINT8;
+typedef uint16_t UINT16;
+typedef uint32_t UINT32;
 
 typedef struct _IMAGE_DOS_HEADER {      // DOS .EXE header
     UINT16   e_magic;                     // Magic number

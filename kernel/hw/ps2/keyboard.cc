@@ -18,9 +18,8 @@ namespace kbd
 // only referenced by an ISR, which isn't directly called.
 // This forces them into .data as initialized values.
 #pragma data_seg(".data")
-    static ec::bitfield<KeyFlag> flags{};
-    static ec::array<KeyboardCallback, 3> callbacks{};
-    static bool released = false;
+static ec::bitfield<KeyFlag> flags{};
+static bool released = false;
 #pragma data_seg()
 
     bool HandleInput(u8 code, Key& key)
@@ -79,26 +78,6 @@ namespace kbd
         key.code = code;
         key.flags = flags;
 
-        for (auto cb : callbacks)
-        {
-            if (cb)
-                cb(key);
-        }
-
         return true;
-    }
-
-    bool RegisterCallback(KeyboardCallback callback)
-    {
-        for (auto& cb : callbacks)
-        {
-            if (!cb)
-            {
-                cb = callback;
-                return true;
-            }
-        }
-
-        return false;
     }
 }

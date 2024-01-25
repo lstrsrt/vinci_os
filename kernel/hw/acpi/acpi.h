@@ -1,7 +1,6 @@
 #pragma once
 
-#include <base.h>
-
+#include "../../lib/base.h"
 #include "../cpu/x64.h"
 #include "../common/acpi.h"
 

@@ -4,7 +4,7 @@
 *  Virtual address constants for the bootloader and kernel.
 */
 
-#include <base.h>
+#include "../lib/base.h"
 
 using vaddr_t = uintptr_t;
 using paddr_t = uintptr_t;

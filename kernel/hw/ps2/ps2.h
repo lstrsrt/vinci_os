@@ -79,7 +79,7 @@ namespace ps2
         };
         u8 bits;
     };
-    static_assert(sizeof Config == 0x1);
+    static_assert(sizeof(Config) == 0x1);
 
     EARLY void Initialize();
 

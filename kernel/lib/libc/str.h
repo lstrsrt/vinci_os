@@ -1,10 +1,22 @@
 #pragma once
 
-#include <base.h>
+#include "../base.h"
 
 EXTERN_C_START
 
+// TODO - strncmp (maybe other functions) not compiled correctly on clang
+
+#ifdef COMPILER_MSVC
 #define strlen __builtin_strlen
+#else
+constexpr size_t strlen(const char* str)
+{
+    size_t i = 0;
+    while (str[i])
+        i++;
+    return i;
+}
+#endif
 size_t strnlen(const char* str, size_t max);
 i32 strcmp(const char* str1, const char* str2);
 i32 stricmp(const char* str1, const char* str2);

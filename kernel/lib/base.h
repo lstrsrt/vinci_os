@@ -7,8 +7,6 @@
 #else
 #ifdef _MSC_VER
 #define COMPILER_MSVC
-#else
-#error Unsupported compiler, use clang or msvc
 #endif
 #endif
 

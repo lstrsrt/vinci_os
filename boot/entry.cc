@@ -1,3 +1,9 @@
+#ifndef __clang__
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+#endif
+
 #include "boot.h"
 
 #include "../kernel/common/pe64.h"
@@ -7,10 +13,6 @@
 #include "mini-libc.h"
 #include "cpp-uefi.hh"
 
-#ifndef __clang__
-#ifdef _MSC_VER
-#include <intrin.h>
-#else
 INLINE void __writecr0(u64 cr0)
 {
     asm volatile("mov %%rax, %%cr0" :: "a"(cr0));
@@ -29,8 +31,6 @@ INLINE u64 __readcr3()
     asm("mov %%cr3, %%rax" : "=a"(cr3));
     return cr3;
 }
-#endif
-#endif
 
 static uefi::simple_text_output_protocol* g_con_out;
 static uefi::simple_text_input_protocol* g_con_in;
@@ -402,6 +402,8 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
         )
     );
 
+    print_string(u"page table = 0x%llx\r\n", loader_block->page_table);
+
     // Allocate kernel page pool
     static constexpr auto kernel_page_pool_pages = kva::kernel_pool.PageCount();
     loader_block->page_pool_size = kernel_page_pool_pages;
@@ -527,6 +529,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     __writecr0(__readcr0() | CR0_WP);
 
     // Give user time to read everything
+    print_string(u"Built with clang + lld\r\n");
     print_string(u"Press any key to continue...\r\n");
     ( void )wait_for_key();
 

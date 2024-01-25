@@ -2,7 +2,7 @@
 
 EXTERN_C_START
 
-#pragma function(memcmp)
+// #pragma function(memcmp)
 int memcmp(const void* buf1, const void* buf2, size_t n)
 {
     const u8* a = ( const u8* )buf1;
@@ -16,7 +16,7 @@ int memcmp(const void* buf1, const void* buf2, size_t n)
     return 0;
 }
 
-#pragma function(memcpy)
+// #pragma function(memcpy)
 void* memcpy(void* dst, const void* src, size_t n)
 {
     u8* d = ( u8* )dst;
@@ -28,7 +28,7 @@ void* memcpy(void* dst, const void* src, size_t n)
     return dst;
 }
 
-#pragma function(memset)
+// #pragma function(memset)
 void* memset(void* dst, u32 val, size_t n)
 {
     u8* d = ( u8* )dst;

@@ -1,25 +1,24 @@
 #pragma once
 
-#include <base.h>
-
+#include "../base.h"
 #include "concepts.h"
 
 namespace ec
 {
     template<class T>
-    [[msvc::intrinsic]] constexpr auto&& move(T&& t)
+    MSVC_INTRINSIC constexpr auto&& move(T&& t)
     {
         return static_cast<remove_reference<T>&&>(t);
     }
 
     template<class T>
-    [[msvc::intrinsic]] constexpr auto&& forward(remove_reference<T>& t)
+    MSVC_INTRINSIC constexpr auto&& forward(remove_reference<T>& t)
     {
         return static_cast<T&&>(t);
     }
 
     template<class T>
-    [[msvc::intrinsic]] constexpr auto&& forward(remove_reference<T>&& t)
+    MSVC_INTRINSIC constexpr auto&& forward(remove_reference<T>&& t)
     {
         return static_cast<T&&>(t);
     }

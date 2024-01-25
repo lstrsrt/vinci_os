@@ -14,7 +14,8 @@ size_t strnlen(const char* str, size_t max)
     return len;
 }
 
-#pragma function(strcmp)
+// TODO - ifdef these
+// #pragma function(strcmp)
 i32 strcmp(const char* str1, const char* str2)
 {
     for (; *str1 == *str2; ++str1, ++str2) {
@@ -44,13 +45,18 @@ i32 stricmp(const char* str1, const char* str2)
 
 i32 strncmp(const char* str1, const char* str2, size_t n)
 {
-    if (!n)
-        return 0;
+    const u8 *c1 = (const u8 *)str1;
+    const u8 *c2 = (const u8 *)str2;
+    u8 ch = 0;
+    i32 d = 0;
 
-    while (n-- && *str1 && *str1 == *str2)
-        str1++, str2++;
+    while (n--) {
+        d = (i32)(ch = *c1++) - (i32)*c2++;
+        if (d || !ch)
+            break;
+    }
 
-    return *( i32* )str1 - *( i32* )str2;
+    return d;
 }
 
 i32 strnicmp(const char* str1, const char* str2, size_t n)

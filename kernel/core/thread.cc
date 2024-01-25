@@ -19,7 +19,8 @@ namespace ke
         while (1)
         {
             _disable();
-            _mm_pause();
+            // _mm_pause();
+            asm volatile("pause");
             _enable();
         }
     }

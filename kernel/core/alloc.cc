@@ -4,7 +4,7 @@
 #include "ke.h"
 #include "gfx/output.h"
 
-#define ALLOC_DBG_PRINT 0
+#define ALLOC_DBG_PRINT 1
 #define ALLOC_POISON    0
 
 #if ALLOC_DBG_PRINT == 0
@@ -66,7 +66,7 @@ namespace ke
     {
         DbgPrint("Allocate() - size %llu\n", size);
 
-        size += sizeof Allocation;
+        size += sizeof(Allocation);
         size = AlignUp(size, block_size);
 
         if (size > total_free)
@@ -107,15 +107,15 @@ namespace ke
                         SetAllocationState(alloc, true);
 
                         // Skip the allocation info when returning to the caller.
-                        void* memory = ( void* )(( vaddr_t )alloc + sizeof Allocation);
+                        void* memory = ( void* )(( vaddr_t )alloc + sizeof(Allocation));
 
                         // This can be too aggressive - for example if we want to allocate 112 bytes,
                         // alignment will give us 8 extra bytes to memset.
 #if ALLOC_POISON == 0
                         if (!(flags & AllocFlag::Uninitialized))
-                            memzero(memory, size - sizeof Allocation);
+                            memzero(memory, size - sizeof(Allocation));
 #else
-                        SetMemory(memory, fresh, size - sizeof Allocation);
+                        SetMemory(memory, fresh, size - sizeof(Allocation));
 #endif
                         total_used += size;
                         total_free -= size;
@@ -144,7 +144,7 @@ namespace ke
 
         // Assume that this is the address returned by Allocate()
         // i.e. starting after the allocation info.
-        const auto real_address = ( uptr_t )address - sizeof Allocation;
+        const auto real_address = ( uptr_t )address - sizeof(Allocation);
         if (!kva::kernel_pool.Contains(( vaddr_t )real_address))
         {
             DbgPrint("Invalid address passed to Free (0x%llx, 0x%llx), returning.\n", address, real_address);

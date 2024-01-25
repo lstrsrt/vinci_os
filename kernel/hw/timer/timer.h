@@ -115,7 +115,7 @@ namespace timer
             PAD(8)
             Timer timers[];
         };
-        static_assert(sizeof Registers == 0x100);
+        static_assert(sizeof(Registers) == 0x100);
 #pragma warning(default: 4200)
 #pragma pack()
 

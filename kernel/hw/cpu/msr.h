@@ -1,5 +1,9 @@
 #pragma once
 
+#include <base.h>
+
+#include "x64.h"
+
 #define ReadMsr(msr) __readmsr(( u32 )msr)
 #define WriteMsr(msr, x) __writemsr(( u32 )msr, ( u64 )x)
 
@@ -35,6 +39,6 @@ namespace x64
         };
         u64 bits;
     };
-    static_assert(sizeof MsrStar == sizeof u64);
+    static_assert(sizeof(MsrStar) == sizeof(u64));
 #pragma pack()
 }

@@ -3,6 +3,7 @@
 #include <base.h>
 #include <ec/array.h>
 
+#include "x64.h"
 #include "../core/gfx/output.h"
 
 namespace apic
@@ -116,7 +117,7 @@ namespace apic
         };
         u64 bits;
     };
-    static_assert(sizeof IoRedirectionEntry == 0x8);
+    static_assert(sizeof(IoRedirectionEntry) == 0x8);
 
     union LvtEntry
     {
@@ -135,7 +136,7 @@ namespace apic
         };
         u32 bits;
     };
-    static_assert(sizeof LvtEntry == 0x4);
+    static_assert(sizeof(LvtEntry) == 0x4);
 #pragma pack()
 
     inline u64 local;
@@ -273,7 +274,7 @@ namespace pic
             this->bits = bits;
         }
     };
-    static_assert(sizeof InitCmdWord == 0x1);
+    static_assert(sizeof(InitCmdWord) == 0x1);
 
     struct OperationCmdWord
     {
@@ -297,7 +298,7 @@ namespace pic
             u8 bits;
         };
     };
-    static_assert(sizeof OperationCmdWord == 0x1);
+    static_assert(sizeof(OperationCmdWord) == 0x1);
 
     struct InServiceRegister
     {
@@ -322,7 +323,7 @@ namespace pic
         {
         }
     };
-    static_assert(sizeof InServiceRegister == 0x1);
+    static_assert(sizeof(InServiceRegister) == 0x1);
 
     void InitializeController();
 

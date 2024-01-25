@@ -7,8 +7,32 @@
 #include "../../core/ke.h"
 #include "../../core/gfx/output.h"
 
+// TODO - make a header for these
+#ifdef COMPILER_CLANG
+INLINE void __wbinvd()
+{
+    asm volatile("wbinvd" ::: "memory");
+}
+
+INLINE void _lgdt(x64::DescriptorTable* desc)
+{
+    asm volatile("lgdt %0" :: "m"(*desc));
+}
+
+INLINE void __lidt(x64::DescriptorTable* desc)
+{
+    asm volatile("lidt %0" :: "m"(*desc));
+}
+#endif
+
 namespace x64
 {
+    EXTERN_C_START
+    void ReloadSegments(u16 code_selector, u16 data_selector);
+    void LoadTr(u16 offset);
+    void x64Syscall();
+    EXTERN_C_END
+
 #pragma data_seg("PROTDATA")
     alignas(64) static const GdtEntry gdt[]{
         GdtEntry::Null(),                              // Empty
@@ -280,8 +304,8 @@ namespace x64
         { _Isr255, 0 }
     };
 
-    alignas(sizeof u16) static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
-    alignas(sizeof u16) static DescriptorTable idt_desc(&idt, sizeof idt - 1);
+    alignas(sizeof(u16)) static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
+    alignas(sizeof(u16)) static DescriptorTable idt_desc(&idt, sizeof idt - 1);
 #pragma data_seg()
 
     EARLY static void GetCpuModel()
@@ -314,13 +338,13 @@ namespace x64
     if (!CheckCpuid(reg, feat)) { \
         CpuidPanic(#feat); \
     } else { \
-        Print(#feat ## " "); \
+        Print("%s", #feat " "); \
     }
 
 #define CheckOptionalFeature(info, reg, feat) \
     info = CheckCpuid(reg, feat); \
     if (info) { \
-        Print(#feat ## " "); \
+        Print("%s", #feat " "); \
     }
 
     EARLY static void CheckFeatures()
@@ -525,13 +549,13 @@ namespace x64
         SetCr0Bits();
         SetCr4Bits();
 
-        LoadPageAttributeTable();
+        // LoadPageAttributeTable();
 
         LoadGdt(&gdt_desc);
         LoadIdt(&idt_desc);
 
         InitializeInterrupts();
 
-        InitializeSyscalls();
+        // InitializeSyscalls();
     }
 }

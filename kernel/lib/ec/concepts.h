@@ -1,6 +1,6 @@
 #pragma once
 
-#include <base.h>
+#include "../base.h"
 
 namespace ec::concepts
 {
@@ -51,7 +51,7 @@ namespace ec::concepts
 
     template<class T> using remove_reference = typename impl::remove_reference<T>::type;
 
-    template<class T> using unqualified [[msvc::known_semantics]] = remove_cv<remove_reference<T>>;
+    template<class T> using unqualified = remove_cv<remove_reference<T>>;
 
     template<class T> using unsigned_t = impl::as_unsigned<T>::type;
 
