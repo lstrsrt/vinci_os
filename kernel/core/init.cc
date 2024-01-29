@@ -88,9 +88,9 @@ EARLY static void CoalesceMemoryDescriptors(const MemoryMap& memory_map)
     Print("Coalesced %llu memory descriptors.\n", count);
 }
 
-EARLY static void MapUefiRuntime(const MemoryMap& memory_map, mm::PagePool& pool)
+EARLY static void MapUefiRuntime(const MemoryMap& memory_map, mm::PageTable& table)
 {
-    IterateMemoryDescriptors(memory_map, [&pool](uefi::memory_descriptor* desc)
+    IterateMemoryDescriptors(memory_map, [&table](uefi::memory_descriptor* desc)
     {
         if (desc->attribute & uefi::memory_runtime)
         {
@@ -100,7 +100,7 @@ EARLY static void MapUefiRuntime(const MemoryMap& memory_map, mm::PagePool& pool
                 desc->virtual_start,
                 desc->number_of_pages
             );
-            mm::MapPages(pool, desc->virtual_start, desc->physical_start, desc->number_of_pages);
+            mm::MapPages(table, desc->virtual_start, desc->physical_start, desc->number_of_pages);
         }
     });
 }
@@ -118,52 +118,85 @@ static IMAGE_NT_HEADERS* ImageNtHeaders(void* image_base)
     return nt_headers;
 }
 
-static void FinalizeKernelMapping(mm::PagePool& pool)
+namespace pe
 {
-    auto headers = ImageNtHeaders(( void* )kva::kernel_image.base);
-    auto section = IMAGE_FIRST_SECTION(headers);
+    enum SectionFlag
+    {
+        Discardable = 0x02000000,
+        NotCached = 0x04000000,
+        NotPaged = 0x08000000,
+        Shared = 0x10000000,
+        Execute = 0x20000000,
+        Read = 0x40000000,
+        Write = 0x80000000,
+    };
 
-    for (u16 i = 0; i < headers->FileHeader.NumberOfSections; i++, section++)
+    using Section = IMAGE_SECTION_HEADER;
+    using NtHeaders = IMAGE_NT_HEADERS;
+    using DosHeader = IMAGE_DOS_HEADER;
+
+    struct File
+    {
+        DosHeader* m_dos_header;
+        NtHeaders* m_nt_headers;
+
+        void ForEachSection(const auto&& callback)
+        {
+            auto section = IMAGE_FIRST_SECTION(m_nt_headers);
+            for (u16 i = 0; i < m_nt_headers->FileHeader.NumberOfSections; i++, section++)
+            {
+                if (!callback(section))
+                    return;
+            }
+        }
+
+        static File FromImageBase(void* base)
+        {
+            File pe;
+            pe.m_nt_headers = ImageNtHeaders(base);
+            pe.m_dos_header = ( DosHeader* )base;
+            return pe;
+        }
+    };
+}
+
+static void FinalizeKernelMapping(mm::PageTable& table)
+{
+    auto pe = pe::File::FromImageBase(( void* )kva::kernel_image.base);
+
+    pe.ForEachSection([&table](pe::Section* section) -> bool
     {
         const auto start = kva::kernel_image.base + section->VirtualAddress;
         const auto size = section->Misc.VirtualSize;
         const auto end = start + size;
 
-        char name[IMAGE_SIZEOF_SHORT_NAME+1];
+        char name[IMAGE_SIZEOF_SHORT_NAME + 1];
         strlcpy(name, ( const char* )section->Name, IMAGE_SIZEOF_SHORT_NAME);
-        Print("****** %s (0x%llx): 0x%x\n", name, start, section->Characteristics);
 
-        if (section->Characteristics & IMAGE_SCN_MEM_DISCARDABLE)
+        if (section->Characteristics & pe::SectionFlag::Discardable)
         {
             memzero(( void* )start, size);
             for (auto page = start; page < end; page += page_size)
             {
-                mm::UnmapPage(pool, page);
+                mm::UnmapPage(table, page);
                 x64::TlbFlushAddress(( void* )page);
             }
-            continue;
+            return true;
         }
 
-        if (!(section->Characteristics & IMAGE_SCN_MEM_WRITE))
+        if (!(section->Characteristics & pe::SectionFlag::Write))
         {
-            Print("disabling write\n");
             for (auto page = start; page < end; page += page_size)
             {
-                auto pte = mm::GetPresentPte(pool, page);
+                auto pte = mm::GetPresentPte(table, page);
                 pte->writable = false;
-                // if (strncmp(name, ".rdata", 6) != 0) // HACK double faults otherwise?
-                    x64::TlbFlushAddress(( void* )page);
+                x64::TlbFlushAddress(( void* )page);
             }
         }
-    }
-}
 
-#ifdef COMPILER_CLANG
-INLINE void _writegsbase_u64(u64 value)
-{
-    asm volatile("wrgsbase %0" :: "r" (value) : "memory");
+        return true;
+    });
 }
-#endif
 
 namespace ke
 {
@@ -207,33 +240,9 @@ namespace x64
     EXTERN_C void Switch(x64::Context*);
 }
 
-static size_t DebugAllocatePhysical(mm::PagePool& pool, paddr_t* phys_out)
-{
-    for (size_t page = 1 /* Skip ourselves */; page < pool.pages; page++)
-    {
-        // Skip present pages
-        if (pool.phys_info[page].present)
-            continue;
-
-        pool.phys_info[page].present = true;
-        *phys_out = pool.phys + (page * page_size);
-
-        return page;
-    }
-
-    return 0;
-}
-
-void Function()
-{
-    Print("Hello\n");
-}
-
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 {
     gfx::Initialize(loader_block->display);
-
-    Function();
 
     // Copy all the important stuff because the loader block gets freed in ReclaimBootPages
     MemoryMap memory_map = loader_block->memory_map;
@@ -241,9 +250,10 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     KernelData kernel = loader_block->kernel;
     auto hpet = loader_block->hpet;
     auto i8042 = loader_block->i8042;
-
-    // Init COM ports so we have early debugging capabilities.
-    serial::Initialize();
+    const auto pt_physical = loader_block->page_table;
+    const auto pt_pages = loader_block->page_table_size;
+    const auto pp_physical = loader_block->page_pool;
+    const auto pp_pages = loader_block->page_pool_size;
 
     ReclaimBootPages(memory_map);
     CoalesceMemoryDescriptors(memory_map);
@@ -253,49 +263,50 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     x64::cpu_info.using_apic = false;
     x64::Initialize(kernel_stack_top);
 
+    // Init COM ports so we have early debugging capabilities.
+    serial::Initialize();
+
     // From here on we can use the heap.
     ke::InitializeAllocator();
 
     // Build a new page table (the bootloader one is temporary)
     // TODO - store somewhere so it's accessible elsewhere
-    auto pool = new mm::PagePool(kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
+    auto table = new mm::PageTable(kva::kernel_pt.base, pt_physical, pt_pages);
 
     // FIXME
-    pool->phys = loader_block->page_table;
-    mm::AllocatePhysical(*pool, &pool->root);
-    Print("root 0x%llx\n", pool->root);
+    // table->phys = loader_block->page_table;
+    // mm::AllocatePhysical(*table, &table->root);
 
     const auto kernel_pages = SizeToPages(kernel.size);
     const auto frame_buffer_pages = SizeToPages(display.frame_buffer_size);
 
-    mm::MapPages(*pool, kva::kernel_image.base, kernel.physical_base, kernel_pages);
-    mm::MapPages(*pool, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
+    mm::MapPages(*table, kva::kernel_image.base, kernel.physical_base, kernel_pages);
+    mm::MapPages(*table, kva::kernel_pt.base, pt_physical, pt_pages);
 
     // turns out vbox page faults at fb base + 0x3000000 when we reach the end so just map the whole range
-    mm::MapPagesInRegion<kva::frame_buffer>(*pool, &display.frame_buffer, kva::frame_buffer.PageCount());
+    mm::MapPagesInRegion<kva::frame_buffer>(*table, &display.frame_buffer, kva::frame_buffer.PageCount());
 
     // Map the framebuffer as write combining (PAT4)
     for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
-        mm::GetPresentPte(*pool, page)->pat = true;
+        mm::GetPresentPte(*table, page)->pat = true;
 
     // Map devices and set CD bit
     {
-        mm::MapPagesInRegion<kva::devices>(*pool, &hpet, 1);
-        mm::GetPresentPte(*pool, hpet)->cache_disable = true;
+        mm::MapPagesInRegion<kva::devices>(*table, &hpet, 1);
+        mm::GetPresentPte(*table, hpet)->cache_disable = true;
 
-        mm::MapPagesInRegion<kva::devices>(*pool, &apic::io, 1);
-        mm::GetPresentPte(*pool, apic::io)->cache_disable = true;
+        mm::MapPagesInRegion<kva::devices>(*table, &apic::io, 1);
+        mm::GetPresentPte(*table, apic::io)->cache_disable = true;
 
-        mm::MapPagesInRegion<kva::devices>(*pool, &apic::local, 1);
-        mm::GetPresentPte(*pool, apic::local)->cache_disable = true;
+        mm::MapPagesInRegion<kva::devices>(*table, &apic::local, 1);
+        mm::GetPresentPte(*table, apic::local)->cache_disable = true;
     }
 
-    // eyy yoyoyoyoyoyo
-    MapUefiRuntime(memory_map, *pool);
+    MapUefiRuntime(memory_map, *table);
 
-    mm::MapPages(*pool, kva::kernel_pool.base, loader_block->page_pool, loader_block->page_pool_size);
+    mm::MapPages(*table, kva::kernel_pool.base, pp_physical, pp_pages);
 
-    __writecr3(pool->root);
+    __writecr3(table->root);
     gfx::SetFrameBufferAddress(display.frame_buffer);
 
     timer::Initialize(hpet);
@@ -307,7 +318,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     // Now that kernel init has completed, zero out discardable sections
     // and write-protect every section not marked writable.
-    FinalizeKernelMapping(*pool);
+    FinalizeKernelMapping(*table);
 
     ke::InitializeCore();
 

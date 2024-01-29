@@ -7,24 +7,6 @@
 #include "../../core/ke.h"
 #include "../../core/gfx/output.h"
 
-// TODO - make a header for these
-#ifdef COMPILER_CLANG
-INLINE void __wbinvd()
-{
-    asm volatile("wbinvd" ::: "memory");
-}
-
-INLINE void _lgdt(x64::DescriptorTable* desc)
-{
-    asm volatile("lgdt %0" :: "m"(*desc));
-}
-
-INLINE void __lidt(x64::DescriptorTable* desc)
-{
-    asm volatile("lidt %0" :: "m"(*desc));
-}
-#endif
-
 namespace x64
 {
     EXTERN_C_START
@@ -549,13 +531,13 @@ namespace x64
         SetCr0Bits();
         SetCr4Bits();
 
-        // LoadPageAttributeTable();
+        LoadPageAttributeTable();
 
         LoadGdt(&gdt_desc);
         LoadIdt(&idt_desc);
 
         InitializeInterrupts();
 
-        // InitializeSyscalls();
+        InitializeSyscalls();
     }
 }

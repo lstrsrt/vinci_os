@@ -4,6 +4,10 @@
 
 EXTERN_C_START
 
+#ifdef COMPILER_MSVC
+#pragma function(strcmp)
+#endif
+
 size_t strnlen(const char* str, size_t max)
 {
     size_t len = 0;
@@ -14,8 +18,6 @@ size_t strnlen(const char* str, size_t max)
     return len;
 }
 
-// TODO - ifdef these
-// #pragma function(strcmp)
 i32 strcmp(const char* str1, const char* str2)
 {
     for (; *str1 == *str2; ++str1, ++str2) {

@@ -1,13 +1,10 @@
 #pragma once
 
-// #include <cstdint>
 #include <stdint.h>
 
-#ifndef __clang__
-#ifdef _MSC_VER
+#if !defined(__clang__) && defined(_MSC_VER)
 #ifndef EFIAPI
 #define EFIAPI __cdecl
-#endif
 #endif
 #else
 #ifndef EFIAPI
@@ -15,11 +12,19 @@
 #endif
 #endif
 
-#define THISPTR_FN(ret, name, args, ...) using name##_t = ret(EFIAPI*)(void* thisptr __VA_OPT__(, __VA_ARGS__)); \
-    private: name##_t _##name; \
-    public: inline auto name(__VA_OPT__(__VA_ARGS__)) { return _##name args; }
+#if !defined(__clang__) && defined(_MSC_VER)
+#define OPTIONAL_INSERT(...) __VA_ARGS__
+#define OPTIONAL_INSERT_COMMA(...) , __VA_ARGS__
+#else
+#define OPTIONAL_INSERT(...) __VA_OPT__(__VA_ARGS__)
+#define OPTIONAL_INSERT_COMMA(...) __VA_OPT__(, __VA_ARGS__)
+#endif
 
-#define MEMBER_FN(ret, name, ...) using name##_t = ret(EFIAPI*)(__VA_OPT__(__VA_ARGS__)); \
+#define THISPTR_FN(ret, name, args, ...) using name##_t = ret(EFIAPI*)(void* thisptr OPTIONAL_INSERT_COMMA(__VA_ARGS__)); \
+    private: name##_t _##name; \
+    public: inline auto name(OPTIONAL_INSERT(__VA_ARGS__)) { return _##name args; }
+
+#define MEMBER_FN(ret, name, ...) using name##_t = ret(EFIAPI*)(OPTIONAL_INSERT(__VA_ARGS__)); \
     public: name##_t name
 
 namespace uefi {

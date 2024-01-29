@@ -1,4 +1,4 @@
-section .bss
+section .data
 
 extern spurious_irqs
 
@@ -43,7 +43,7 @@ extern IsrCommon
 HAS_ERROR equ 1
 NO_ERROR  equ 0
 
-; int_no, has_error
+; %1 int_no, %2 has_error
 %macro GENERATE_ISR 2
 global _Isr%1
 _Isr%1:
@@ -76,10 +76,10 @@ _Isr%1:
     iretq
 %endmacro
 
-; first, last, has_error
+; %1 first, %2 last, %3 has_error
 %macro GENERATE_ISRS 3
 %assign i %1
-    %rep %2 - %1 + 1
+    %rep %2 - %1+1
         GENERATE_ISR i, %3
         %assign i i+1
     %endrep
@@ -88,7 +88,7 @@ _Isr%1:
 global _IsrSpurious
 _IsrSpurious:
     cld
-    inc qword [spurious_irqs]
+    inc qword [rel spurious_irqs]
     ; TODO - check if spurious_irqs is really high
     ; and issue a warning or mask the interrupt entirely
     iretq

@@ -234,7 +234,7 @@ namespace ec
             string ret{ *this };
 
             for (size_t i = 0; i < length(); i++)
-                ret[i] = toupper(at(i));
+                ret[i] = ( char )toupper(at(i));
 
             return ret;
         }
@@ -244,7 +244,7 @@ namespace ec
             string ret{ *this };
 
             for (size_t i = 0; i < length(); i++)
-                ret[i] = tolower(ret[i]);
+                ret[i] = ( char )tolower(ret[i]);
 
             return ret;
         }
@@ -261,7 +261,7 @@ namespace ec
         inline string& to_upper()
         {
             for (size_t i = 0; i < length(); i++)
-                at(i) = toupper(at(i));
+                at(i) = ( char )toupper(at(i));
 
             return *this;
         }
@@ -269,7 +269,7 @@ namespace ec
         inline string& to_lower()
         {
             for (size_t i = 0; i < length(); i++)
-                at(i) = tolower(at(i));
+                at(i) = ( char )tolower(at(i));
 
             return *this;
         }

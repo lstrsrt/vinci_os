@@ -1,21 +1,17 @@
 #pragma once
 
-#ifndef __clang__
-#ifdef _MSC_VER
-#define va_start __crt_va_start
-#define va_arg __crt_va_arg
-#define va_end __crt_va_end
-#endif
-#else
 #include <stdarg.h>
-#endif
 
 #include "../kernel/lib/base.h"
-// #include "../kernel/lib/libc/mem.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-// #pragma function(memcpy)
+#if !defined(__clang__) && defined(_MSC_VER)
+#pragma function(memcpy)
+#pragma function(memset)
+#pragma function(memcmp)
+#endif
+
 void* memcpy(void* dst, const void* src, size_t n)
 {
     u8* d = ( u8* )dst;
@@ -27,7 +23,6 @@ void* memcpy(void* dst, const void* src, size_t n)
     return dst;
 }
 
-// #pragma function(memset)
 void* memset(void* dst, u32 val, size_t n)
 {
     u8* d = ( u8* )dst;
@@ -38,7 +33,6 @@ void* memset(void* dst, u32 val, size_t n)
     return dst;
 }
 
-// #pragma function(memcmp)
 int memcmp(const void* buf1, const void* buf2, size_t n)
 {
     const u8* a = ( const u8* )buf1;

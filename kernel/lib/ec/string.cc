@@ -73,7 +73,7 @@ namespace ec
         if (ignore_case)
         {
             const auto tmp = lower();
-            const auto ptr = strchr(tmp.chars() + from, tolower(c));
+            const auto ptr = strchr(tmp.chars() + from, ( char )tolower(c));
             return ptr ? ptr - tmp.chars() : npos;
         }
         else

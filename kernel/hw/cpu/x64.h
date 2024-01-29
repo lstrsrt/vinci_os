@@ -8,136 +8,16 @@
 
 #ifdef COMPILER_MSVC
 #include <intrin.h>
+#else
+#include "wrapper.h"
+#endif
+
 #define ReadPort8 __inbyte
 #define ReadPort16 __inword
 #define ReadPort32 __indword
 #define WritePort8 __outbyte
 #define WritePort16 __outword
 #define WritePort32 __outdword
-#else
-INLINE u8 ReadPort8(u16 port)
-{
-    u8 value;
-    asm volatile("inb %1, %0" : "=a"(value) : "Nd"(port));
-    return value;
-}
-
-INLINE u16 ReadPort16(u16 port)
-{
-    u16 value;
-    asm volatile("inw %1, %0" : "=a"(value) : "Nd"(port));
-    return value;
-}
-
-INLINE u32 ReadPort32(u16 port)
-{
-    u32 value;
-    asm volatile("inl %1, %0" : "=a"(value) : "Nd"(port));
-    return value;
-}
-
-INLINE void WritePort8(u16 port, u8 data)
-{
-    asm volatile("outb %0, %1" ::"a"(data), "Nd"(port));
-}
-
-INLINE void WritePort16(u16 port, u16 data)
-{
-    asm volatile("outw %0, %1" ::"a"(data), "Nd"(port));
-}
-
-INLINE void WritePort32(u16 port, u32 data)
-{
-    asm volatile("outl %0, %1" ::"a"(data), "Nd"(port));
-}
-
-INLINE u64 __readcr0()
-{
-    u64 cr0;
-    asm("mov %%cr0, %%rax" : "=a"(cr0));
-    return cr0;
-}
-
-INLINE void __writecr0(u64 cr0)
-{
-    asm volatile("mov %%rax, %%cr0" :: "a"(cr0));
-}
-
-INLINE u64 __readcr2()
-{
-    u64 cr2;
-    asm("mov %%cr2, %%rax" : "=a"(cr2));
-    return cr2;
-}
-
-INLINE u64 __readcr3()
-{
-    u64 cr3;
-    asm("mov %%cr4, %%rax" : "=a"(cr3));
-    return cr3;
-}
-
-INLINE void __writecr3(u64 cr3)
-{
-    asm volatile("mov %%rax, %%cr3" :: "a"(cr3));
-}
-
-INLINE u64 __readcr4()
-{
-    u64 cr4;
-    asm("mov %%cr4, %%rax" : "=a"(cr4));
-    return cr4;
-}
-
-INLINE void __writecr4(u64 cr4)
-{
-    asm volatile("mov %%rax, %%cr4" :: "a"(cr4));
-}
-
-INLINE u64 __readmsr(u32 msr)
-{
-    u32 low, high;
-    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
-    return MAKE64(high, low);
-}
-
-INLINE void __writemsr(u32 msr, u64 data)
-{
-    u32 low = LOW32(data);
-    u32 high = HIGH32(data);
-    asm volatile("wrmsr" :: "c"(msr), "a"(low), "d"(high) : "memory");
-}
-
-INLINE void _disable()
-{
-    asm("cli");
-}
-
-INLINE void _enable()
-{
-    asm("sti");
-}
-
-INLINE void __halt()
-{
-    asm("hlt");
-}
-
-INLINE void _clac()
-{
-    asm("clac");
-}
-
-INLINE void _stac()
-{
-    asm("stac");
-}
-
-INLINE void __invlpg(void* addr)
-{
-    asm volatile("invlpg (%0)" :: "r"(addr) : "memory");
-}
-#endif
 
 namespace x64
 {
@@ -480,7 +360,7 @@ namespace x64
         u32 isr_high;
         u32 reserved1;
 
-        constexpr IdtEntry(void* function, u32 dpl, u8 ist = 0)
+        IdtEntry(void* function, u32 dpl, u8 ist = 0)
         {
             Set(function, dpl, ist);
         }

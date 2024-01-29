@@ -42,26 +42,6 @@ namespace ke
 
     void InitializeCore();
 
-    INLINE u64 __readgsqword(u64 offset)
-    {
-        u64 value;
-        asm volatile(
-            "mov %%gs:%a[off], %[val]"
-            : [val] "=r"(value)
-            : [off] "ir"(offset)
-        );
-        return value;
-    }
-
-    INLINE void __writegsqword(u64 offset, u64 value)
-    {
-        asm volatile(
-            "mov %[val], %%gs:%a[off]"
-            :: [off] "ir"(offset), [val] "r"(value)
-            : "memory"
-        );
-    }
-
     INLINE Core* GetCore()
     {
         return ( Core* )(__readgsqword(__builtin_offsetof(Core, self)));

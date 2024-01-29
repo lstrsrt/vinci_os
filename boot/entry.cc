@@ -1,7 +1,5 @@
-#ifndef __clang__
-#ifdef _MSC_VER
+#if !defined(__clang__) && defined(_MSC_VER)
 #include <intrin.h>
-#endif
 #endif
 
 #include "boot.h"
@@ -13,6 +11,7 @@
 #include "mini-libc.h"
 #include "cpp-uefi.hh"
 
+#ifdef __clang__
 INLINE void __writecr0(u64 cr0)
 {
     asm volatile("mov %%rax, %%cr0" :: "a"(cr0));
@@ -31,6 +30,7 @@ INLINE u64 __readcr3()
     asm("mov %%cr3, %%rax" : "=a"(cr3));
     return cr3;
 }
+#endif
 
 static uefi::simple_text_output_protocol* g_con_out;
 static uefi::simple_text_input_protocol* g_con_in;
@@ -402,8 +402,6 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
         )
     );
 
-    print_string(u"page table = 0x%llx\r\n", loader_block->page_table);
-
     // Allocate kernel page pool
     static constexpr auto kernel_page_pool_pages = kva::kernel_pool.PageCount();
     loader_block->page_pool_size = kernel_page_pool_pages;
@@ -503,7 +501,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     __writecr0(__readcr0() & ~CR0_WP);
 
     // Everything is identity mapped, so virtual and physical bases for the page table are the same.
-    mm::PagePool pool(
+    mm::PageTable table(
         bl_page_table,
         bl_page_table,
         bl_page_pool_pages,
@@ -513,15 +511,15 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     const auto kernel_pages = uefi::size_to_pages(loader_block->kernel.size);
     const auto frame_buffer_pages = uefi::size_to_pages(loader_block->display.frame_buffer_size);
 
-    const auto pml4 = ( x64::Pml4 )GetPoolEntryVa(pool, pool.root);
+    const auto pml4 = ( x64::Pml4 )GetPoolEntryVa(table, table.root);
     // Clear out PML4 entries starting from higher half
     for (u32 i = 256; i < 512; i++)
         pml4[i].value = 0;
 
-    mm::MapPages(pool, kva::kernel_image.base, loader_block->kernel.physical_base, kernel_pages);
-    mm::MapPages(pool, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
-    mm::MapPages(pool, kva::kernel_pool.base, loader_block->page_pool, loader_block->page_pool_size);
-    mm::MapPages(pool, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
+    mm::MapPages(table, kva::kernel_image.base, loader_block->kernel.physical_base, kernel_pages);
+    mm::MapPages(table, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
+    mm::MapPages(table, kva::kernel_pool.base, loader_block->page_pool, loader_block->page_pool_size);
+    mm::MapPages(table, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
 
     // TODO - print runtime descriptors
 
@@ -529,7 +527,6 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     __writecr0(__readcr0() | CR0_WP);
 
     // Give user time to read everything
-    print_string(u"Built with clang + lld\r\n");
     print_string(u"Press any key to continue...\r\n");
     ( void )wait_for_key();
 

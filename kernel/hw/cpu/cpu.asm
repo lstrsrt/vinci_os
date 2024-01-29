@@ -35,8 +35,8 @@ section .text
 global x64Entry
 x64Entry:
     cli
-    ; FIXME - spill area on msvc
-    mov rsp, kernel_stack_top
+    mov rsp, [rel kernel_stack_top]
+    sub rsp, 32
     jmp OsInitialize
 
 ;
@@ -59,7 +59,7 @@ ReloadSegments:
     ; This will reload cs with whatever is in rcx
     ; (as long as the corresponding GDT entry is valid)
     movzx rcx, cx
-    lea rdx, .exit
+    lea rdx, [rel .exit]
     push rcx
     push rdx
     retfq

@@ -31,7 +31,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\nasm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -169,6 +169,7 @@
     <ClInclude Include="hw\cpu\cpuid.h" />
     <ClInclude Include="hw\cpu\isr.h" />
     <ClInclude Include="hw\cpu\msr.h" />
+    <ClInclude Include="hw\cpu\wrapper.h" />
     <ClInclude Include="hw\cpu\x64.h" />
     <ClInclude Include="hw\ps2\keyboard.h" />
     <ClInclude Include="hw\ps2\ps2.h" />
@@ -185,17 +186,16 @@
     <ClInclude Include="lib\ec\new.h" />
     <ClInclude Include="lib\ec\string.h" />
     <ClInclude Include="lib\ec\util.h" />
-    <ClInclude Include="lib\libc\args.h" />
     <ClInclude Include="lib\libc\mem.h" />
     <ClInclude Include="lib\libc\print.h" />
     <ClInclude Include="lib\libc\str.h" />
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="hw\cpu\cpu.asm" />
-    <MASM Include="hw\cpu\isr.asm" />
+    <NASM Include="hw\cpu\cpu.asm" />
+    <NASM Include="hw\cpu\isr.asm" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\nasm.targets" />
   </ImportGroup>
 </Project>
