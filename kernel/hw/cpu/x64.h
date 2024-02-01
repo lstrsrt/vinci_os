@@ -5,12 +5,7 @@
 #include <ec/enums.h>
 
 #include "../common/va.h"
-
-#ifdef COMPILER_MSVC
-#include <intrin.h>
-#else
-#include "wrapper.h"
-#endif
+#include "asm-wrappers.h"
 
 #define ReadPort8 __inbyte
 #define ReadPort16 __inword
@@ -339,6 +334,9 @@ namespace x64
 #define INT_GATE 0xe
 #define TRAP_GATE 0xf
 
+    // Defined here instead of isr.h because IdtEntry needs it
+    using Isr = void(__cdecl*)();
+
     struct IdtEntry
     {
         u16 isr_low;
@@ -360,12 +358,12 @@ namespace x64
         u32 isr_high;
         u32 reserved1;
 
-        IdtEntry(void* function, u32 dpl, u8 ist = 0)
+        IdtEntry(Isr function, u32 dpl, u8 ist = 0)
         {
             Set(function, dpl, ist);
         }
 
-        inline void Set(void* function, u32 dpl, u8 ist = 0)
+        inline void Set(Isr function, u32 dpl, u8 ist = 0)
         {
             this->isr_low = EXTRACT64(function, 0, 16);
             this->isr_mid = EXTRACT64(function, 16, 32);

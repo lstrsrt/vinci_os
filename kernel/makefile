@@ -1,7 +1,8 @@
 CXX = clang
-CXXFLAGS = -Wall -std=c++20 -Wno-microsoft-cast -target x86_64-windows -nostdlib -ffreestanding -mno-stack-arg-probe \
-    -mgeneral-regs-only -fno-asynchronous-unwind-tables -mno-red-zone -mno-80387 -mno-mmx -mno-sse -mno-sse2 \
-    -fno-exceptions -fno-rtti -fno-omit-frame-pointer -mcmodel=kernel -I $(INC)
+CXXFLAGS = -std=c++20 -Wall -Wno-unused-function -Wno-deprecated-volatile -target x86_64-windows -nostdlib \
+    -ffreestanding -mno-stack-arg-probe -mgeneral-regs-only -fno-asynchronous-unwind-tables -mno-red-zone \
+    -mno-80387 -mno-mmx -mno-sse -mno-sse2 -fno-exceptions -fno-rtti -fno-omit-frame-pointer -mcmodel=kernel \
+    -I $(INCLUDE)
 
 AS = nasm
 ASFLAGS = -f win64
@@ -10,7 +11,7 @@ LD = lld-link
 LFLAGS = -subsystem:native -section:"INIT,RED" -section:".CRT,RED" -section:"PROTDATA,R" -nxcompat:no -incremental:no \
     -fixed:no -dynamicbase:no -nodefaultlib -base:0xffffffff80000000 -entry:x64Entry
 
-INC = ./lib/
+INCLUDE = ./lib/
 
 OBJECTS = ./lib/libc/mem.o \
 ./lib/libc/str.o \
@@ -36,6 +37,9 @@ all: kernel.exe
 	mv kernel.exe ../bin/Debug/vdisk/EFI/BOOT/kernel.exe
 
 kernel.exe: $(OBJECTS)
+	pushd ../bin/Debug/vdisk && \
+	mkdir -p EFI/BOOT && \
+	popd && \
 	$(LD) $(LFLAGS) $^ -out:$@
 
 %.o: %.asm
@@ -45,12 +49,11 @@ kernel.exe: $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # TODO:
-# copy to vdisk dir and/or flash drive
 # start qemu
 # delete temporary files
 # make clang generate assembly files
-# linker script?
 
+.SILENT:
 .PHONY: all clean
 clean:
 	find -type f -name "*.o" -delete -o -name "*.exe" -delete

@@ -348,7 +348,6 @@ namespace x64
     static constexpr u8 irq_base = 32;
     static constexpr u8 irq_count = 16;
 
-    using Isr = void(__cdecl*)();
     inline Isr irq_handlers[irq_count];
 
     void ConnectIsr(Isr isr, u8 irq);

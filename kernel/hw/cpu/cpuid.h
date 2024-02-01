@@ -3,6 +3,8 @@
 #include <base.h>
 #include <libc/mem.h>
 
+#include "asm-wrappers.h"
+
 namespace x64
 {
     enum class CpuidLeaf : u32

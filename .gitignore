@@ -1,10 +1,12 @@
 int/
 .vs/
 notes/
+
 *.txt
 *.vhd
 *.pdb
 *.EFI
+*.efi
 
 # Prerequisites
 *.d

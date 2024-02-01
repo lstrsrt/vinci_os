@@ -1,0 +1,5 @@
+CompileFlags:
+    Add: [--include-directory=/home/user/src/os64/kernel/lib/, -std=c++20]
+
+Diagnostics:
+    UnusedIncludes: Strict

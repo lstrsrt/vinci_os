@@ -28,7 +28,7 @@ namespace ke
     };
 
     static constexpr size_t block_size = 32;
-    static constexpr u8 fresh = 0xaa, poison = 0xcc;
+    [[maybe_unused]] static constexpr u8 fresh = 0xaa, poison = 0xcc;
 
 #pragma data_seg(".data")
     static ec::array<u8, kva::kernel_pool.size / block_size / 8> alloc_map;

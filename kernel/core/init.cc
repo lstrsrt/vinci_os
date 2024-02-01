@@ -273,12 +273,8 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // TODO - store somewhere so it's accessible elsewhere
     auto table = new mm::PageTable(kva::kernel_pt.base, pt_physical, pt_pages);
 
-    // FIXME
-    // table->phys = loader_block->page_table;
-    // mm::AllocatePhysical(*table, &table->root);
-
     const auto kernel_pages = SizeToPages(kernel.size);
-    const auto frame_buffer_pages = SizeToPages(display.frame_buffer_size);
+    UNUSED const auto frame_buffer_pages = SizeToPages(display.frame_buffer_size);
 
     mm::MapPages(*table, kva::kernel_image.base, kernel.physical_base, kernel_pages);
     mm::MapPages(*table, kva::kernel_pt.base, pt_physical, pt_pages);

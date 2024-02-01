@@ -173,6 +173,9 @@
     <ClInclude Include="hw\cpu\wrapper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="hw\cpu\asm-wrappers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <NASM Include="hw\cpu\cpu.asm">

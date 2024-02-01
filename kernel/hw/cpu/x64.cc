@@ -437,7 +437,7 @@ namespace x64
 
     EARLY static void LoadGdt(x64::DescriptorTable* desc)
     {
-        _lgdt(desc);
+        _lgdt(( uptr_t* )desc);
         ReloadSegments(GetGdtOffset(GdtIndex::R0Code), GetGdtOffset(GdtIndex::R0Data));
         LoadTr(GetGdtOffset(GdtIndex::TssLow));
     }
@@ -447,7 +447,7 @@ namespace x64
         if (cpu_info.using_apic)
             idt[apic::spurious_int_vec].Set(_IsrSpurious, 0);
 
-        __lidt(desc);
+        __lidt(( uptr_t* )desc);
     }
 
     EARLY static void InitializeInterrupts()
