@@ -212,32 +212,20 @@ namespace ke
 void test(void*)
 {
     int i = 0;
-    volatile u64 next = timer::ticks + 1000;
-    while (1)
+    for (;;)
     {
         Print("thread A %d\n", i++);
-        while (next > timer::ticks)
-            ;
-        next = timer::ticks + 1000;
     }
 }
 
 void test2(void*)
 {
     int i = 0;
-    volatile u64 next = timer::ticks + 1000;
-    while (1)
+    for (;;)
     {
         Print("thread B %d\n", i++);
-        while (next > timer::ticks)
-            ;
-        next = timer::ticks + 1000;
+        ke::Delay(1000);
     }
-}
-
-namespace x64
-{
-    EXTERN_C void Switch(x64::Context*);
 }
 
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
@@ -322,11 +310,11 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     ke::StartScheduler();
 
-    // ke::CreateThread(test, nullptr);
-    // ke::CreateThread(test2, nullptr);
+    ke::CreateThread(test, nullptr);
+    ke::CreateThread(test2, nullptr);
 
     // Enter idle loop!
-    x64::Switch(&ke::GetCore()->first_thread->ctx);
+    x64::LoadContext(&ke::GetCore()->first_thread->ctx);
 
     x64::Idle();
 }

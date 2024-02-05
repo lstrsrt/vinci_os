@@ -21,10 +21,20 @@ namespace ke
 
     struct Thread
     {
+        enum class State
+        {
+            None,
+            Running,
+            Ready,
+            Waiting,
+        };
+
         SList* next;
         x64::Context ctx;
         void(*function)(void*);
         void* arg;
+        u64 delay;
+        State state;
         u64 id;
     };
 
@@ -44,12 +54,12 @@ namespace ke
 
     INLINE Core* GetCore()
     {
-        return ( Core* )(__readgsqword(__builtin_offsetof(Core, self)));
+        return ( Core* )__readgsqword(OFFSET(Core, self));
     }
 
     INLINE Thread* GetCurrentThread()
     {
-        return ( Thread* )(__readgsqword(__builtin_offsetof(Core, current_thread)));
+        return ( Thread* )__readgsqword(OFFSET(Core, current_thread));
     }
 
 #pragma data_seg(".data")
@@ -59,6 +69,10 @@ namespace ke
     Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t kstack = 0);
     void SelectNextThread();
     void StartScheduler();
+
+    void Yield();
+
+    void Delay(u64 ticks);
 
     enum_flags(AllocFlag, u32)
     {

@@ -4,7 +4,7 @@
 #include "ke.h"
 #include "gfx/output.h"
 
-#define ALLOC_DBG_PRINT 1
+#define ALLOC_DBG_PRINT 0
 #define ALLOC_POISON    0
 
 #if ALLOC_DBG_PRINT == 0

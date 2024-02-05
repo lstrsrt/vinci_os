@@ -2,6 +2,7 @@
 
 #include "ke.h"
 #include "gfx/output.h"
+#include "../hw/timer/timer.h"
 #include "../common/mm.h"
 
 EXTERN_C uptr_t kernel_stack_top;
@@ -16,7 +17,7 @@ namespace ke
     {
         schedule = true;
 
-        while (1)
+        for (;;)
         {
             _disable();
             _mm_pause();
@@ -35,16 +36,18 @@ namespace ke
         Free(cur_thread);
         RemoveListEntry(first_thread, cur_thread);
 
-        // Wait for a new thread to take over.
-        // TODO - is this right? maybe call the scheduler instead
-        x64::Idle();
+        // Let the next thread take over.
+        SelectNextThread();
+        x64::LoadContext(&GetCurrentThread()->ctx);
     }
+
+#pragma data_seg(".data")
+    static size_t thread_i = 0;
+#pragma data_seg()
 
     static Thread* CreateThreadInternal(void(*function)(void*), void* arg, vaddr_t kstack)
     {
-        static size_t thread_i = 0;
-
-        auto thread = Allocate<Thread>();
+        auto thread = new Thread();
 
         thread->id = ++thread_i;
         thread->function = function;
@@ -53,6 +56,8 @@ namespace ke
         thread->ctx.rip = ( u64 )EntryPointThread;
         thread->ctx.rsp = kstack;
         thread->ctx.rflags = ( u64 )(x64::RFLAG::IF | x64::RFLAG::ALWAYS);
+
+        thread->state = Thread::State::Ready;
 
         return thread;
     }
@@ -86,15 +91,51 @@ namespace ke
     void SelectNextThread()
     {
         auto core = GetCore();
-        auto cur = core->current_thread;
-        if (!cur->next)
-            cur = core->first_thread;
-        else
-            cur = ( Thread* )cur->next;
+        auto prev = core->current_thread;
 
-        core->current_thread = cur;
+        auto next = core->first_thread;
+        do
+        {
+            next = ( Thread* )next->next;
+            if (!next)
+                next = core->first_thread;
+
+            if (next->state == Thread::State::Waiting)
+            {
+                if (next->delay <= timer::ticks)
+                    break;
+            }
+        } while (next->state != Thread::State::Ready);
+
+        if (next == core->first_thread)
+            Print("selected idle thread\n");
+
+        next->state = Thread::State::Running;
+        core->current_thread = next;
+
+        // If we came from a wait state, don't switch to ready yet
+        if (prev->state == Thread::State::Running)
+            prev->state = Thread::State::Ready;
     }
 
+    void Yield()
+    {
+        auto prev = GetCurrentThread();
+        SelectNextThread();
+        x64::kernel_tss.rsp0 = GetCurrentThread()->ctx.rsp;
+        x64::SwitchContext(&prev->ctx, &GetCurrentThread()->ctx);
+    }
+
+    void Delay(u64 ticks)
+    {
+        if (ticks > 0)
+        {
+            GetCurrentThread()->state = Thread::State::Waiting;
+            GetCurrentThread()->delay = timer::ticks + ticks;
+        }
+
+        Yield();
+    }
 
 
 

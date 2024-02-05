@@ -32,6 +32,7 @@
 #define ALLOC_FN        __declspec(restrict)
 #endif
 
+#define OFFSET(t, f)    __builtin_offsetof(t, f)
 #define EARLY           NO_INLINE CODE_SEG("INIT")
 #define SUPPRESS(x)     (( void )x)
 #define EMPTY_STMT      (( void )0)

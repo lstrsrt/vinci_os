@@ -58,7 +58,7 @@ namespace x64
 
     EXTERN_C u64 spurious_irqs = 0;
 
-    void SaveContext(Context* ctx, InterruptFrame* frame)
+    void FrameToContext(Context* ctx, InterruptFrame* frame)
     {
 #if 1
         memcpy(ctx, frame, 15*8);
@@ -92,7 +92,7 @@ namespace x64
 #endif
     }
 
-    void LoadContext(InterruptFrame* frame, Context* ctx)
+    void ContextToFrame(InterruptFrame* frame, Context* ctx)
     {
 #if 1
         memcpy(frame, ctx, 15*8);
@@ -139,7 +139,12 @@ namespace x64
             }
             else
             {
-                Print("IsrCommon: Received interrupt %u (%llu) (%s)\n", int_no, frame->error_code, exception_strings[int_no]);
+                Print(
+                    "IsrCommon: Received interrupt %u (%llu) (%s)\n",
+                    int_no,
+                    frame->error_code,
+                    exception_strings[int_no]
+                );
             }
         }
         else if (int_no < irq_base + irq_count)
@@ -147,11 +152,11 @@ namespace x64
             u8 irq = int_no - irq_base;
             if (cpu_info.using_apic || pic::ConfirmIrq(irq))
             {
-                if (!(timer::ticks % 1000) && irq == 0 && ke::schedule)
+                if (irq == 0 && !(timer::ticks % 100) && ke::schedule)
                 {
-                    SaveContext(&ke::GetCurrentThread()->ctx, frame);
+                    FrameToContext(&ke::GetCurrentThread()->ctx, frame);
                     ke::SelectNextThread();
-                    LoadContext(frame, &ke::GetCurrentThread()->ctx);
+                    ContextToFrame(frame, &ke::GetCurrentThread()->ctx);
                 }
 
                 if (irq_handlers[irq])

@@ -25,6 +25,13 @@ endstruc
 
 section .text
 
+global x64Entry
+global ReloadSegments
+global LoadTr
+global x64Syscall
+global LoadContext
+global SwitchContext
+
 ;
 ; NO_RETURN void x64Entry(LoaderBlock*)
 ;
@@ -32,7 +39,6 @@ section .text
 ;
 ; rcx = Loader block (used by OsInitialize)
 ;
-global x64Entry
 x64Entry:
     cli
     mov rsp, [rel kernel_stack_top]
@@ -48,7 +54,6 @@ x64Entry:
 ; dx = New data selector
 ; cx = New code selector
 ;
-global ReloadSegments
 ReloadSegments:
     ; Loading data segments can be done with simple movs
     mov ds, dx
@@ -73,7 +78,6 @@ ReloadSegments:
 ;
 ; cx = New task register offset
 ;
-global LoadTr
 LoadTr:
     ltr cx
     ret
@@ -116,7 +120,6 @@ EnterUserMode:
 ;
 ; Result is returned in rax.
 ;
-global x64Syscall
 x64Syscall:
     swapgs            ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
 
@@ -157,10 +160,13 @@ x64Syscall:
     sysret
 
 ;
-; void Switch(Context* ctx)
+; NO_RETURN void LoadContext(Context* ctx)
 ;
-global Switch
-Switch:
+; Loads a new thread context.
+;
+; rcx = Context
+;
+LoadContext:
     mov rsp, [rcx + Context._rsp]
     mov rbp, [rcx + Context._rbp]
     mov rbx, [rcx + Context._rbx]
@@ -177,3 +183,34 @@ Switch:
 
     mov r9, [rcx + Context._rip]
     jmp r9
+
+;
+; NO_RETURN void SwitchContext(Context* prev, Context* next)
+;
+; Stores the context of the calling thread in `prev` and loads `next`.
+;
+; rcx = Previous context
+; rdx = Next context
+;
+SwitchContext:
+    mov [rcx + Context._rbp], rbp
+    mov [rcx + Context._rbx], rbx
+    mov [rcx + Context._rdi], rdi
+    mov [rcx + Context._rsi], rsi
+    mov [rcx + Context._r12], r12
+    mov [rcx + Context._r13], r13
+    mov [rcx + Context._r14], r14
+    mov [rcx + Context._r15], r15
+
+    pushfq
+    pop r8
+    mov [rcx + Context._rflags], r8
+
+    ; Return address
+    pop r8
+    mov [rcx + Context._rip], r8
+
+    mov [rcx + Context._rsp], rsp
+
+    mov rcx, rdx
+    jmp LoadContext

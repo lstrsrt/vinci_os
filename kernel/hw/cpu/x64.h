@@ -147,9 +147,6 @@ namespace x64
         u64 rip, cs, rflags, rsp, ss;
     };
 
-    void SaveContext(Context* ctx, InterruptFrame* frame);
-    void LoadContext(InterruptFrame* frame, Context* ctx);
-
     struct DescriptorTable
     {
         u16 limit;
@@ -414,6 +411,8 @@ namespace x64
     void Ring3Function();
     void EnterUserMode(uptr_t code, uptr_t stack);
     void x64Syscall();
+    void LoadContext(Context* ctx);
+    void SwitchContext(Context* prev, Context* next);
 
     // C++ handler
     u64 x64SyscallCxx(SyscallFrame* frame, u64 sys_no);
@@ -423,14 +422,14 @@ namespace x64
     NO_RETURN INLINE void Halt()
     {
         _disable();
-        while (1)
+        for (;;)
             __halt();
     }
 
     NO_RETURN INLINE void Idle()
     {
         _enable();
-        while (1)
+        for (;;)
             __halt();
     }
 
