@@ -108,7 +108,7 @@ INLINE void __outdword(u16 port, u32 data)
 INLINE u64 __readcr0()
 {
     u64 cr0;
-    asm("mov %%cr0, %%rax" : "=r"(cr0));
+    asm volatile("mov %%cr0, %%rax" : "=r"(cr0));
     return cr0;
 }
 
@@ -164,27 +164,27 @@ INLINE void __writemsr(u32 msr, u64 data)
 
 INLINE void _disable()
 {
-    asm("cli");
+    asm volatile("cli");
 }
 
 INLINE void _enable()
 {
-    asm("sti");
+    asm volatile("sti");
 }
 
 INLINE void __halt()
 {
-    asm("hlt");
+    asm volatile("hlt");
 }
 
 INLINE void _clac()
 {
-    asm("clac");
+    asm volatile("clac");
 }
 
 INLINE void _stac()
 {
-    asm("stac");
+    asm volatile("stac");
 }
 
 INLINE void __invlpg(void* addr)

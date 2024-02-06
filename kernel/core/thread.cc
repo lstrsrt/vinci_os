@@ -1,4 +1,5 @@
 #include <libc/mem.h>
+#include <ec/new.h>
 
 #include "ke.h"
 #include "gfx/output.h"
@@ -33,8 +34,16 @@ namespace ke
 
         cur_thread->function(cur_thread->arg);
 
-        Free(cur_thread);
+        _disable();
+
         RemoveListEntry(first_thread, cur_thread);
+
+        // HACK
+        // If this is the first thread, swap out the head pointer
+        if (first_thread == cur_thread && cur_thread->next)
+            core->first_thread = ( Thread* )cur_thread->next;
+
+        Free(cur_thread);
 
         // Let the next thread take over.
         SelectNextThread();
@@ -49,7 +58,7 @@ namespace ke
     {
         auto thread = new Thread();
 
-        thread->id = ++thread_i;
+        thread->id = thread_i++; // Idle thread is 0, other threads start at 1
         thread->function = function;
         thread->arg = arg;
 
@@ -71,7 +80,7 @@ namespace ke
         auto core = GetCore();
         auto idle_thread = CreateThreadInternal(IdleLoop, nullptr, kernel_stack_top);
 
-        core->first_thread = idle_thread;
+        core->idle_thread = idle_thread;
         core->current_thread = idle_thread;
     }
 
@@ -83,39 +92,87 @@ namespace ke
             kstack += page_size; // Stack starts at the top...
         }
 
+        auto first_thread = GetCore()->first_thread;
         auto thread = CreateThreadInternal(function, arg, kstack);
-        PushListEntry(GetCore()->first_thread, thread);
+
+        if (!first_thread)
+            GetCore()->first_thread = thread;
+        else
+            PushListEntry(first_thread, thread);
+
         return thread;
     }
 
     void SelectNextThread()
     {
+        _disable();
+
         auto core = GetCore();
         auto prev = core->current_thread;
+        Thread* next;
 
-        auto next = core->first_thread;
-        do
+        if (!core->first_thread) // No threads available, leave early
+            return;
+
+        if (prev == core->idle_thread)
         {
-            next = ( Thread* )next->next;
-            if (!next)
-                next = core->first_thread;
+            // Switching from idle loop.
+            // In this case, start searching from the first thread.
+            next = core->first_thread;
 
-            if (next->state == Thread::State::Waiting)
+            for (;;)
             {
-                if (next->delay <= timer::ticks)
+                if (next->state == Thread::State::Ready)
                     break;
-            }
-        } while (next->state != Thread::State::Ready);
+                if (next->state == Thread::State::Waiting && next->delay <= timer::ticks)
+                    break;
 
-        if (next == core->first_thread)
-            Print("selected idle thread\n");
+                next = ( Thread* )next->next;
+
+                if (!next)
+                {
+                    // We're at the end and nothing was found, so keep the idle thread.
+                    _enable();
+                    return;
+                }
+            }
+        }
+        else /* Switching from standard thread */
+        {
+            next = prev;
+
+            for (;;)
+            {
+                next = ( Thread* )next->next;
+                if (!next)
+                    next = core->first_thread; // Restart if we're at the end
+
+                if (next->state == Thread::State::Ready)
+                    break;
+                if (next->state == Thread::State::Waiting && next->delay <= timer::ticks)
+                    break;
+
+                if (next == prev) // Back at where we began
+                {
+                    if (next->state == Thread::State::Running)
+                        break; // No other suitable thread found, so just take this one again
+
+                    // If we're here, all threads are waiting. Switch to the idle loop until
+                    // there is something to do again.
+                    next = core->idle_thread;
+                    break;
+                }
+            }
+        }
+
+        // Set the old thread back to ready, unless it is still waiting.
+        if (prev->state == Thread::State::Running)
+            prev->state = Thread::State::Ready;
 
         next->state = Thread::State::Running;
         core->current_thread = next;
 
-        // If we came from a wait state, don't switch to ready yet
-        if (prev->state == Thread::State::Running)
-            prev->state = Thread::State::Ready;
+        _enable();
     }
 
     void Yield()
@@ -128,10 +185,12 @@ namespace ke
 
     void Delay(u64 ticks)
     {
+        auto cur = GetCurrentThread();
+
         if (ticks > 0)
         {
-            GetCurrentThread()->state = Thread::State::Waiting;
-            GetCurrentThread()->delay = timer::ticks + ticks;
+            cur->state = Thread::State::Waiting;
+            cur->delay = timer::ticks + ticks;
         }
 
         Yield();

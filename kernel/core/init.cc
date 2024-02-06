@@ -212,9 +212,10 @@ namespace ke
 void test(void*)
 {
     int i = 0;
-    for (;;)
+    while (i < 10)
     {
         Print("thread A %d\n", i++);
+        ke::Delay(100);
     }
 }
 
@@ -314,7 +315,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     ke::CreateThread(test2, nullptr);
 
     // Enter idle loop!
-    x64::LoadContext(&ke::GetCore()->first_thread->ctx);
+    x64::LoadContext(&ke::GetCore()->idle_thread->ctx);
 
     x64::Idle();
 }

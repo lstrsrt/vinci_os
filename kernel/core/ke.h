@@ -48,6 +48,7 @@ namespace ke
         Core* self; // avoid having to rdgsbase
         Thread* first_thread;
         Thread* current_thread;
+        Thread* idle_thread;
     };
 
     void InitializeCore();
