@@ -12,7 +12,7 @@
 #pragma function(memcmp)
 #endif
 
-void* memcpy(void* dst, const void* src, size_t n)
+inline void* memcpy(void* dst, const void* src, size_t n)
 {
     u8* d = ( u8* )dst;
     const u8* s = ( const u8* )src;
@@ -23,7 +23,7 @@ void* memcpy(void* dst, const void* src, size_t n)
     return dst;
 }
 
-void* memset(void* dst, u32 val, size_t n)
+inline void* memset(void* dst, u32 val, size_t n)
 {
     u8* d = ( u8* )dst;
 
@@ -33,7 +33,7 @@ void* memset(void* dst, u32 val, size_t n)
     return dst;
 }
 
-int memcmp(const void* buf1, const void* buf2, size_t n)
+inline int memcmp(const void* buf1, const void* buf2, size_t n)
 {
     const u8* a = ( const u8* )buf1;
     const u8* b = ( const u8* )buf2;
@@ -73,7 +73,7 @@ constexpr size_t strlen16(const char16_t* s)
     return start - s;
 }
 
-size_t strlcpy16(char16_t* dst, const char16_t* src, size_t n)
+static size_t strlcpy16(char16_t* dst, const char16_t* src, size_t n)
 {
     const char16_t* orig_src = src;
     size_t left = n;
@@ -98,14 +98,14 @@ size_t strlcpy16(char16_t* dst, const char16_t* src, size_t n)
     return src - orig_src - 1;
 }
 
-size_t strcpy16(char16_t* dst, const char16_t* src)
+inline size_t strcpy16(char16_t* dst, const char16_t* src)
 {
     return strlcpy16(dst, src, strlen16(src) + 1);
 }
 
 // Adapted from https://github.com/RoelofBerg/Utf8Ucs2Converter/
 
-bool utf8_to_ucs2_char(char16_t* ucs2, const char8_t* utf8, size_t& utf8_len)
+static bool utf8_to_ucs2_char(char16_t* ucs2, const char8_t* utf8, size_t& utf8_len)
 {
     auto* unit = ( const unsigned char* )utf8;
 
@@ -153,7 +153,7 @@ bool utf8_to_ucs2_char(char16_t* ucs2, const char8_t* utf8, size_t& utf8_len)
     return true;
 }
 
-bool utf8_to_ucs2(char16_t* ucs2, size_t ucs2_len, const char8_t* utf8, size_t utf8_len)
+inline bool utf8_to_ucs2(char16_t* ucs2, size_t ucs2_len, const char8_t* utf8, size_t utf8_len)
 {
     for (size_t i = 0, j = 0; i < ucs2_len && j < utf8_len; )
     {
@@ -166,7 +166,7 @@ bool utf8_to_ucs2(char16_t* ucs2, size_t ucs2_len, const char8_t* utf8, size_t u
     return true;
 }
 
-char16_t* i64tow(int64_t val, char16_t* str, int32_t radix = 10, bool sign = true)
+static char16_t* i64tow(int64_t val, char16_t* str, int32_t radix = 10, bool sign = true)
 {
     static const char16_t table[] = {
         u"0123456789abcdefghijklmnopqrstuvwxyz"
@@ -203,7 +203,7 @@ char16_t* i64tow(int64_t val, char16_t* str, int32_t radix = 10, bool sign = tru
     return str;
 }
 
-char16_t* itow(int32_t val, char16_t* str, int32_t radix = 10, bool sign = true)
+static char16_t* itow(int32_t val, char16_t* str, int32_t radix = 10, bool sign = true)
 {
     static const char16_t table[] = {
         u"0123456789abcdefghijklmnopqrstuvwxyz"
@@ -258,7 +258,7 @@ namespace {
         SPEC_POINTER = 1 << 9,
     };
 
-    int parse_l(const char16_t* fmt)
+    inline int parse_l(const char16_t* fmt)
     {
         if (*fmt++ == 'l')
         {
@@ -276,7 +276,7 @@ namespace {
         return SPEC_LONG;
     }
 
-    Fmt parse(const char16_t* fmt)
+    inline Fmt parse(const char16_t* fmt)
     {
         switch (*fmt++)
         {
@@ -295,7 +295,7 @@ namespace {
 
 }
 
-size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list ap)
+static size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list ap)
 {
     size_t len{};
     while (auto c = *fmt++)
@@ -357,7 +357,7 @@ size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list ap)
     return len;
 }
 
-size_t wsnprintf(char16_t* str, uint32_t n, const char16_t* fmt, ...)
+static size_t wsnprintf(char16_t* str, uint32_t n, const char16_t* fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);

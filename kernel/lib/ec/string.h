@@ -326,14 +326,14 @@ namespace ec
 
         union
         {
-            struct stack_t
+            struct
             {
                 char buffer[max_local_cap];
                 u8 length : 7;
                 u8 local_flag : 1;
             } m_short{};
 
-            struct heap_t
+            struct
             {
                 char* buffer;
                 u64 length;

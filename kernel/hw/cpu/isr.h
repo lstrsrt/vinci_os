@@ -222,7 +222,7 @@ namespace pic
     {
         union
         {
-            struct InitCmdWord1
+            struct
             {
                 u8 icw4_needed : 1;
                 u8 single_mode : 1;
@@ -231,15 +231,15 @@ namespace pic
                 u8 initialize : 1;
                 u8 isr_addr : 3;
             } icw1;
-            struct InitCmdWord2
+            struct
             {
                 u8 bits;
             } icw2;
-            struct InitCmdWord3
+            struct
             {
                 union
                 {
-                    struct MasterCmdWord
+                    struct
                     {
                         u8 slave_irq0 : 1;
                         u8 slave_irq1 : 1;
@@ -250,7 +250,7 @@ namespace pic
                         u8 slave_irq6 : 1;
                         u8 slave_irq7 : 1;
                     } master;
-                    struct SlaveCmdWord
+                    struct
                     {
                         u8 id : 3;
                         u8 reserved : 5;
@@ -258,7 +258,7 @@ namespace pic
                     u8 bits;
                 };
             } icw3;
-            struct InitCmdWord4
+            struct
             {
                 u8 x86_mode : 1;
                 u8 eoi_mode : 1;
@@ -280,13 +280,13 @@ namespace pic
     {
         union
         {
-            struct OperationCmdWord2
+            struct
             {
                 u8 irq : 3;
                 u8 sbz : 2;
                 u8 eoi_mode : 3;
             } ocw2;
-            struct OperationCmdWord3
+            struct
             {
                 u8 read_type : 2;
                 u8 poll_cmd : 1;

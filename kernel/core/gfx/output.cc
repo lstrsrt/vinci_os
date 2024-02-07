@@ -1,6 +1,5 @@
 #include "output.h"
 
-#include "../../hw/serial/serial.h"
 #include "font.h"
 #define SSFN_CONSOLEBITMAP_TRUECOLOR
 #define SSFN_CONSOLEBITMAP_CONTROL

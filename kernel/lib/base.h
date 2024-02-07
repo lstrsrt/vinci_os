@@ -100,7 +100,7 @@ typedef intptr_t iptr_t;
 #endif
 
 /*
-*  Bit extraction macros. 
+*  Bit extraction macros.
 *  x's bits in range [a, b) (counting from 0) are returned.
 *  x's size is never taken into account!
 *  In other words, HIGH16 on a u64 will not return bits 48-64, but bits 16-32.

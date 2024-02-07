@@ -40,7 +40,7 @@ namespace ke
 
         // HACK
         // If this is the first thread, swap out the head pointer
-        if (first_thread == cur_thread && cur_thread->next)
+        if (first_thread == cur_thread)
             core->first_thread = ( Thread* )cur_thread->next;
 
         Free(cur_thread);

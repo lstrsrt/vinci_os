@@ -55,7 +55,7 @@ size_t strcpy(char(&dst)[n], const char* src)
 
 template<size_t n>
 size_t strcat(char(&dst)[n], const char* src)
-{ 
+{
     return strlcat(dst, src, n);
 }
 

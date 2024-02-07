@@ -1,5 +1,9 @@
 #pragma once
 
+#include "../../boot/gnu-efi/x86_64/pe.h"
+
+typedef uint64_t UINT64;
+
 typedef struct _IMAGE_OPTIONAL_HEADER64
 {
     UINT16 Magic;

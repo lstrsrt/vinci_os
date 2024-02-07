@@ -4,9 +4,10 @@ LD = lld-link
 LFLAGS = -subsystem:efi_application -nodefaultlib -dll -entry:EfiMain
 # FIXME - -dll necessary?
 
-all: boot.efi
+all: BOOTX64.EFI
+	mv BOOTX64.EFI ../bin/Debug/vdisk/EFI/BOOT/BOOTX64.EFI
 
-boot.efi: boot.o
+BOOTX64.EFI: boot.o
 	$(LD) $(LFLAGS) $< -out:$@
 
 boot.o: entry.cc
