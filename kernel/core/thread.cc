@@ -4,17 +4,18 @@
 #include "ke.h"
 #include "gfx/output.h"
 #include "../hw/timer/timer.h"
-#include "../common/mm.h"
 
 EXTERN_C uptr_t kernel_stack_top;
 
 namespace ke
 {
-    void* PushListEntry(void* list, void* ptr);
-    void* RemoveListEntry(void* list, void* ptr);
-    void* FindListEntry(void* list, void* ptr);
+    void PushListEntry(SList* list, void* entry);
+    void* PopListEntry(SList* list);
+    size_t GetListLength(SList* list);
+    void* RemoveListEntry(SList* list, void* entry);
+    void* FindListEntry(SList* list, void* entry);
 
-    static void IdleLoop(void*)
+    static int IdleLoop(void*)
     {
         schedule = true;
 
@@ -24,37 +25,40 @@ namespace ke
             _mm_pause();
             _enable();
         }
+
+        return 0;
     }
 
     static void EntryPointThread()
     {
         auto core = GetCore();
         auto cur_thread = core->current_thread;
-        auto first_thread = core->first_thread;
+        auto first_thread = &core->thread_list;
 
-        cur_thread->function(cur_thread->arg);
+        int ret = cur_thread->function(cur_thread->arg);
 
         _disable();
 
+        Print("Thread %llu exited with code %d\n", cur_thread->id, ret);
+
+        // Update state so it's ignored by the scheduler
+        // and pick the next thread for execution.
+        cur_thread->state = Thread::State::Terminating;
+        SelectNextThread();
+
+        // Clean up the exited thread.
         RemoveListEntry(first_thread, cur_thread);
-
-        // HACK
-        // If this is the first thread, swap out the head pointer
-        if (first_thread == cur_thread)
-            core->first_thread = ( Thread* )cur_thread->next;
-
         Free(cur_thread);
 
         // Let the next thread take over.
-        SelectNextThread();
-        x64::LoadContext(&GetCurrentThread()->ctx);
+        x64::LoadContext(&core->current_thread->ctx);
     }
 
 #pragma data_seg(".data")
     static size_t thread_i = 0;
 #pragma data_seg()
 
-    static Thread* CreateThreadInternal(void(*function)(void*), void* arg, vaddr_t kstack)
+    static Thread* CreateThreadInternal(ThreadStartFunction function, void* arg, vaddr_t kstack)
     {
         auto thread = new Thread();
 
@@ -73,18 +77,18 @@ namespace ke
 
     void StartScheduler()
     {
+        auto core = GetCore();
+        core->thread_list.next = nullptr;
+
         // FIXME - can we use kernel_stack_top here?
         // since every thread is going to have its own kernel stack,
         // we should be able to use the boot stack for the idle loop
-
-        auto core = GetCore();
         auto idle_thread = CreateThreadInternal(IdleLoop, nullptr, kernel_stack_top);
-
         core->idle_thread = idle_thread;
         core->current_thread = idle_thread;
     }
 
-    Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t kstack)
+    Thread* CreateThread(ThreadStartFunction function, void* arg, vaddr_t kstack)
     {
         if (!kstack)
         {
@@ -92,33 +96,30 @@ namespace ke
             kstack += page_size; // Stack starts at the top...
         }
 
-        auto first_thread = GetCore()->first_thread;
+        auto first_thread = &GetCore()->thread_list;
         auto thread = CreateThreadInternal(function, arg, kstack);
 
-        if (!first_thread)
-            GetCore()->first_thread = thread;
-        else
-            PushListEntry(first_thread, thread);
+        PushListEntry(first_thread, thread);
 
         return thread;
     }
 
-    void SelectNextThread()
+    // Returns true if a new thread was selected.
+    bool SelectNextThread()
     {
         _disable();
 
         auto core = GetCore();
-        auto prev = core->current_thread;
+        if (!core->thread_list.next) // No threads available, leave early.
+            return false;
+
         Thread* next;
-
-        if (!core->first_thread) // No threads available, leave early
-            return;
-
+        auto prev = core->current_thread;
         if (prev == core->idle_thread)
         {
             // Switching from idle loop.
             // In this case, start searching from the first thread.
-            next = core->first_thread;
+            next = ( Thread* )core->thread_list.next;
 
             for (;;)
             {
@@ -129,23 +130,19 @@ namespace ke
 
                 next = ( Thread* )next->next;
 
+                // If we're at the end and nothing was found, keep the idle thread.
                 if (!next)
-                {
-                    // We're at the end and nothing was found, so keep the idle thread.
-                    _enable();
-                    return;
-                }
+                    return false;
             }
         }
         else /* Switching from standard thread */
         {
-            next = prev;
+            next = prev->next;
 
             for (;;)
             {
-                next = ( Thread* )next->next;
                 if (!next)
-                    next = core->first_thread; // Restart if we're at the end
+                    next = ( Thread* )core->thread_list.next; // Restart if we're at the end
 
                 if (next->state == Thread::State::Ready)
                     break;
@@ -155,13 +152,15 @@ namespace ke
                 if (next == prev) // Back at where we began
                 {
                     if (next->state == Thread::State::Running)
-                        break; // No other suitable thread found, so just take this one again
+                        return false; // No other suitable thread found, so just take this one again
 
                     // If we're here, all threads are waiting. Switch to the idle loop until
                     // there is something to do again.
                     next = core->idle_thread;
                     break;
                 }
+
+                next = ( Thread* )next->next;
             }
         }
 
@@ -172,15 +171,18 @@ namespace ke
         next->state = Thread::State::Running;
         core->current_thread = next;
 
-        _enable();
+        return true;
     }
 
     void Yield()
     {
         auto prev = GetCurrentThread();
-        SelectNextThread();
-        x64::kernel_tss.rsp0 = GetCurrentThread()->ctx.rsp;
-        x64::SwitchContext(&prev->ctx, &GetCurrentThread()->ctx);
+
+        if (SelectNextThread())
+        {
+            x64::kernel_tss.rsp0 = GetCurrentThread()->ctx.rsp;
+            x64::SwitchContext(&prev->ctx, &GetCurrentThread()->ctx);
+        }
     }
 
     void Delay(u64 ticks)
@@ -198,42 +200,46 @@ namespace ke
 
 
 
-    void* PushListEntry(void* list, void* ptr)
+
+    void PushListEntry(SList* list, void* entry)
     {
-        auto p = ( SList* )list;
-        if (p)
-        {
-            while (p && p->next)
-                p = p->next;
-            p->next = ( SList* )ptr;
-        }
-        return p;
+        auto next = ( SList* )entry;
+        next->next = list->next;
+        list->next = next;
     }
 
-    void* FindListEntry(void* list, void* ptr)
+    void* PopListEntry(SList* list)
     {
-        auto p = ( SList* )list;
-        while (p)
-        {
-            if (p == ptr)
-                return p;
-            p = p->next;
-        }
-        return p;
+        if (list->next)
+            list->next = list->next->next;
+        return list->next;
     }
 
-    void* RemoveListEntry(void* list, void* ptr)
+    size_t GetListLength(SList* list)
     {
-        auto p = ( SList* )list;
-        while (p)
+        size_t len = 0;
+        for (auto p = list->next; p; p = p->next)
+            len++;
+        return len;
+    }
+
+    void* RemoveListEntry(SList* list, void* entry)
+    {
+        auto head = ( SList* )list;
+        auto p1 = head;
+        auto p2 = head->next;
+
+        while (p2)
         {
-            if (p->next == ptr)
+            if (p2 == entry)
             {
-                p->next = p->next->next;
-                return p;
+                p1->next = p2->next;
+                return p1->next;
             }
-            p = p->next;
+            p1 = p1->next;
+            p2 = p2->next;
         }
-        return p;
+
+        return p2;
     }
 }

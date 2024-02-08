@@ -135,7 +135,7 @@ namespace x64
                 auto op = frame->error_code & 2 ? "write" : "read";
                 auto ring = frame->error_code & 4 ? "ring 3" : "ring 0";
                 auto virt = __readcr2();
-                Print("Page fault @ 0x%llx (%s, %s, %s)\n", virt, present, op, ring);
+                Print("Page fault: 0x%llx (%s, %s, %s) at IP 0x%llx\n", virt, present, op, ring, frame->rip);
             }
             else
             {
@@ -154,9 +154,12 @@ namespace x64
             {
                 if (irq == 0 && !(timer::ticks % 100) && ke::schedule)
                 {
-                    FrameToContext(&ke::GetCurrentThread()->ctx, frame);
-                    ke::SelectNextThread();
-                    ContextToFrame(frame, &ke::GetCurrentThread()->ctx);
+                    auto prev = ke::GetCurrentThread();
+                    if (ke::SelectNextThread())
+                    {
+                        FrameToContext(&prev->ctx, frame);
+                        ContextToFrame(frame, &ke::GetCurrentThread()->ctx);
+                    }
                 }
 
                 if (irq_handlers[irq])

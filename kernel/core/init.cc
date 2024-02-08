@@ -3,6 +3,7 @@
 
 #include "../../boot/boot.h"
 #include "../common/mm.h"
+#include "../common/pe64.h"
 #include "../hw/acpi/acpi.h"
 #include "../hw/cpu/isr.h"
 #include "gfx/output.h"
@@ -105,61 +106,6 @@ EARLY static void MapUefiRuntime(const MemoryMap& memory_map, mm::PageTable& tab
     });
 }
 
-static IMAGE_NT_HEADERS* ImageNtHeaders(void* image_base)
-{
-    auto dos_header = ( IMAGE_DOS_HEADER* )image_base;
-    if (!dos_header || dos_header->e_magic != IMAGE_DOS_SIGNATURE)
-        return nullptr;
-
-    auto nt_headers = ( IMAGE_NT_HEADERS* )(( uptr_t )image_base + dos_header->e_lfanew);
-    if (!nt_headers || nt_headers->Signature != IMAGE_NT_SIGNATURE)
-        return nullptr;
-
-    return nt_headers;
-}
-
-namespace pe
-{
-    enum SectionFlag
-    {
-        Discardable = 0x02000000,
-        NotCached = 0x04000000,
-        NotPaged = 0x08000000,
-        Shared = 0x10000000,
-        Execute = 0x20000000,
-        Read = 0x40000000,
-        Write = 0x80000000,
-    };
-
-    using Section = IMAGE_SECTION_HEADER;
-    using NtHeaders = IMAGE_NT_HEADERS;
-    using DosHeader = IMAGE_DOS_HEADER;
-
-    struct File
-    {
-        DosHeader* m_dos_header;
-        NtHeaders* m_nt_headers;
-
-        void ForEachSection(const auto&& callback)
-        {
-            auto section = IMAGE_FIRST_SECTION(m_nt_headers);
-            for (u16 i = 0; i < m_nt_headers->FileHeader.NumberOfSections; i++, section++)
-            {
-                if (!callback(section))
-                    return;
-            }
-        }
-
-        static File FromImageBase(void* base)
-        {
-            File pe;
-            pe.m_nt_headers = ImageNtHeaders(base);
-            pe.m_dos_header = ( DosHeader* )base;
-            return pe;
-        }
-    };
-}
-
 static void FinalizeKernelMapping(mm::PageTable& table)
 {
     auto pe = pe::File::FromImageBase(( void* )kva::kernel_image.base);
@@ -209,24 +155,37 @@ namespace ke
     }
 }
 
-void test(void*)
+int test(void*)
 {
     int i = 0;
     while (i < 10)
     {
         Print("thread A %d\n", i++);
-        ke::Delay(100);
+        ke::Delay(1000);
     }
+    return 1;
 }
 
-void test2(void*)
+int test2(void*)
 {
     int i = 0;
-    for (;;)
+    while (i < 10)
     {
         Print("thread B %d\n", i++);
         ke::Delay(1000);
     }
+    return 2;
+}
+
+int test3(void*)
+{
+    int i = 0;
+    while (i < 20)
+    {
+        Print("thread C %d\n", i++);
+        ke::Delay(1000);
+    }
+    return 3;
 }
 
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
@@ -313,6 +272,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     ke::CreateThread(test, nullptr);
     ke::CreateThread(test2, nullptr);
+    ke::CreateThread(test3, nullptr);
 
     // Enter idle loop!
     x64::LoadContext(&ke::GetCore()->idle_thread->ctx);

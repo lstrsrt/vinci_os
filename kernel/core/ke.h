@@ -19,34 +19,36 @@ namespace ke
         SList* next;
     };
 
+    using ThreadStartFunction = int(*)(void*);
+
     struct Thread
     {
         enum class State
         {
-            None,
-            Running,
             Ready,
+            Running,
             Waiting,
+            Terminating,
         };
 
-        SList* next;
+        Thread* next; // IMPORTANT: Has to be at offset 0!
         x64::Context ctx;
-        void(*function)(void*);
-        void* arg;
-        u64 delay;
         State state;
         u64 id;
+        u64 delay;
+        ThreadStartFunction function;
+        void* arg;
     };
 
     //
     // This is like the KPRCB on Windows.
-    // It contains (or will contain) per-core kernel data and is stored in GS.
-    // The kernel only supports one core right now so this only exists once in memory.
+    // It contains per-core kernel data and is stored in GS.
+    // The kernel only supports one core right now so this only exists once.
     //
     struct Core
     {
         Core* self; // avoid having to rdgsbase
-        Thread* first_thread;
+        SList thread_list;
         Thread* current_thread;
         Thread* idle_thread;
     };
@@ -67,8 +69,8 @@ namespace ke
     inline bool schedule = false;
 #pragma data_seg()
 
-    Thread* CreateThread(void(*function)(void*), void* arg, vaddr_t kstack = 0);
-    void SelectNextThread();
+    Thread* CreateThread(ThreadStartFunction function, void* arg, vaddr_t kstack = 0);
+    bool SelectNextThread();
     void StartScheduler();
 
     void Yield();

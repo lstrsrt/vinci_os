@@ -37,7 +37,7 @@ INLINE void __writegsqword(u64 offset, u64 value)
 
 INLINE void _writegsbase_u64(u64 value)
 {
-    asm volatile("wrgsbase %0" :: "r" (value) : "memory");
+    asm volatile("wrgsbase %0" :: "r"(value) : "memory");
 }
 
 INLINE void NO_REDEF_mm_pause()
