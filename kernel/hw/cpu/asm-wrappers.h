@@ -164,12 +164,12 @@ INLINE void __writemsr(u32 msr, u64 data)
 
 INLINE void _disable()
 {
-    asm volatile("cli");
+    asm volatile("cli" :: : "cc");
 }
 
 INLINE void _enable()
 {
-    asm volatile("sti");
+    asm volatile("sti" :: : "cc");
 }
 
 INLINE void __halt()
@@ -179,12 +179,12 @@ INLINE void __halt()
 
 INLINE void _clac()
 {
-    asm volatile("clac");
+    asm volatile("clac" :: : "cc");
 }
 
 INLINE void _stac()
 {
-    asm volatile("stac");
+    asm volatile("stac" :: : "cc");
 }
 
 INLINE void __invlpg(void* addr)

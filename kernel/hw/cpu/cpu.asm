@@ -1,34 +1,41 @@
-extern kernel_stack_top
-extern OsInitialize
-extern x64SyscallCxx
-
 struc Context
-    ._rax    resq 1
-    ._rcx    resq 1
-    ._rdx    resq 1
-    ._rbx    resq 1
-    ._rsi    resq 1
-    ._rdi    resq 1
-    ._r8     resq 1
-    ._r9     resq 1
-    ._r10    resq 1
-    ._r11    resq 1
-    ._r12    resq 1
-    ._r13    resq 1
-    ._r14    resq 1
-    ._r15    resq 1
-    ._rbp    resq 1
-    ._rsp    resq 1
-    ._rip    resq 1
-    ._rflags resq 1
+    .rax         resq 1
+    .rcx         resq 1
+    .rdx         resq 1
+    .rbx         resq 1
+    .rsi         resq 1
+    .rdi         resq 1
+    .r8          resq 1
+    .r9          resq 1
+    .r10         resq 1
+    .r11         resq 1
+    .r12         resq 1
+    .r13         resq 1
+    .r14         resq 1
+    .r15         resq 1
+    .rbp         resq 1
+    .error_code  resq 1
+    .rip         resq 1
+    .cs          resq 1
+    .rflags      resq 1
+    .rsp         resq 1
+    .ss          resq 1
 endstruc
 
+%define sysretq o64 sysret
+
+section .data
+extern kernel_stack_top
+
 section .text
+extern OsInitialize
+extern SyscallCxx
 
 global x64Entry
 global ReloadSegments
 global LoadTr
-global x64Syscall
+global Ring3Function
+global SyscallEntry
 global LoadContext
 global SwitchContext
 
@@ -57,7 +64,6 @@ x64Entry:
 ReloadSegments:
     ; Loading data segments can be done with simple movs
     mov ds, dx
-    mov es, dx
     mov ss, dx
 
     ; Set rdx to the label address and do a far return
@@ -86,33 +92,25 @@ LoadTr:
 ; NO_RETURN void Ring3Function()
 ;
 ; Sample function to demonstrate entering ring 3.
-; Never returns!
 ;
 Ring3Function:
-    mov rdi, 1000
-    mov rax, 2
+    mov edi, 1000 ; number
+    mov ecx, 5
+.loop:
+    mov eax, 2 ; sys_no
     syscall
-.inf_loop:
-    jmp .inf_loop
+    dec ecx
+    jnz .loop
+    ; jmp .loop
+
+    ; ExitThread
+    mov eax, 3
+    mov edi, 5 ; exit_code
+    syscall ; ExitThread
     ret
 
 ;
-; void EnterUserMode(vaddr_t code, vaddr_t stack)
-;
-; Transfers control to ring 3 via sysret.
-;
-; rcx = User code address
-; rdx = User stack address
-;
-EnterUserMode:
-    mov r11, 202h ; new rflags
-    mov rsp, rdx
-    sysret
-    ; sysret jumps to rcx, which should be a canonical VA
-    ; mapped with the user mode bit set.
-
-;
-; u64 x64Syscall()
+; u64 SyscallEntry()
 ;
 ; Main syscall entry routine.
 ; Loads the kernel stack, constructs a SyscallFrame and calls x64SyscallCxx
@@ -120,12 +118,13 @@ EnterUserMode:
 ;
 ; Result is returned in rax.
 ;
-x64Syscall:
-    swapgs            ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
+SyscallEntry:
+    swapgs           ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
 
-    ; mov gs xxx, rsp   ; Store user stack
+    mov gs:[48], rsp ; core->user_stack = rsp
+    mov rsp, gs:[40] ; rsp = core->kernel_stack
 
-    ; mov rsp, gs xxx   ; Switch to kernel stack
+    sti
 
     push r11 ; rflags
     push r10
@@ -141,7 +140,7 @@ x64Syscall:
     mov rcx, rsp  ; SyscallFrame
     mov rdx, rax  ; int_no
     sub rsp, 32   ; shadow space
-    call x64SyscallCxx
+    call SyscallCxx
     add rsp, 32
 
     pop r11
@@ -155,62 +154,92 @@ x64Syscall:
     pop r10
     pop r11
 
+    cli
+
+    mov gs:[40], rsp
+    mov rsp, gs:[48]
+
     ; Back to user mode
     swapgs
-    sysret
+    sysretq
 
 ;
-; NO_RETURN void LoadContext(Context* ctx)
+; NO_RETURN void LoadContext(Context* ctx, uptr_t user_stack)
 ;
 ; Loads a new thread context.
 ;
-; rcx = Context
+; rcx = Thread context
+; rdx = Thread user stack if applicable
 ;
 LoadContext:
-    mov rsp, [rcx + Context._rsp]
-    mov rbp, [rcx + Context._rbp]
-    mov rbx, [rcx + Context._rbx]
-    mov rdi, [rcx + Context._rdi]
-    mov rsi, [rcx + Context._rsi]
-    mov r12, [rcx + Context._r12]
-    mov r13, [rcx + Context._r13]
-    mov r14, [rcx + Context._r14]
-    mov r15, [rcx + Context._r15]
+    mov rbp, [rcx + Context.rbp]
+    mov rbx, [rcx + Context.rbx]
+    mov rdi, [rcx + Context.rdi]
+    mov rsi, [rcx + Context.rsi]
+    mov r12, [rcx + Context.r12]
+    mov r13, [rcx + Context.r13]
+    mov r14, [rcx + Context.r14]
+    mov r15, [rcx + Context.r15]
 
-    mov r8, [rcx + Context._rflags]
-    push r8
+    mov r11, [rcx + Context.rflags]
+
+    mov rsp, [rcx + Context.rsp]
+    mov rcx, [rcx + Context.rip]
+
+    ; Was a user stack provided?
+    test rdx, rdx
+    jz .ring0
+
+    ; Is RIP in ring 0 even though it's a user thread?
+    ; This can happen when a syscall was interrupted
+    mov r9, 7fffffff0000h
+    cmp rcx, r9
+    jb .ring3
+
+.ring0:
+    ; We're staying in ring 0 - flags have to be loaded manually.
+    push r11
     popfq
 
-    mov r9, [rcx + Context._rip]
-    jmp r9
+    ; Go to the new thread IP, no more work required
+    jmp rcx
+
+.ring3:
+    mov rsp, rdx
+    ; User mode needs to change selectors, so simulate a system call return.
+    ; Flags are loaded automatically from r11.
+    swapgs
+    sysretq
 
 ;
-; NO_RETURN void SwitchContext(Context* prev, Context* next)
+; NO_RETURN void SwitchContext(Context* prev, Context* next, uptr_t user_stack)
 ;
 ; Stores the context of the calling thread in `prev` and loads `next`.
 ;
 ; rcx = Previous context
 ; rdx = Next context
+; r8  = Thread user stack if applicable
 ;
 SwitchContext:
-    mov [rcx + Context._rbp], rbp
-    mov [rcx + Context._rbx], rbx
-    mov [rcx + Context._rdi], rdi
-    mov [rcx + Context._rsi], rsi
-    mov [rcx + Context._r12], r12
-    mov [rcx + Context._r13], r13
-    mov [rcx + Context._r14], r14
-    mov [rcx + Context._r15], r15
+    mov [rcx + Context.rbp], rbp
+    mov [rcx + Context.rbx], rbx
+    mov [rcx + Context.rdi], rdi
+    mov [rcx + Context.rsi], rsi
+    mov [rcx + Context.r12], r12
+    mov [rcx + Context.r13], r13
+    mov [rcx + Context.r14], r14
+    mov [rcx + Context.r15], r15
 
     pushfq
-    pop r8
-    mov [rcx + Context._rflags], r8
+    pop r9
+    mov [rcx + Context.rflags], r9
 
     ; Return address
-    pop r8
-    mov [rcx + Context._rip], r8
+    pop r9
+    mov [rcx + Context.rip], r9
 
-    mov [rcx + Context._rsp], rsp
+    mov [rcx + Context.rsp], rsp
 
     mov rcx, rdx
+    mov rdx, r8
     jmp LoadContext

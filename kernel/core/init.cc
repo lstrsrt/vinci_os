@@ -146,10 +146,17 @@ static void FinalizeKernelMapping(mm::PageTable& table)
 
 namespace ke
 {
-    void InitializeCore()
+    void InitializeCore(mm::PageTable* page_table)
     {
         auto core = new Core();
+
         core->self = core;
+        core->page_table = page_table;
+
+        core->gdt = x64::gdt;
+        core->idt = x64::idt.data();
+        core->tss = &x64::kernel_tss;
+
         WriteMsr(x64::Msr::KERNEL_GS_BASE, ( uptr_t )core);
         _writegsbase_u64(( uptr_t )core);
     }
@@ -158,10 +165,13 @@ namespace ke
 int test(void*)
 {
     int i = 0;
-    while (i < 10)
+    // while (i < 10)
+    for (;;)
     {
         Print("thread A %d\n", i++);
-        ke::Delay(1000);
+        // serial::Write("thread A %d\n", i);
+
+        // ke::Delay(1000);
     }
     return 1;
 }
@@ -169,10 +179,11 @@ int test(void*)
 int test2(void*)
 {
     int i = 0;
-    while (i < 10)
+    // while (i < 10)
+    for (;;)
     {
         Print("thread B %d\n", i++);
-        ke::Delay(1000);
+        // ke::Delay(1000);
     }
     return 2;
 }
@@ -180,10 +191,10 @@ int test2(void*)
 int test3(void*)
 {
     int i = 0;
-    while (i < 20)
+    for (;;)
     {
         Print("thread C %d\n", i++);
-        ke::Delay(1000);
+        // ke::Delay(1000);
     }
     return 3;
 }
@@ -218,7 +229,6 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     ke::InitializeAllocator();
 
     // Build a new page table (the bootloader one is temporary)
-    // TODO - store somewhere so it's accessible elsewhere
     auto table = new mm::PageTable(kva::kernel_pt.base, pt_physical, pt_pages);
 
     const auto kernel_pages = SizeToPages(kernel.size);
@@ -264,18 +274,19 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     // and write-protect every section not marked writable.
     FinalizeKernelMapping(*table);
 
-    ke::InitializeCore();
+    ke::InitializeCore(table);
 
     x64::unmask_interrupts();
 
     ke::StartScheduler();
 
     ke::CreateThread(test, nullptr);
-    ke::CreateThread(test2, nullptr);
-    ke::CreateThread(test3, nullptr);
+    // ke::CreateThread(test2, nullptr);
+    // ke::CreateThread(test3, nullptr);
+    ke::CreateUserThread(x64::Ring3Function);
 
     // Enter idle loop!
-    x64::LoadContext(&ke::GetCore()->idle_thread->ctx);
+    x64::LoadContext(&ke::GetCore()->idle_thread->context, 0);
 
     x64::Idle();
 }

@@ -38,12 +38,14 @@ static bool g_leaving_boot_services;
 
 static void print_string(const char16_t* fmt, ...)
 {
-    char16_t str[512]{};
+    char16_t str[512];
     va_list ap;
 
     va_start(ap, fmt);
-    vwsnprintf(str, sizeof str, fmt, ap);
+    size_t len = vwsnprintf(str, sizeof str, fmt, ap);
     va_end(ap);
+
+    str[len] = '\0';
 
     g_con_out->output_string(str);
 }

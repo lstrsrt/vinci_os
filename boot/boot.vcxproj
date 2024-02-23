@@ -121,7 +121,7 @@
       <SubSystem>EFI Application</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies />
       <EntryPointSymbol>EfiMain</EntryPointSymbol>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>

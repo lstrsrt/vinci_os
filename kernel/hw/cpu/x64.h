@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base.h>
+#include <ec/array.h>
 #include <ec/const.h>
 #include <ec/enums.h>
 
@@ -129,23 +130,16 @@ namespace x64
     } inline cpu_info;
 
 #pragma pack(1)
-    struct Context
-    {
-        u64 rax, rcx, rdx, rbx, rsi, rdi;
-        u64 r8, r9, r10, r11, r12, r13, r14, r15;
-        u64 rbp, rsp;
-        u64 rip;
-        u64 rflags;
-    };
-
     struct InterruptFrame
     {
         u64 rax, rcx, rdx, rbx, rsi, rdi;
         u64 r8, r9, r10, r11, r12, r13, r14, r15;
         u64 rbp;
-        u64 error_code;
+        u64 error_code; // Unused if context
         u64 rip, cs, rflags, rsp, ss;
     };
+
+    using Context = InterruptFrame;
 
     struct DescriptorTable
     {
@@ -311,6 +305,8 @@ namespace x64
     };
     static_assert(sizeof(GdtEntry) == 0x8);
 
+    alignas(64) extern const GdtEntry gdt[8];
+
     enum class GdtIndex
     {
         Null,
@@ -377,6 +373,8 @@ namespace x64
     };
     static_assert(sizeof(IdtEntry) == 0x10);
 
+    alignas(64) extern ec::array<IdtEntry, 256> idt;
+
 #define TABLE_GDT 0
 #define TABLE_LDT 1
 
@@ -409,13 +407,12 @@ namespace x64
     void ReloadSegments(u16 code_selector, u16 data_selector);
     void LoadTr(u16 offset);
     void Ring3Function();
-    void EnterUserMode(uptr_t code, uptr_t stack);
-    void x64Syscall();
-    void LoadContext(Context* ctx);
-    void SwitchContext(Context* prev, Context* next);
+    void SyscallEntry();
+    void LoadContext(Context*, uptr_t user_stack);
+    void SwitchContext(Context* prev, Context* next, uptr_t user_stack);
 
     // C++ handler
-    u64 x64SyscallCxx(SyscallFrame* frame, u64 sys_no);
+    u64 SyscallCxx(SyscallFrame* frame, u64 sys_no);
 
     EXTERN_C_END
 

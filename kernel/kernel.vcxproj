@@ -121,7 +121,7 @@
       <SubSystem>Native</SubSystem>
       <EnableCOMDATFolding>false</EnableCOMDATFolding>
       <OptimizeReferences>false</OptimizeReferences>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies />
       <EntryPointSymbol>x64Entry</EntryPointSymbol>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>

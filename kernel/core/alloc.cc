@@ -4,10 +4,10 @@
 #include "ke.h"
 #include "gfx/output.h"
 
-#define ALLOC_DBG_PRINT 0
+#define DEBUG_ALLOC     0
 #define ALLOC_POISON    0
 
-#if ALLOC_DBG_PRINT == 0
+#if DEBUG_ALLOC == 0
 #define DbgPrint(x, ...) EMPTY_STMT
 #else
 #define DbgPrint(x, ...) Print(x, __VA_ARGS__)
@@ -76,7 +76,7 @@ namespace ke
             // TODO - unreachable macro
         }
 
-        u32 blocks_needed = size / block_size;
+        u32 blocks_needed = ( u32 )(size / block_size);
         u32 free_blocks = 0, first_block = 0;
 
         for (u32 i = 0; i < alloc_map.size(); i++)

@@ -4,9 +4,17 @@
 #include "x64.h"
 #include "isr.h"
 #include "msr.h"
-#include "../serial/serial.h"
 #include "../timer/timer.h"
 #include "../../core/ke.h"
+
+#define DEBUG_CTX_SWITCH
+
+#ifdef DEBUG_CTX_SWITCH
+#include "../serial/serial.h"
+#define DbgPrint(x, ...) serial::Write(x, __VA_ARGS__)
+#else
+#define DbgPrint(x, ...) EMPTY_STMT
+#endif
 
 namespace x64
 {
@@ -58,73 +66,6 @@ namespace x64
 
     EXTERN_C u64 spurious_irqs = 0;
 
-    void FrameToContext(Context* ctx, InterruptFrame* frame)
-    {
-#if 1
-        memcpy(ctx, frame, 15*8);
-        ctx->rsp = frame->rsp;
-        ctx->rip = frame->rip;
-        ctx->rflags = frame->rflags;
-#else
-
-        ctx->rax = frame->rax;
-        ctx->rcx = frame->rcx;
-        ctx->rdx = frame->rdx;
-        ctx->rbx = frame->rbx;
-        ctx->rsi = frame->rsi;
-        ctx->rdi = frame->rdi;
-
-        ctx->r8 = frame->r8;
-        ctx->r9 = frame->r9;
-        ctx->r10 = frame->r10;
-        ctx->r11 = frame->r11;
-        ctx->r12 = frame->r12;
-        ctx->r13 = frame->r13;
-        ctx->r14 = frame->r14;
-        ctx->r15 = frame->r15;
-
-        ctx->rsp = frame->rsp;
-        ctx->rbp = frame->rbp;
-
-        ctx->rip = frame->rip;
-
-        ctx->rflags = frame->rflags;
-#endif
-    }
-
-    void ContextToFrame(InterruptFrame* frame, Context* ctx)
-    {
-#if 1
-        memcpy(frame, ctx, 15*8);
-        frame->rsp = ctx->rsp;
-        frame->rip = ctx->rip;
-        frame->rflags = ctx->rflags;
-#else
-        frame->rax = ctx->rax;
-        frame->rcx = ctx->rcx;
-        frame->rdx = ctx->rdx;
-        frame->rbx = ctx->rbx;
-        frame->rsi = ctx->rsi;
-        frame->rdi = ctx->rdi;
-
-        frame->r8 = ctx->r8;
-        frame->r9 = ctx->r9;
-        frame->r10 = ctx->r10;
-        frame->r11 = ctx->r11;
-        frame->r12 = ctx->r12;
-        frame->r13 = ctx->r13;
-        frame->r14 = ctx->r14;
-        frame->r15 = ctx->r15;
-
-        frame->rsp = ctx->rsp;
-        frame->rbp = ctx->rbp;
-
-        frame->rip = ctx->rip;
-
-        frame->rflags = ctx->rflags;
-#endif
-    }
-
     EXTERN_C void IsrCommon(InterruptFrame* frame, u8 int_no)
     {
         if (int_no < irq_base)
@@ -134,16 +75,23 @@ namespace x64
                 auto present = frame->error_code & 1 ? "present" : "not present";
                 auto op = frame->error_code & 2 ? "write" : "read";
                 auto ring = frame->error_code & 4 ? "ring 3" : "ring 0";
-                auto virt = __readcr2();
-                Print("Page fault: 0x%llx (%s, %s, %s) at IP 0x%llx\n", virt, present, op, ring, frame->rip);
+                Print(
+                    "Page fault: 0x%llx (%s, %s, %s) at IP 0x%llx\n",
+                    __readcr2(),
+                    present,
+                    op,
+                    ring,
+                    frame->rip
+                );
             }
             else
             {
                 Print(
-                    "IsrCommon: Received interrupt %u (%llu) (%s)\n",
+                    "Interrupt %u (%llu) (%s) at IP 0x%llx\n",
                     int_no,
                     frame->error_code,
-                    exception_strings[int_no]
+                    exception_strings[int_no],
+                    frame->rip
                 );
             }
         }
@@ -152,18 +100,45 @@ namespace x64
             u8 irq = int_no - irq_base;
             if (cpu_info.using_apic || pic::ConfirmIrq(irq))
             {
-                if (irq == 0 && !(timer::ticks % 100) && ke::schedule)
+                if (irq == 0 && (timer::ticks % 100) == 0 && ke::schedule)
                 {
                     auto prev = ke::GetCurrentThread();
+
                     if (ke::SelectNextThread())
                     {
-                        FrameToContext(&prev->ctx, frame);
-                        ContextToFrame(frame, &ke::GetCurrentThread()->ctx);
+                        auto core = ke::GetCore();
+
+                        // Save old context
+                        prev->context = *frame;
+
+                        auto next = ke::GetCurrentThread();
+
+                        // Switch to new context
+                        *frame = next->context;
+
+                        core->tss->rsp0 = next->context.rsp; // Is this right??
+
+                        core->kernel_stack = next->context.rsp;
+                        core->user_stack = next->user_stack;
+
+                        DbgPrint(
+                            "\n"
+                            "  Switching\n"
+                            "  From id %llu to id %llu\n"
+                            "  RSP0: 0x%llx RSP3: 0x%llx\n"
+                            "  Set new RSP to 0x%llx\n"
+                            "  TSS0 RSP is 0x%llx\n",
+                            prev->id, next->id,
+                            next->context.rsp, next->user_stack,
+                            frame->rsp,
+                            core->tss->rsp0
+                        );
                     }
                 }
 
                 if (irq_handlers[irq])
                     irq_handlers[irq]();
+
                 send_eoi(irq);
             }
             else // PIC and spurious

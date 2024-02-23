@@ -1,5 +1,3 @@
-#include <ec/array.h>
-
 #include "x64.h"
 #include "cpuid.h"
 #include "isr.h"
@@ -12,11 +10,11 @@ namespace x64
     EXTERN_C_START
     void ReloadSegments(u16 code_selector, u16 data_selector);
     void LoadTr(u16 offset);
-    void x64Syscall();
+    void SyscallEntry();
     EXTERN_C_END
 
 #pragma data_seg("PROTDATA")
-    alignas(64) static const GdtEntry gdt[]{
+    alignas(64) const GdtEntry gdt[8]{
         GdtEntry::Null(),                              // Empty
         GdtEntry(0, GDT_ENTRY_CODE | GDT_READ),        // Ring 0 code
         GdtEntry(0, GDT_ENTRY_DATA | GDT_WRITE),       // Ring 0 data
@@ -27,11 +25,11 @@ namespace x64
         GdtEntry::TssHigh(&kernel_tss)                 // TSS high
     };
 
-    alignas(64) static ec::array<IdtEntry, 256> idt{
+    alignas(64) ec::array<IdtEntry, 256> idt{
         IdtEntry(_Isr0, 0), // Only has to be explicit the first time
         { _Isr1, 0, DebugIst },
         { _Isr2, 0, NmiIst },
-        { _Isr3, 0, DebugIst },
+        { _Isr3, 3, DebugIst },
         { _Isr4, 0 },
         { _Isr5, 0 },
         { _Isr6, 0 },
@@ -329,7 +327,7 @@ namespace x64
         Print("%s", #feat " "); \
     }
 
-    EARLY static void CheckFeatures()
+    EARLY static void CheckFeatureSupport()
     {
         using enum CpuidFeature;
 
@@ -499,26 +497,58 @@ namespace x64
         star.sysret_cs.rpl = 3;
         star.sysret_cs.table = TABLE_GDT;
 
+        // Set CS and SS values
         WriteMsr(Msr::STAR, star.bits);
 
-        // Mask interrupts and traps on syscalls
-        WriteMsr(Msr::LSTAR, ( uptr_t )x64Syscall);
-        WriteMsr(Msr::FMASK, ( u64 )(RFLAG::IF | RFLAG::TF));
+        // Write the syscall entry address
+        WriteMsr(Msr::LSTAR, ( uptr_t )SyscallEntry);
+
+        // Mask interrupts & traps and clear direction flag  on syscalls
+        WriteMsr(Msr::FMASK, ( u64 )(RFLAG::AC | RFLAG::IF | RFLAG::TF));
 
         // Enable syscall extensions
         auto efer = ReadMsr(Msr::EFER);
         WriteMsr(Msr::EFER, efer | EFER_SCE);
     }
 
-    EXTERN_C u64 x64SyscallCxx(SyscallFrame* frame, u64 sys_no)
+    u64 PrintNumber(int n)
+    {
+        Print("%d\n", n);
+        return 0;
+    }
+
+    u64 UserYield()
+    {
+        ke::Yield();
+        return 0;
+    }
+
+    u64 UserDelay(u64 ticks)
+    {
+        ke::Delay(ticks);
+        return 0;
+    }
+
+    u64 ExitThread(int exit_code)
+    {
+        ke::ExitThread(exit_code);
+        return exit_code;
+    }
+
+    EXTERN_C u64 SyscallCxx(SyscallFrame* frame, u64 sys_no)
     {
         Print("Syscall number: 0x%llx\n", sys_no);
 
-        if (sys_no == 1)
-            Print("%d\n", ( int )frame->rdi);
+        // TODO - call into a table from asm instead
+        switch (sys_no)
+        {
+        case 0: PrintNumber(( int )frame->rdi); break;
+        case 1: UserYield(); break;
+        case 2: UserDelay(frame->rdi); break;
+        case 3: ExitThread(( int )frame->rdi); break;
+        }
 
-        Print("Returning to 0x%llx with flags 0x%llx\n", frame->rcx, frame->rflags);
-
+        Print("Returning to 0x%llx\n", frame->rcx);
         return 0;
     }
 
@@ -527,7 +557,7 @@ namespace x64
         kernel_tss.rsp0 = kernel_stack;
 
         GetCpuModel();
-        CheckFeatures();
+        CheckFeatureSupport();
         SetCr0Bits();
         SetCr4Bits();
 

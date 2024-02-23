@@ -7,12 +7,36 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #if !defined(__clang__) && defined(_MSC_VER)
-#pragma function(memcpy)
-#pragma function(memset)
-#pragma function(memcmp)
+#define COMPILER_MSVC
 #endif
 
-inline void* memcpy(void* dst, const void* src, size_t n)
+#ifdef COMPILER_MSVC
+#pragma function(memcmp)
+#pragma function(memcpy)
+#pragma function(memset)
+#endif
+
+#ifndef COMPILER_MSVC
+inline
+#endif
+int memcmp(const void* buf1, const void* buf2, size_t n)
+{
+    const u8* a = (const u8*)buf1;
+    const u8* b = (const u8*)buf2;
+
+    while (n--)
+    {
+        if (*a++ != *b++)
+            return a[-1] < b[-1] ? -1 : 1;
+    }
+
+    return 0;
+}
+
+#ifndef COMPILER_MSVC
+inline
+#endif
+void* memcpy(void* dst, const void* src, size_t n)
 {
     u8* d = ( u8* )dst;
     const u8* s = ( const u8* )src;
@@ -23,7 +47,10 @@ inline void* memcpy(void* dst, const void* src, size_t n)
     return dst;
 }
 
-inline void* memset(void* dst, u32 val, size_t n)
+#ifndef COMPILER_MSVC
+inline
+#endif
+void* memset(void* dst, u32 val, size_t n)
 {
     u8* d = ( u8* )dst;
 
@@ -31,20 +58,6 @@ inline void* memset(void* dst, u32 val, size_t n)
         *d++ = ( u8 )val;
 
     return dst;
-}
-
-inline int memcmp(const void* buf1, const void* buf2, size_t n)
-{
-    const u8* a = ( const u8* )buf1;
-    const u8* b = ( const u8* )buf2;
-
-    while (n--)
-    {
-        if (*a++ != *b++)
-            return a[-1] < b[-1] ? -1 : 1;
-    }
-
-    return 0;
 }
 
 constexpr i32 strncmp(const char* str1, const char* str2, size_t n)
