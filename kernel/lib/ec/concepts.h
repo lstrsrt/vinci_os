@@ -2,7 +2,7 @@
 
 #include "../base.h"
 
-namespace ec::concepts
+namespace ec::inline concepts
 {
     namespace impl
     {
@@ -106,6 +106,10 @@ namespace ec::concepts
     concept $convertible = impl::is_convertible<T, U> && requires { static_cast<U>(declval<T>()); };
 
     template<$enum T> using underlying_t = __underlying_type(T);
-}
 
-using namespace ec::concepts;
+    template<class F, class... Args>
+    concept $predicate = requires(F function, Args... args)
+    {
+        { function(args...) } -> $convertible<bool>;
+    };
+}

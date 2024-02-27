@@ -61,7 +61,7 @@ namespace ke
         const x64::IdtEntry* idt;
         x64::Tss* tss;
 
-        INLINE void UpdateThread(Thread* thread)
+        INLINE void SetCurrentThread(Thread* thread)
         {
             this->kernel_stack = this->tss->rsp0 = thread->context.rsp;
             this->user_stack = thread->user_stack;

@@ -121,8 +121,8 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     }
 
     // Read NT headers
-    IMAGE_NT_HEADERS64 nt_header;
-    size = sizeof(IMAGE_NT_HEADERS64);
+    pe::NtHeaders nt_header;
+    size = sizeof(nt_header);
     efi_check(file->set_position(( uint64 )dos.e_lfanew));
     efi_check(file->read(&size, &nt_header));
 
@@ -155,7 +155,7 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     // First read headers into memory at physical_base
     efi_check(file->set_position(0));
     efi_check(file->read(&size, ( void* )physical_base));
-    auto nt = ( IMAGE_NT_HEADERS64* )(physical_base + dos.e_lfanew);
+    auto nt = ( pe::NtHeaders* )(physical_base + dos.e_lfanew);
 
     // Do another check, this time from memory
     if (nt->Signature != IMAGE_NT_SIGNATURE)
@@ -313,8 +313,8 @@ static void run_cxx_initializers(vaddr_t image_base)
 {
     using PFVF = void(__cdecl*)();
 
-    auto dos_header = ( PIMAGE_DOS_HEADER )image_base;
-    auto nt_header = ( PIMAGE_NT_HEADERS64 )(image_base + dos_header->e_lfanew);
+    auto dos_header = ( pe::DosHeader* )image_base;
+    auto nt_header = ( pe::NtHeaders* )(image_base + dos_header->e_lfanew);
 
     // There may be multiple CRT sections (?)
     auto section = IMAGE_FIRST_SECTION(nt_header);

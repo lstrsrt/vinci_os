@@ -67,10 +67,7 @@ namespace ke
         // Update to the next thread.
         thread = GetCurrentThread();
 
-        core->tss->rsp0 = thread->context.rsp;
-
-        core->kernel_stack = thread->context.rsp;
-        core->user_stack = thread->user_stack;
+        core->SetCurrentThread(thread);
 
         Print("Switching to new thread %llu\n", thread->id);
 
@@ -263,10 +260,7 @@ namespace ke
             auto core = GetCore();
             auto next = GetCurrentThread();
 
-            core->tss->rsp0 = next->context.rsp;
-
-            core->kernel_stack = next->context.rsp;
-            core->user_stack = next->user_stack;
+            core->SetCurrentThread(next);
 
             DbgPrint(
                 "\n"

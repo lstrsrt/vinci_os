@@ -107,19 +107,15 @@ namespace x64
                     if (ke::SelectNextThread())
                     {
                         auto core = ke::GetCore();
+                        auto next = ke::GetCurrentThread();
 
                         // Save old context
                         prev->context = *frame;
 
-                        auto next = ke::GetCurrentThread();
-
                         // Switch to new context
                         *frame = next->context;
 
-                        core->tss->rsp0 = next->context.rsp; // Is this right??
-
-                        core->kernel_stack = next->context.rsp;
-                        core->user_stack = next->user_stack;
+                        core->SetCurrentThread(next);
 
                         DbgPrint(
                             "\n"

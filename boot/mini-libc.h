@@ -369,12 +369,3 @@ static size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list a
     }
     return len;
 }
-
-static size_t wsnprintf(char16_t* str, uint32_t n, const char16_t* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    auto len = vwsnprintf(str, n, fmt, ap);
-    va_end(ap);
-    return len;
-}

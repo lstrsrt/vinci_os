@@ -503,7 +503,7 @@ namespace x64
         // Write the syscall entry address
         WriteMsr(Msr::LSTAR, ( uptr_t )SyscallEntry);
 
-        // Mask interrupts & traps and clear direction flag  on syscalls
+        // Mask interrupts & traps and clear direction flag on syscalls
         WriteMsr(Msr::FMASK, ( u64 )(RFLAG::AC | RFLAG::IF | RFLAG::TF));
 
         // Enable syscall extensions
