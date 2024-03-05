@@ -4,11 +4,7 @@
 
 EXTERN_C_START
 
-// TODO - strncmp (maybe other functions) not compiled correctly on clang
-
-#ifdef COMPILER_MSVC
-#define strlen __builtin_strlen
-#else
+#ifndef COMPILER_MSVC
 constexpr size_t strlen(const char* str)
 {
     size_t i = 0;
@@ -17,6 +13,7 @@ constexpr size_t strlen(const char* str)
     return i;
 }
 #endif
+#define strlen __builtin_strlen
 size_t strnlen(const char* str, size_t max);
 i32 strcmp(const char* str1, const char* str2);
 i32 stricmp(const char* str1, const char* str2);

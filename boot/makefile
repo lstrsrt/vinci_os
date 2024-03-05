@@ -4,7 +4,12 @@ LD = lld-link
 LFLAGS = -subsystem:efi_application -nodefaultlib -dll -entry:EfiMain
 # FIXME - -dll necessary?
 
+INCLUDE = ../kernel/lib/
+
 all: BOOTX64.EFI
+	pushd ../bin/Debug/vdisk && \
+	mkdir -p EFI/BOOT && \
+	popd && \
 	mv BOOTX64.EFI ../bin/Debug/vdisk/EFI/BOOT/BOOTX64.EFI
 
 BOOTX64.EFI: boot.o
@@ -13,6 +18,7 @@ BOOTX64.EFI: boot.o
 boot.o: entry.cc
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-.PHONY: clean all
+.SILENT:
+.PHONY: all clean
 clean:
 	find -type f -name "*.o" -delete -o -name "*.efi" -delete

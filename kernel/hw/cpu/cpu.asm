@@ -94,18 +94,17 @@ LoadTr:
 ; Sample function to demonstrate entering ring 3.
 ;
 Ring3Function:
-    mov edi, 1000 ; number
-    mov ecx, 5
+    mov ebx, 5
 .loop:
-    mov eax, 2 ; sys_no
-    syscall
-    dec ecx
+    mov eax, 2
+    mov edi, 1000
+    syscall ; Delay
+    dec ebx
     jnz .loop
     ; jmp .loop
 
-    ; ExitThread
     mov eax, 3
-    mov edi, 5 ; exit_code
+    mov edi, 5
     syscall ; ExitThread
     ret
 
@@ -113,7 +112,7 @@ Ring3Function:
 ; u64 SyscallEntry()
 ;
 ; Main syscall entry routine.
-; Loads the kernel stack, constructs a SyscallFrame and calls x64SyscallCxx
+; Loads the kernel stack, constructs a SyscallFrame and calls SyscallCxx
 ; which selects and runs the requested system service.
 ;
 ; Result is returned in rax.
@@ -137,7 +136,7 @@ SyscallEntry:
     push rsi
     push r11
 
-    mov rcx, rsp  ; SyscallFrame
+    mov rcx, rsp  ; frame
     mov rdx, rax  ; int_no
     sub rsp, 32   ; shadow space
     call SyscallCxx

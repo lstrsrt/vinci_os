@@ -21,8 +21,8 @@ inline
 #endif
 int memcmp(const void* buf1, const void* buf2, size_t n)
 {
-    const u8* a = (const u8*)buf1;
-    const u8* b = (const u8*)buf2;
+    const u8* a = ( const u8* )buf1;
+    const u8* b = ( const u8* )buf2;
 
     while (n--)
     {
@@ -32,6 +32,8 @@ int memcmp(const void* buf1, const void* buf2, size_t n)
 
     return 0;
 }
+
+#define memcmp __builtin_memcmp
 
 #ifndef COMPILER_MSVC
 inline
@@ -62,13 +64,13 @@ void* memset(void* dst, u32 val, size_t n)
 
 constexpr i32 strncmp(const char* str1, const char* str2, size_t n)
 {
-    const u8 *c1 = (const u8 *)str1;
-    const u8 *c2 = (const u8 *)str2;
+    const u8 *c1 = ( const u8* )str1;
+    const u8 *c2 = ( const u8* )str2;
     u8 ch = 0;
     i32 d = 0;
 
     while (n--) {
-        d = (i32)(ch = *c1++) - (i32)*c2++;
+        d = ( i32 )(ch = *c1++) - ( i32 )*c2++;
         if (d || !ch)
             break;
     }
