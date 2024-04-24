@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#if !defined(__clang__) && defined(_MSC_VER)
+#ifdef COMPILER_MSVC
 #ifndef EFIAPI
 #define EFIAPI __cdecl
 #endif
@@ -12,7 +12,7 @@
 #endif
 #endif
 
-#if !defined(__clang__) && defined(_MSC_VER)
+#ifdef COMPILER_MSVC
 #define OPTIONAL_INSERT(...) __VA_ARGS__
 #define OPTIONAL_INSERT_COMMA(...) , __VA_ARGS__
 #else

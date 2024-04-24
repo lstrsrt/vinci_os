@@ -13,13 +13,13 @@ namespace ec
         {
             if constexpr (sizeof(T) <= sizeof(i32))
             {
-                char buf[32];
+                char buf[33];
                 i32toa(i, buf, radix, sign);
                 return string(buf);
             }
             else
             {
-                char buf[64];
+                char buf[65];
                 i64toa(i, buf, radix, sign);
                 return string(buf);
             }
@@ -63,11 +63,6 @@ namespace ec
         if constexpr (sizeof...(rest) > 0)
             return format_impl(out, forward<Rest>(rest)...);
         return out;
-    }
-
-    namespace fmt
-    {
-
     }
 
     template<$formattable... Args>

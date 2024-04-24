@@ -199,16 +199,22 @@ int test3(void*)
     return 3;
 }
 
+static void MapDeviceUncached(mm::PageTable* page_table, uptr_t* phys_virt, size_t page_count = 1)
+{
+    mm::MapPagesInRegion<kva::devices>(*page_table, phys_virt, page_count);
+    mm::GetPresentPte(*page_table, *phys_virt)->cache_disable = true;
+}
+
 EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 {
     gfx::Initialize(loader_block->display);
 
     // Copy all the important stuff because the loader block gets freed in ReclaimBootPages
-    MemoryMap memory_map = loader_block->memory_map;
-    DisplayInfo display = loader_block->display;
-    KernelData kernel = loader_block->kernel;
+    auto memory_map = loader_block->memory_map;
+    auto display = loader_block->display;
+    auto kernel = loader_block->kernel;
     auto hpet = loader_block->hpet;
-    auto i8042 = loader_block->i8042;
+    const auto i8042 = loader_block->i8042;
     const auto pt_physical = loader_block->page_table;
     const auto pt_pages = loader_block->page_table_size;
     const auto pp_physical = loader_block->page_pool;
@@ -244,17 +250,10 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     for (auto page = kva::frame_buffer.base; page < kva::frame_buffer.End(); page += page_size)
         mm::GetPresentPte(*table, page)->pat = true;
 
-    // Map devices and set CD bit
-    {
-        mm::MapPagesInRegion<kva::devices>(*table, &hpet, 1);
-        mm::GetPresentPte(*table, hpet)->cache_disable = true;
-
-        mm::MapPagesInRegion<kva::devices>(*table, &apic::io, 1);
-        mm::GetPresentPte(*table, apic::io)->cache_disable = true;
-
-        mm::MapPagesInRegion<kva::devices>(*table, &apic::local, 1);
-        mm::GetPresentPte(*table, apic::local)->cache_disable = true;
-    }
+    // Map devices with CD bit set in PTE
+    MapDeviceUncached(table, &hpet);
+    MapDeviceUncached(table, &apic::io);
+    MapDeviceUncached(table, &apic::local);
 
     MapUefiRuntime(memory_map, *table);
 

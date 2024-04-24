@@ -32,6 +32,12 @@
 #define ALLOC_FN        __declspec(restrict)
 #endif
 
+#ifdef COMPILER_CLANG
+#define UNREACHABLE()   __builtin_unreachable()
+#else
+#define UNREACHABLE()   __assume(false)
+#endif
+
 #define OFFSET(t, f)    __builtin_offsetof(t, f)
 #define EARLY           NO_INLINE CODE_SEG("INIT")
 #define SUPPRESS(x)     (( void )x)
@@ -94,6 +100,12 @@ typedef intptr_t iptr_t;
 #define KiB(x)   (1024ULL * x)
 #define MiB(x)   (1024ULL * KiB(x))
 #define GiB(x)   (1024ULL * MiB(x))
+
+/* Some third party include may have these defined already. */
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (sizeof a / sizeof a[0])
+#endif
 
 #ifndef IS_ALIGNED
 #define IS_ALIGNED(x, a) (((x) & ((a) - 1)) == 0)

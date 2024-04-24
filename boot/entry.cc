@@ -485,7 +485,6 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     loader_block->display.height = graphics_mode_info->vertical_resolution;
     loader_block->display.pitch = graphics_mode_info->pixels_per_scanline * 4; // depends on PixelFormat
 
-    // TODO - should support RGB in the future
     if (graphics_mode_info->pixel_format != uefi::pixel_fmt_bgr_reserved_8bit_per_color)
     {
         report_error(uefi::err_unsupported);
@@ -522,8 +521,6 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     mm::MapPages(table, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
     mm::MapPages(table, kva::kernel_pool.base, loader_block->page_pool, loader_block->page_pool_size);
     mm::MapPages(table, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
-
-    // TODO - print runtime descriptors
 
     // Set WP flag
     __writecr0(__readcr0() | CR0_WP);

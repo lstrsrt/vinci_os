@@ -80,6 +80,7 @@ namespace ke
 
         // Let the next thread take over.
         x64::LoadContext(&thread->context, thread->user_stack);
+        UNREACHABLE();
     }
 
     static int UserThreadEntry(void*)

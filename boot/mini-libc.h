@@ -4,12 +4,6 @@
 
 #include "../kernel/lib/base.h"
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-
-#if !defined(__clang__) && defined(_MSC_VER)
-#define COMPILER_MSVC
-#endif
-
 #ifdef COMPILER_MSVC
 #pragma function(memcmp)
 #pragma function(memcpy)

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <ec/concepts.h>
+#include "../lib/ec/concepts.h"
 
 namespace pe
 {
