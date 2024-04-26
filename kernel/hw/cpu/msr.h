@@ -17,6 +17,8 @@ namespace x64
     enum class Msr : u32
     {
         APIC_BASE = 0x1b,
+        
+        PAT = 0x277,
 
         FS_BASE = 0xc0000100,
         GS_BASE = 0xc0000101,
@@ -25,7 +27,7 @@ namespace x64
         EFER = 0xc0000080,
         STAR = 0xc0000081,
         LSTAR = 0xc0000082,
-        FMASK = 0xc0000084
+        FMASK = 0xc0000084,
     };
 
 #pragma pack(1)

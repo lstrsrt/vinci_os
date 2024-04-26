@@ -56,7 +56,7 @@ INLINE void NO_REDEF__cpuidex(i32 regs[4], i32 leaf, i32 subleaf)
 
 INLINE void __wbinvd()
 {
-    asm volatile("wbinvd" ::: "memory");
+    asm volatile("wbinvd" :: : "memory");
 }
 
 INLINE void _lgdt(uptr_t* desc)

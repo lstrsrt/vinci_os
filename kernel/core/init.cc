@@ -153,7 +153,7 @@ namespace ke
         core->self = core;
         core->page_table = page_table;
 
-        core->gdt = x64::gdt;
+        core->gdt = x64::gdt.data();
         core->idt = x64::idt.data();
         core->tss = &x64::kernel_tss;
 
@@ -170,8 +170,7 @@ int test(void*)
     {
         Print("thread A %d\n", i++);
         // serial::Write("thread A %d\n", i);
-
-        // ke::Delay(1000);
+        ke::Delay(1000);
     }
     return 1;
 }
@@ -183,7 +182,7 @@ int test2(void*)
     for (;;)
     {
         Print("thread B %d\n", i++);
-        // ke::Delay(1000);
+        ke::Delay(1000);
     }
     return 2;
 }
@@ -225,7 +224,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     acpi::ParseMadt(loader_block->madt_header, x64::cpu_info);
 
-    x64::cpu_info.using_apic = false;
+    x64::cpu_info.using_apic = false; // HACK until finished
     x64::Initialize(kernel_stack_top);
 
     // Init COM ports so we have early debugging capabilities.
@@ -280,7 +279,7 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
     ke::StartScheduler();
 
     ke::CreateThread(test, nullptr);
-    // ke::CreateThread(test2, nullptr);
+    ke::CreateThread(test2, nullptr);
     // ke::CreateThread(test3, nullptr);
     ke::CreateUserThread(x64::Ring3Function);
 

@@ -1,7 +1,3 @@
-#if !defined(__clang__) && defined(_MSC_VER)
-#include <intrin.h>
-#endif
-
 #include "boot.h"
 
 #include "../kernel/common/pe64.h"
@@ -11,7 +7,9 @@
 #include "mini-libc.h"
 #include "cpp-uefi.hh"
 
-#ifdef __clang__
+#ifdef COMPILER_MSVC
+#include <intrin.h>
+#else
 INLINE void __writecr0(u64 cr0)
 {
     asm volatile("mov %%rax, %%cr0" :: "a"(cr0));
@@ -520,7 +518,6 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     mm::MapPages(table, kva::kernel_image.base, loader_block->kernel.physical_base, kernel_pages);
     mm::MapPages(table, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
     mm::MapPages(table, kva::kernel_pool.base, loader_block->page_pool, loader_block->page_pool_size);
-    mm::MapPages(table, kva::frame_buffer.base, loader_block->display.frame_buffer, frame_buffer_pages);
 
     // Set WP flag
     __writecr0(__readcr0() | CR0_WP);

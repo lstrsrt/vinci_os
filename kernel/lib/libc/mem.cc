@@ -8,7 +8,7 @@ EXTERN_C_START
 #pragma function(memset)
 #endif
 
-int memcmp(const void* buf1, const void* buf2, unsigned long long n)
+int memcmp(const void* buf1, const void* buf2, size_t n)
 {
     const u8* a = ( const u8* )buf1;
     const u8* b = ( const u8* )buf2;

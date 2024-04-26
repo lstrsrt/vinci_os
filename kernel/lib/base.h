@@ -50,7 +50,6 @@
 #define LIKELY          [[likely]]
 #define UNLIKELY        [[unlikely]]
 
-#ifdef COMPILER_CLANG
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
@@ -60,17 +59,6 @@ typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
-#else
-typedef __int8 i8;
-typedef __int16 i16;
-typedef __int32 i32;
-typedef __int64 i64;
-
-typedef unsigned __int8 u8;
-typedef unsigned __int16 u16;
-typedef unsigned __int32 u32;
-typedef unsigned __int64 u64;
-#endif
 
 typedef float f32;
 typedef double f64;
@@ -90,6 +78,14 @@ typedef intptr_t iptr_t;
 #define TRUE   1
 #endif
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (sizeof a / sizeof a[0])
+#endif
+
+#ifndef IS_ALIGNED
+#define IS_ALIGNED(x, a) (((x) & ((a) - 1)) == 0)
+#endif
+
 #define OFF    0
 #define ON     1
 
@@ -100,16 +96,6 @@ typedef intptr_t iptr_t;
 #define KiB(x)   (1024ULL * x)
 #define MiB(x)   (1024ULL * KiB(x))
 #define GiB(x)   (1024ULL * MiB(x))
-
-/* Some third party include may have these defined already. */
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) (sizeof a / sizeof a[0])
-#endif
-
-#ifndef IS_ALIGNED
-#define IS_ALIGNED(x, a) (((x) & ((a) - 1)) == 0)
-#endif
 
 /*
 *  Bit extraction macros.
@@ -137,6 +123,9 @@ typedef intptr_t iptr_t;
 
 #define CONCAT_IMPL(a, b)  a##b
 #define CONCAT(a, b)       CONCAT_IMPL(a, b)
+
+#define MAKE_STR_IMPL(x)  #x
+#define MAKE_STR(x)       MAKE_STR_IMPL(x)
 
 /* Generic padding macro for types with opaque/unused/reserved members. */
 #define PAD(size) private: UNUSED byte CONCAT(__pad, __COUNTER__)[size]; public:

@@ -140,25 +140,23 @@ namespace mm
     struct PageTable;
     static size_t AllocatePhysical(PageTable&, paddr_t*);
 
-    // One byte is one PageInfo, which means that one page can store information about 4096 pages.
-    // So the maximum size of a page table is 4096 pages, of which 4095 can be used.
     static constexpr size_t max_page_table_pages = (page_size / sizeof(PhysicalPage));
 
-    // This structure is used when allocating physical pages.
-    // It is not the same as a x64::PageTable, which is architecture specific!
+    // This structure is used to track physical pages in an address space.
+    // It is not to be confused with x64::PageTable, which is architecture specific!
     // The first page in a table stores information about the remaining pages.
     // The second page is the PML4.
     // Remaining pages are used for the other paging structures (one page per entry).
     struct PageTable
     {
-        PageTable(vaddr_t virtual_base, paddr_t physical_base, size_t page_count, paddr_t cr3 = 0)
-            : pages(page_count), virt(virtual_base), phys(physical_base)
+        PageTable(vaddr_t virt_base, paddr_t phys_base, size_t page_count, paddr_t cr3 = 0)
+            : pages(page_count), virt(virt_base), phys(phys_base)
         {
             phys_info[0].present = true;
-            if (cr3 == 0)
-                AllocatePhysical(*this, &root);
-            else
+            if (cr3)
                 root = cr3;
+            else
+                AllocatePhysical(*this, &root); // TODO - handle failure
         }
 
         size_t pages;
@@ -168,7 +166,7 @@ namespace mm
             PhysicalPage* phys_info;
         };
         paddr_t phys;
-        paddr_t root; // CR3 (currently one page after m_physical)
+        paddr_t root; // CR3 (currently one page after phys)
     };
 
     //
@@ -247,7 +245,7 @@ namespace mm
     INLINE bool IsPagePresent(PageTable& table, vaddr_t virt)
     {
         auto pte = GetPresentPte(table, virt);
-        return pte ? pte->present : false;
+        return pte && pte->present;
     }
 
     INLINE bool UnmapPage(PageTable& table, vaddr_t virt)
@@ -255,7 +253,7 @@ namespace mm
         auto pte = GetPresentPte(table, virt);
         if (pte)
             pte->present = false;
-        return pte != nullptr;
+        return pte;
     }
 
     static x64::PageTableEntry* MapPage(PageTable& table, vaddr_t virt, paddr_t phys, bool user = false)

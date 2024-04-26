@@ -14,7 +14,7 @@ namespace x64
     EXTERN_C_END
 
 #pragma data_seg("PROTDATA")
-    alignas(64) const GdtEntry gdt[8]{
+    alignas(64) const ec::array<GdtEntry, 8> gdt{
         GdtEntry::Null(),                              // Empty
         GdtEntry(0, GDT_ENTRY_CODE | GDT_READ),        // Ring 0 code
         GdtEntry(0, GDT_ENTRY_DATA | GDT_WRITE),       // Ring 0 data
@@ -283,9 +283,6 @@ namespace x64
         { _Isr254, 0 },
         { _Isr255, 0 }
     };
-
-    alignas(sizeof(u16)) static DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
-    alignas(sizeof(u16)) static DescriptorTable idt_desc(&idt, sizeof idt - 1);
 #pragma data_seg()
 
     EARLY static void GetCpuModel()
@@ -396,12 +393,6 @@ namespace x64
         WriteCr4(cr4);
     }
 
-#define MSR_MTRR_DEF_TYPE 0x2ff
-#define MSR_PAT 0x277
-
-#define MTRR_FIXED_ENABLED (1 << 10)
-#define MTRR_ENABLED (1 << 11)
-
     enum MemoryType : u64
     {
         Uncacheable = 0x00, // (UC)
@@ -428,7 +419,7 @@ namespace x64
 
         TlbFlush();
         __wbinvd();
-        WriteMsr(MSR_PAT, pat_entries);
+        WriteMsr(Msr::PAT, pat_entries);
         __wbinvd();
         TlbFlush();
     }
@@ -446,6 +437,15 @@ namespace x64
             idt[apic::spurious_int_vec].Set(_IsrSpurious, 0);
 
         __lidt(( uptr_t* )desc);
+    }
+
+    EARLY static void LoadDescriptorTables()
+    {
+        DescriptorTable gdt_desc(&gdt, sizeof gdt - 1);
+        LoadGdt(&gdt_desc);
+
+        DescriptorTable idt_desc(&idt, sizeof idt - 1);
+        LoadIdt(&idt_desc);
     }
 
     EARLY static void InitializeInterrupts()
@@ -562,9 +562,7 @@ namespace x64
         SetCr4Bits();
 
         LoadPageAttributeTable();
-
-        LoadGdt(&gdt_desc);
-        LoadIdt(&idt_desc);
+        LoadDescriptorTables();
 
         InitializeInterrupts();
 

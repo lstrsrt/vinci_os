@@ -266,7 +266,7 @@ namespace uefi {
     {
         adjust_daylight = 0x0001,
         time_in_daylight = 0x0002,
-        unspecified_timezone = 0x07ff,
+        unspecified = 0x07ff,
     };
 
     struct time

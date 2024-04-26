@@ -141,7 +141,7 @@ namespace x64
 
     using Context = InterruptFrame;
 
-    struct DescriptorTable
+    struct alignas(sizeof(u16)) DescriptorTable
     {
         u16 limit;
         const void* base;
@@ -305,7 +305,7 @@ namespace x64
     };
     static_assert(sizeof(GdtEntry) == 0x8);
 
-    alignas(64) extern const GdtEntry gdt[8];
+    alignas(64) extern const ec::array<GdtEntry, 8> gdt;
 
     enum class GdtIndex
     {
