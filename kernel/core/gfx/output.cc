@@ -5,17 +5,40 @@
 #define SSFN_CONSOLEBITMAP_CONTROL
 #include "ssfn.h"
 
+#include "../ke.h"
+#include <ec/string.h>
+
 namespace gfx
 {
+    void SetColor(u8 r, u8 g, u8 b)
+    {
+        ssfn_dst.fg = BgrPixel(r, g, b).full;
+    }
+
     void Print(const char* fmt, ...)
     {
-        char str[512]{};
-        va_list ap;
-        va_start(ap, fmt);
-        vsnprintf(str, sizeof str, fmt, ap);
-        va_end(ap);
+        char* s;
 
-        char* s = str;
+        if (!ke::alloc_initialized)
+        {
+            char str[512]{};
+            va_list ap;
+            va_start(ap, fmt);
+            vsnprintf(str, sizeof str, fmt, ap);
+            va_end(ap);
+            s = str;
+        }
+        else
+        {
+            ec::string str;
+            str.reserve(512);
+            va_list ap;
+            va_start(ap, fmt);
+            vsnprintf(str.data(), str.length(), fmt, ap);
+            va_end(ap);
+            s = str.data();
+        }
+
         while (*s)
             ssfn_putc(ssfn_utf8(&s));
     }

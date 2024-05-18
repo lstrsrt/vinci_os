@@ -1,7 +1,8 @@
-# os64
+# vinci_os
 
 ## Kernel
 
+* ASCII cat (Vinci) on startup
 * Thread scheduler (with ring 0/3 switching)
 * Native syscall/sysret support
 * Detects and enables other x64 things (SMAP and UMIP)

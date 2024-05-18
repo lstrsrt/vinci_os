@@ -41,6 +41,7 @@ namespace ke
         memzero(alloc_map.data(), alloc_map.size());
         total_free = kva::kernel_pool.size; // FIXME - This is wrong; it depends on how much is mapped!
         total_used = 0;
+        ke::alloc_initialized = true;
     }
 
     static constexpr auto AlignUp(size_t value, size_t align)
