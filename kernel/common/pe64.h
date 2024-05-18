@@ -5,6 +5,16 @@
 
 namespace pe
 {
+    static constexpr u16 dos_magic = 0x5a4d;
+    static constexpr u32 nt_signature = 0x4550;
+    static constexpr u32 optional_header_magic = 0x10b;
+
+    enum class Machine : u16
+    {
+        i386 = 0x14c,
+        x64 = 0x8664,
+    };
+
     struct DosHeader
     {
         u16 e_magic;    // Magic number
@@ -26,17 +36,28 @@ namespace pe
         u16 e_oeminfo;  // OEM information; e_oemid specific
         u16 e_res2[10]; // Reserved words
         u32 e_lfanew;   // File address of new exe header
+        
+        inline bool IsValid()
+        {
+            return this->e_magic == dos_magic;
+        }
     };
 
     struct FileHeader
     {
-        u16 Machine;
+        Machine Machine;
         u16 NumberOfSections;
         u32 TimeDateStamp;
         u32 PointerToSymbolTable;
         u32 NumberOfSymbols;
         u16 SizeOfOptionalHeader;
         u16 Characteristics;
+    };
+
+    struct DataDirectory
+    {
+        u32 VirtualAddress;
+        u32 Size;
     };
 
     struct OptionalHeader64
@@ -70,7 +91,7 @@ namespace pe
         u64 SizeOfHeapCommit;
         u32 LoaderFlags;
         u32 NumberOfRvaAndSizes;
-        IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+        DataDirectory DataDirectory[16];
     };
 
     using OptionalHeader = OptionalHeader64;
@@ -80,13 +101,20 @@ namespace pe
         u32 Signature;
         FileHeader FileHeader;
         OptionalHeader64 OptionalHeader;
+        
+        inline bool IsValid()
+        {
+            return this->Signature == nt_signature;
+        }
     };
 
     using NtHeaders = NtHeaders64;
+    
+    static constexpr size_t section_name_size = 8;
 
     struct Section
     {
-        u8 Name[8];
+        u8 Name[section_name_size];
         union
         {
             u32 PhysicalAddress;
@@ -116,7 +144,7 @@ namespace pe
     inline DosHeader* GetDosHeader(void* image_base)
     {
         auto dos_header = ( DosHeader* )image_base;
-        if (!dos_header || dos_header->e_magic != IMAGE_DOS_SIGNATURE)
+        if (!dos_header || dos_header->e_magic != dos_magic)
             return nullptr;
         return dos_header;
     }
@@ -124,7 +152,7 @@ namespace pe
     inline NtHeaders* GetNtHeaders(void* base, DosHeader* dos_header)
     {
         auto nt_headers = ( NtHeaders* )(( uintptr_t )base + dos_header->e_lfanew);
-        if (!nt_headers || nt_headers->Signature != IMAGE_NT_SIGNATURE)
+        if (!nt_headers || nt_headers->Signature != nt_signature)
             return nullptr;
         return nt_headers;
     }

@@ -75,6 +75,28 @@ static void report_error(uefi::status code)
     { uefi::status x = (expr); \
     if (uefi::is_error(x)) { if (!g_leaving_boot_services) { report_error(x); } return x; } }
 
+DEBUG_FN static void print_runtime_descriptors(uefi::memory_descriptor* map, uintn map_size, uintn desc_size)
+{
+    uintn i = 0;
+    for (auto current = map;
+        current < uefi_next_memory_descriptor(map, map_size);
+        current = uefi_next_memory_descriptor(current, desc_size))
+    {
+        if (current->virtual_start || current->attribute & uefi::memory_runtime)
+        {
+            print_string(
+                u"[%llu]: Type: %d   PA: 0x%llx   VA: 0x%llx (pages: %llu) Attr 0x%llx\r\n",
+                i++,
+                current->type,
+                current->physical_start,
+                current->virtual_start,
+                current->number_of_pages,
+                current->attribute
+            );
+        }
+    }
+}
+
 static uefi::status zero_allocate_pages(
     uefi::allocation_type type,
     uefi::memory_type mem_type,
@@ -108,11 +130,11 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
         return uefi::err_invalid_parameter;
 
     // Read DOS header
-    uintn size = sizeof(IMAGE_DOS_HEADER);
-    IMAGE_DOS_HEADER dos;
+    pe::DosHeader dos;
+    uintn size = sizeof dos;
     efi_check(file->read(&size, &dos));
 
-    if (dos.e_magic != IMAGE_DOS_SIGNATURE)
+    if (!dos.IsValid())
     {
         print_string(u"Kernel DOS header invalid\r\n");
         return uefi::err_unsupported;
@@ -120,17 +142,17 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
 
     // Read NT headers
     pe::NtHeaders nt_header;
-    size = sizeof(nt_header);
+    size = sizeof nt_header;
     efi_check(file->set_position(( uint64 )dos.e_lfanew));
     efi_check(file->read(&size, &nt_header));
 
-    if (nt_header.Signature != IMAGE_NT_SIGNATURE)
+    if (!nt_header.IsValid())
     {
         print_string(u"Kernel NT headers invalid\r\n");
         return uefi::err_unsupported;
     }
 
-    if (nt_header.FileHeader.Machine != IMAGE_FILE_MACHINE_X64)
+    if (nt_header.FileHeader.Machine != pe::Machine::x64)
     {
         print_string(u"Kernel arch unsupported\r\n");
         return uefi::err_unsupported;
@@ -156,7 +178,7 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     auto nt = ( pe::NtHeaders* )(physical_base + dos.e_lfanew);
 
     // Do another check, this time from memory
-    if (nt->Signature != IMAGE_NT_SIGNATURE)
+    if (!nt->IsValid())
     {
         print_string(u"Kernel NT headers invalid\r\n");
         return uefi::err_unsupported;
@@ -170,7 +192,7 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     print_string(u"Entry point (physical): 0x%llx\r\n", physical_base + entry_point);
 
     // Then read sections
-    auto section = IMAGE_FIRST_SECTION(nt);
+    auto section = GetFirstSection(nt);
     for (uint16 i = 0; i < nt->FileHeader.NumberOfSections; i++)
     {
         physical_address section_dest = physical_base + section[i].VirtualAddress;
@@ -180,6 +202,17 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
             efi_check(file->read(&raw_size, ( void* )section_dest));
         }
     }
+    
+    /*pe::File file(&dos, nt);
+    file.ForEachSection([](pe::Section* section)
+    {
+        physical_address section_dest = physical_base + section[i].VirtualAddress;
+        if (uintn raw_size = section[i].SizeOfRawData)
+        {
+            efi_check(file->set_position(section[i].PointerToRawData));
+            efi_check(file->read(&raw_size, ( void* )section_dest));
+        }
+    });*/
 
     // Set image base to our virtual address for later mapping
     nt->OptionalHeader.ImageBase = kva::kernel_image.base;
@@ -315,11 +348,11 @@ static void run_cxx_initializers(vaddr_t image_base)
     auto nt_header = ( pe::NtHeaders* )(image_base + dos_header->e_lfanew);
 
     // There may be multiple CRT sections (?)
-    auto section = IMAGE_FIRST_SECTION(nt_header);
+    auto section = GetFirstSection(nt_header);
     for (uint16 i = 0; i < nt_header->FileHeader.NumberOfSections; i++)
     {
-        char8 name[IMAGE_SIZEOF_SHORT_NAME+1];
-        memcpy(( u8* )name, ( const u8* )section[i].Name, IMAGE_SIZEOF_SHORT_NAME);
+        char8 name[pe::section_name_size + 1];
+        memcpy(( u8* )name, ( const u8* )section[i].Name, pe::section_name_size);
 
         if (!strncmp(( char* )name, ".CRT", 4))
         {
@@ -507,14 +540,12 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
         __readcr3() // Use UEFI page tables because we still need the boot services etc.
     );
 
-    const auto kernel_pages = uefi::size_to_pages(loader_block->kernel.size);
-    const auto frame_buffer_pages = uefi::size_to_pages(loader_block->display.frame_buffer_size);
-
     const auto pml4 = ( x64::Pml4 )GetPoolEntryVa(table, table.root);
     // Clear out PML4 entries starting from higher half
     for (u32 i = 256; i < 512; i++)
         pml4[i].value = 0;
 
+    const auto kernel_pages = uefi::size_to_pages(loader_block->kernel.size);
     mm::MapPages(table, kva::kernel_image.base, loader_block->kernel.physical_base, kernel_pages);
     mm::MapPages(table, kva::kernel_pt.base, loader_block->page_table, loader_block->page_table_size);
     mm::MapPages(table, kva::kernel_pool.base, loader_block->page_pool, loader_block->page_pool_size);
@@ -548,27 +579,6 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     map_size += desc_size;
     efi_check(g_bs->allocate_pool(uefi::memory_type::loader_data, map_size, ( void** )&map));
     efi_check(g_bs->get_memory_map(&map_size, map, &map_key, &desc_size, &desc_ver));
-
-    // {
-    //     int i = 0;
-    //     for (auto current = ( EFI_MEMORY_DESCRIPTOR* )map;
-    //         current < NextMemoryDescriptor(map, map_size);
-    //         current = NextMemoryDescriptor(current, desc_size))
-    //     {
-    //         if (current->VirtualStart || current->Attribute & EFI_MEMORY_RUNTIME)
-    //         {
-    //             print_string(
-    //                 u"[%d]: Type: %d   PA: 0x%llx   VA: 0x%llx (pages: %llu) Attr 0x%llx\r\n",
-    //                 i++,
-    //                 current->Type,
-    //                 current->PhysicalStart,
-    //                 current->VirtualStart,
-    //                 current->NumberOfPages,
-    //                 current->Attribute
-    //             );
-    //         }
-    //     }
-    // }
 
     // Execute kernel .CRT* functions
     run_cxx_initializers(kva::kernel_image.base);

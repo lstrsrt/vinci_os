@@ -5,9 +5,6 @@
 *  gnu-efi headers are only included to support the ACPI headers.
 */
 
-#include "gnu-efi/efi.h"
-#include "gnu-efi/efilink.h"
-#include "gnu-efi/x86_64/pe.h"
 #include "cpp-uefi.hh"
 #include "../kernel/common/acpi.h"
 #include "../kernel/common/va.h"

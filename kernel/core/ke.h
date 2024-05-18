@@ -111,7 +111,7 @@ namespace ke
     }
 
     void Free(void* address);
-    void PrintAllocations();
+    DEBUG_FN void PrintAllocations();
 
     NO_RETURN void Panic(Status);
 }

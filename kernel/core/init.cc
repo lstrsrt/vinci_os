@@ -28,7 +28,7 @@ EARLY static void IterateMemoryDescriptors(const MemoryMap& m, auto&& callback)
     }
 }
 
-EARLY static void SerialPrintDescriptors(MemoryMap& m)
+DEBUG_FN EARLY static void SerialPrintDescriptors(MemoryMap& m)
 {
     size_t i = 0;
     serial::Write("==== MEMORY MAP ====\n");
@@ -116,8 +116,8 @@ static void FinalizeKernelMapping(mm::PageTable& table)
         const auto size = section->Misc.VirtualSize;
         const auto end = start + size;
 
-        char name[IMAGE_SIZEOF_SHORT_NAME + 1];
-        strlcpy(name, ( const char* )section->Name, IMAGE_SIZEOF_SHORT_NAME);
+        char name[pe::section_name_size + 1];
+        strlcpy(name, ( const char* )section->Name, pe::section_name_size);
 
         if (section->Characteristics & pe::SectionFlag::Discardable)
         {

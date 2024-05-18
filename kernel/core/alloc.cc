@@ -164,7 +164,7 @@ namespace ke
         total_free += bytes;
     }
 
-    void PrintAllocations()
+    DEBUG_FN void PrintAllocations()
     {
         Print("Total used: %llu bytes, free: %llu bytes\n", total_used, total_free);
         for (size_t i = 0; i < alloc_map.size(); i++)
