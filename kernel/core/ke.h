@@ -101,6 +101,8 @@ namespace ke
         Uninitialized = 1 << 0, // Ignored with ALLOC_POISON
     };
 
+    inline bool alloc_initialized = false;
+
     void InitializeAllocator();
     ALLOC_FN void* Allocate(size_t size, AllocFlag flags = AllocFlag::None);
 

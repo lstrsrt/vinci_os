@@ -38,6 +38,8 @@ namespace gfx
             ) = p;
     }
 
+    void SetColor(u8 r, u8 g, u8 b);
+
     void SetFrameBufferAddress(u64 address);
 
     void OnKey(const kbd::Key& key);
