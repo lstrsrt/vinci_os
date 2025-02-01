@@ -17,6 +17,7 @@ namespace gfx
 
     void Print(const char* fmt, ...)
     {
+        bool prev = x64::DisableInterrupts();
         char* s;
 
         if (!ke::alloc_initialized)
@@ -41,13 +42,21 @@ namespace gfx
 
         while (*s)
             ssfn_putc(ssfn_utf8(&s));
+
+        if (prev)
+            x64::EnableInterrupts();
     }
 
     void PutChar(char c)
     {
+        bool prev = x64::DisableInterrupts();
+
         char* s = &c;
         while (*s)
             ssfn_putc(ssfn_utf8(&s));
+
+        if (prev)
+            x64::EnableInterrupts();
     }
 
     void SetFrameBufferAddress(u64 address)
