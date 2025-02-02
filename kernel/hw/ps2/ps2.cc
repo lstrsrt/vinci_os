@@ -120,7 +120,7 @@ namespace ps2
     {
         // Give it some time so the previous command can complete
         for (u32 i = 0; i < 5000; i++)
-            x64::Delay();
+            x64::IoDelay();
 
         if (!CheckStatus(false))
         {

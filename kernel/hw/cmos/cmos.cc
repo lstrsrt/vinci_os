@@ -14,7 +14,7 @@ namespace cmos
         // This is necessary so the RTC doesn't get interrupted
         // which can cause its state to become undefined.
         WritePort8(port::address, reg | (1 << 7));
-        x64::Delay();
+        x64::IoDelay();
     }
 
     void UpdateRtc()

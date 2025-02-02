@@ -15,6 +15,7 @@
 #ifdef COMPILER_MSVC
 #include <intrin.h>
 #else
+#define __popcnt64(x) __builtin_popcount(x)
 INLINE u64 __readgsqword(u64 offset)
 {
     u64 value;
@@ -105,6 +106,17 @@ INLINE void __outdword(u16 port, u32 data)
     asm volatile("outl %0, %1" :: "a"(data), "Nd"(port));
 }
 
+INLINE u64 __readeflags()
+{
+    u64 flags;
+    asm volatile(
+        "pushf\n"
+        "pop %0"
+        : "=rm"(flags) :: "memory"
+    );
+    return flags;
+}
+
 INLINE u64 __readcr0()
 {
     u64 cr0;
@@ -164,12 +176,12 @@ INLINE void __writemsr(u32 msr, u64 data)
 
 INLINE void _disable()
 {
-    asm volatile("cli" :: : "cc");
+    asm volatile("cli" :: : "cc", "memory");
 }
 
 INLINE void _enable()
 {
-    asm volatile("sti" :: : "cc");
+    asm volatile("sti" :: : "cc", "memory");
 }
 
 INLINE void __halt()
@@ -179,12 +191,12 @@ INLINE void __halt()
 
 INLINE void _clac()
 {
-    asm volatile("clac" :: : "cc");
+    asm volatile("clac" :: : "cc", "memory");
 }
 
 INLINE void _stac()
 {
-    asm volatile("stac" :: : "cc");
+    asm volatile("stac" :: : "cc", "memory");
 }
 
 INLINE void __invlpg(void* addr)

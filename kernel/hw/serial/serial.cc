@@ -30,7 +30,7 @@ namespace serial
         auto write_reg = [port](u16 reg, u8 data)
         {
             for (u32 i = 0; i < 1000; i++)
-                x64::Delay();
+                x64::IoDelay();
             WritePort8(port + reg, data);
         };
 
@@ -62,7 +62,7 @@ namespace serial
         write_reg(reg::data, 0xff);
 
         for (u32 i = 0; i < 1000; i++)
-            x64::Delay();
+            x64::IoDelay();
 
         if (ReadPort8(port + reg::data) != 0xff)
         {
@@ -103,14 +103,14 @@ namespace serial
     u8 Read(u16 port, u16 reg)
     {
         while (!(ReadPort8(port + reg::line_status) & ( u8 )LineStatus::DataReady))
-            x64::Delay();
+            x64::IoDelay();
         return ReadPort8(port + reg);
     }
 
     void Write(u16 port, u16 reg, u8 data)
     {
         while (!(ReadPort8(port + reg::line_status) & ( u8 )LineStatus::EmptyTransmitReg))
-            x64::Delay();
+            x64::IoDelay();
         WritePort8(port + reg, data);
     }
 

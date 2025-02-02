@@ -286,7 +286,7 @@ namespace pic
     static INLINE void Write(u16 port, u8 data)
     {
         WritePort8(port, data);
-        x64::Delay();
+        x64::IoDelay();
     }
 
     static bool IsSpurious(u16 port)

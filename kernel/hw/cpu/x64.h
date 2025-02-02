@@ -14,6 +14,7 @@
 #define WritePort8 __outbyte
 #define WritePort16 __outword
 #define WritePort32 __outdword
+#define ReadFlags() (( x64::RFLAG )__readeflags())
 
 namespace x64
 {
@@ -430,22 +431,41 @@ namespace x64
             __halt();
     }
 
-    INLINE void Delay()
+    INLINE void IoDelay()
     {
         WritePort8(0x80, 0);
+    }
+
+    INLINE bool InterruptsEnabled()
+    {
+        return ( bool )(ReadFlags() & RFLAG::IF);
+    }
+
+    INLINE bool DisableInterrupts()
+    {
+        auto enabled = InterruptsEnabled();
+        _disable();
+        return enabled;
+    }
+
+    INLINE bool EnableInterrupts()
+    {
+        auto enabled = InterruptsEnabled();
+        _enable();
+        return enabled;
     }
 
     INLINE void DisableNmi()
     {
         WritePort8(0x70, ReadPort8(0x70) | 0x80);
-        Delay();
+        IoDelay();
         ReadPort8(0x71);
     }
 
     INLINE void EnableNmi()
     {
         WritePort8(0x70, ReadPort8(0x70) & 0x7f);
-        Delay();
+        IoDelay();
         ReadPort8(0x71);
     }
 
