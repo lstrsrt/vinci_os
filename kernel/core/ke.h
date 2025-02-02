@@ -8,9 +8,11 @@
 enum class Status
 {
     Success = 0,
+    OutOfMemory,
+    OutOfIds,
+    DoubleFree,
     UnsupportedSystem,
     Unreachable,
-    OutOfMemory,
 };
 
 namespace ke
@@ -20,10 +22,13 @@ namespace ke
         SList* next;
     };
 
-    using ThreadStartFunction = int(*)(void*);
+    using ThreadStartFunction = int(*)(u64);
 
     struct Thread
     {
+        constexpr Thread() = default;
+        constexpr ~Thread() = default;
+
         enum class State
         {
             Ready,
@@ -36,10 +41,10 @@ namespace ke
         x64::Context context;
         uptr_t user_stack;
         State state;
-        u64 id;
         u64 delay;
         ThreadStartFunction function;
-        void* arg;
+        u64 arg;
+        u32 id;
     };
 
     //
@@ -84,8 +89,8 @@ namespace ke
     inline bool schedule = false;
 #pragma data_seg()
 
-    Thread* CreateThread(ThreadStartFunction function, void* arg, vaddr_t kstack = 0);
-    Thread* CreateThreadInternal(ThreadStartFunction function, void* arg, vaddr_t kstack);
+    Thread* CreateThread(ThreadStartFunction function, u64 arg, vaddr_t kstack = 0);
+    Thread* CreateThreadInternal(ThreadStartFunction function, u64 arg, vaddr_t kstack);
     void CreateUserThread(void* user_function);
 
     bool SelectNextThread();
@@ -116,4 +121,5 @@ namespace ke
     DEBUG_FN void PrintAllocations();
 
     NO_RETURN void Panic(Status);
+    NO_RETURN void Panic(Status, size_t, size_t = 0, size_t = 0, size_t = 0);
 }

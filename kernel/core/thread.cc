@@ -1,4 +1,5 @@
 #include <libc/mem.h>
+#include <ec/bitmap.h>
 #include <ec/new.h>
 
 #include "ke.h"
@@ -22,8 +23,11 @@ namespace ke
     void* PopListEntry(SList* list);
     size_t GetListLength(SList* list);
     void* RemoveListEntry(SList* list, void* entry);
+    void UpdateThreadId(Thread* thread, bool creating);
 
-    NO_RETURN static int IdleLoop(void*)
+    ec::const_bitmap<u64, 8> thread_map{}; // max 511 threads (idle = 0)
+
+    NO_RETURN int IdleLoop(u64)
     {
         schedule = true;
 
@@ -31,19 +35,27 @@ namespace ke
         x64::Idle();
     }
 
-    static void RegisterThread(Thread* thread)
+    void RegisterThread(Thread* thread)
     {
         PushListEntry(&GetCore()->thread_list, thread);
     }
 
-    static void UnregisterThread(Thread* thread)
+    void UnregisterThread(Thread* thread)
     {
         RemoveListEntry(&GetCore()->thread_list, thread);
     }
 
-#pragma data_seg(".data")
-    static size_t thread_i = 0;
-#pragma data_seg()
+    void FreeThread(Thread* thread)
+    {
+        DbgPrint("Freeing thread %u\n", thread->id);
+
+        if (!thread_map.has_bit(thread->id))
+            Panic(Status::DoubleFree, thread->id);
+
+        thread_map.clear_bit(thread->id);
+
+        delete thread;
+    }
 
     NO_RETURN void ExitThread(int exit_code)
     {
@@ -54,24 +66,22 @@ namespace ke
 
         Print("Thread %llu exited with code %d\n", thread->id, exit_code);
 
-        thread_i--;
-
         // Update state so it's ignored by the scheduler
         // and pick the next thread for execution.
         thread->state = Thread::State::Terminating;
         SelectNextThread();
 
         UnregisterThread(thread);
-        Free(thread);
+        FreeThread(thread);
 
         // Update to the next thread.
         thread = GetCurrentThread();
 
         core->SetCurrentThread(thread);
 
-        Print("Switching to new thread %llu\n", thread->id);
+        DbgPrint("Switching to new thread %llu\n", thread->id);
 
-        serial::Write(
+        DbgPrint(
             "RSP0 0x%llx RIP 0x%llx RSP3 0x%llx\n",
             thread->context.rsp,
             thread->context.rip,
@@ -83,7 +93,7 @@ namespace ke
         UNREACHABLE();
     }
 
-    static int UserThreadEntry(void*)
+    int UserThreadEntry(u64)
     {
         auto thread = GetCurrentThread();
 
@@ -94,7 +104,7 @@ namespace ke
         return 0;
     }
 
-    static void KernelThreadEntry()
+    void KernelThreadEntry()
     {
         auto thread = GetCurrentThread();
 
@@ -103,11 +113,29 @@ namespace ke
         ExitThread(ret);
     }
 
-    Thread* CreateThreadInternal(ThreadStartFunction function, void* arg, vaddr_t kstack)
+    void AllocateThreadId(Thread* thread)
+    {
+        for (u64 i = 0; i < thread_map.bit_count(); i++)
+        {
+            if (thread_map[i] == ec::umax_v<u64>)
+                continue;
+
+            if (!thread_map.has_bit(i))
+            {
+                thread_map.set_bit(i);
+                thread->id = i;
+                return;
+            }
+        }
+
+        Panic(Status::OutOfIds);
+    }
+
+    Thread* CreateThreadInternal(ThreadStartFunction function, u64 arg, vaddr_t kstack)
     {
         auto thread = new Thread();
 
-        thread->id = thread_i++; // Idle thread is 0, other threads start at 1
+        AllocateThreadId(thread);
         thread->function = function;
         thread->arg = arg;
 
@@ -130,7 +158,7 @@ namespace ke
         // FIXME - can we use kernel_stack_top here?
         // since every thread is going to have its own kernel stack,
         // we should be able to use the boot stack for the idle loop
-        auto idle_thread = CreateThreadInternal(IdleLoop, nullptr, kernel_stack_top);
+        auto idle_thread = CreateThreadInternal(IdleLoop, 0, kernel_stack_top);
         core->idle_thread = idle_thread;
         core->current_thread = idle_thread;
     }
@@ -148,7 +176,7 @@ namespace ke
         const auto code = 0x7fff'fff0'0000;
         const auto ustack = code + page_size;
 
-        auto kthread = CreateThread(UserThreadEntry, nullptr);
+        auto kthread = CreateThread(UserThreadEntry, 0);
 
         mm::AllocatePhysical(table, &pa);
         mm::MapPage(table, ustack, pa, true);
@@ -168,7 +196,7 @@ namespace ke
         kthread->user_stack = ustack + page_size - 32;
     }
 
-    Thread* CreateThread(ThreadStartFunction function, void* arg, vaddr_t kstack)
+    Thread* CreateThread(ThreadStartFunction function, u64 arg, vaddr_t kstack)
     {
         if (!kstack)
         {
@@ -178,6 +206,7 @@ namespace ke
 
         auto thread = CreateThreadInternal(function, arg, kstack);
         RegisterThread(thread);
+        DbgPrint("New thread with ID: %llu\n", thread->id);
 
         return thread;
     }

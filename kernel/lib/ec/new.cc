@@ -16,6 +16,11 @@ void operator delete(void* address)
     ke::Free(address);
 }
 
+void operator delete(void* address, [[maybe_unused]] size_t size)
+{
+    ke::Free(address);
+}
+
 void operator delete[](void* address)
 {
     ke::Free(address);

@@ -100,12 +100,11 @@ static int parse_l(const char* fmt)
             return FMT_LLONG | FMT_HEX;
         else if (*fmt == 'u')
             return FMT_LLONG | FMT_UNSIGNED;
-        else
-            return FMT_LLONG;
+        return FMT_LLONG;
     }
-    else if (*--fmt == 'u')
+    if (*--fmt == 'u')
         return FMT_LONG | FMT_UNSIGNED;
-    else if (*fmt == 'x')
+    if (*fmt == 'x')
         return FMT_LONG | FMT_HEX;
     return FMT_LONG;
 }

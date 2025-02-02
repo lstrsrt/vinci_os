@@ -31,6 +31,7 @@ namespace ke
     [[maybe_unused]] static constexpr u8 fresh = 0xaa, poison = 0xcc;
 
 #pragma data_seg(".data")
+    // TODO use ec::const_bitmap
     static ec::array<u8, kva::kernel_pool.size / block_size / 8> alloc_map;
     static size_t total_free;
     static size_t total_used;
@@ -44,12 +45,12 @@ namespace ke
         ke::alloc_initialized = true;
     }
 
-    static constexpr auto AlignUp(size_t value, size_t align)
+    constexpr auto AlignUp(size_t value, size_t align)
     {
         return (value + align - 1) & ~(align - 1);
     };
 
-    static void SetAllocationState(Allocation* info, bool allocating)
+    void SetAllocationState(Allocation* info, bool allocating)
     {
         if (allocating)
         {

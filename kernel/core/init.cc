@@ -206,40 +206,62 @@ namespace ke
     }
 }
 
-int test(void*)
+int test(u64)
 {
     int i = 0;
-    // while (i < 10)
-    for (;;)
+    while (i < 10)
+    // for (;;)
     {
         Print("thread A %d\n", i++);
         // serial::Write("thread A %d\n", i);
-        ke::Delay(1000);
+        ke::Delay(4000);
     }
     return 1;
 }
 
-int test2(void*)
+int test2(u64)
 {
     int i = 0;
-    // while (i < 10)
-    for (;;)
+    while (i < 10)
+    // for (;;)
     {
-        Print("thread B %d\n", i++);
-        ke::Delay(1000);
+        Print("thread B %llu %d\n", ke::GetCurrentThread()->id, i++);
+        ke::Delay(5000);
     }
     return 2;
 }
 
-int test3(void*)
+int test3(u64)
 {
     int i = 0;
     for (;;)
     {
         Print("thread C %d\n", i++);
-        // ke::Delay(1000);
+        ke::Delay(2000);
     }
     return 3;
+}
+
+int test4(u64 i)
+{
+    auto id = ke::GetCurrentThread()->id;
+    while (i-- > 0)
+    {
+        Print("Hello from thread %llu (%d)\n", id, i);
+        ke::Delay(250);
+    }
+    if (id == 8)
+    {
+        ke::Delay(2000);
+        Print("***** Creating new threads\n");
+        for (int j = 0; j < 10; j++)
+        {
+            ke::CreateThread(test2, 0);
+            ke::Delay(1000);
+        }
+    }
+    Print("Bye from thread %llu\n", id);
+    return 4;
 }
 
 static void MapDeviceUncached(mm::PageTable* page_table, uptr_t* phys_virt, size_t page_count = 1)
@@ -324,13 +346,15 @@ EXTERN_C NO_RETURN void OsInitialize(LoaderBlock* loader_block)
 
     ke::StartScheduler();
 
-    // ke::CreateThread(test, nullptr);
-    // ke::CreateThread(test2, nullptr);
-    // ke::CreateThread(test3, nullptr);
+    //ke::CreateThread(test, 0);
+    //ke::CreateThread(test2, 0);
+    //ke::CreateThread(test3, 0);
+    for (int i = 0; i < 8; i++)
+        ke::CreateThread(test4, ( u64 )i);
     // ke::CreateUserThread(x64::Ring3Function);
 
     // Enter idle loop!
     x64::LoadContext(&ke::GetCore()->idle_thread->context, 0);
 
-    x64::Idle();
+    ke::Panic(Status::Unreachable);
 }
