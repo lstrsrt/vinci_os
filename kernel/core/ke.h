@@ -1,6 +1,7 @@
 #pragma once
 
 #include <base.h>
+#include <ec/list.h>
 
 #include "../common/mm.h"
 #include "../hw/cpu/x64.h"
@@ -17,11 +18,7 @@ enum class Status
 
 namespace ke
 {
-    struct SList
-    {
-        SList* next;
-    };
-
+    using tid_t = u64;
     using ThreadStartFunction = int(*)(u64);
 
     struct Thread
@@ -37,14 +34,14 @@ namespace ke
             Terminating,
         };
 
-        Thread* next; // IMPORTANT: Has to be at offset 0!
+        ec::slist_entry thread_list_entry;
         x64::Context context;
         uptr_t user_stack;
         State state;
         u64 delay;
         ThreadStartFunction function;
         u64 arg;
-        u32 id;
+        tid_t id;
     };
 
     //
@@ -55,9 +52,9 @@ namespace ke
     struct Core
     {
         Core* self; // avoid having to rdgsbase
-        SList thread_list;
         Thread* current_thread;
         Thread* idle_thread;
+        ec::slist_entry thread_list_head;
         mm::PageTable* page_table;
         uptr_t kernel_stack;
         uptr_t user_stack;
@@ -66,10 +63,9 @@ namespace ke
         const x64::IdtEntry* idt;
         x64::Tss* tss;
 
-        INLINE void SetCurrentThread(Thread* thread)
+        INLINE auto GetFirstThread()
         {
-            this->kernel_stack = this->tss->rsp0 = thread->context.rsp;
-            this->user_stack = thread->user_stack;
+            return this->thread_list_head.m_next;
         }
     };
 

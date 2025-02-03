@@ -6,7 +6,7 @@
 #include "gfx/output.h"
 #include "../hw/timer/timer.h"
 
-#define DEBUG_CTX_SWITCH
+// #define DEBUG_CTX_SWITCH
 
 #ifdef DEBUG_CTX_SWITCH
 #include "../hw/serial/serial.h"
@@ -19,10 +19,6 @@ EXTERN_C uptr_t kernel_stack_top;
 
 namespace ke
 {
-    void PushListEntry(SList* list, void* entry);
-    void* PopListEntry(SList* list);
-    size_t GetListLength(SList* list);
-    void* RemoveListEntry(SList* list, void* entry);
     void UpdateThreadId(Thread* thread, bool creating);
 
     ec::const_bitmap<u64, 8> thread_map{}; // max 511 threads (idle = 0)
@@ -37,12 +33,12 @@ namespace ke
 
     void RegisterThread(Thread* thread)
     {
-        PushListEntry(&GetCore()->thread_list, thread);
+        GetCore()->thread_list_head.push(&(thread->thread_list_entry));
     }
 
     void UnregisterThread(Thread* thread)
     {
-        RemoveListEntry(&GetCore()->thread_list, thread);
+        GetCore()->thread_list_head.remove(&(thread->thread_list_entry));
     }
 
     void FreeThread(Thread* thread)
@@ -59,7 +55,6 @@ namespace ke
 
     NO_RETURN void ExitThread(int exit_code)
     {
-        auto core = GetCore();
         auto thread = GetCurrentThread();
 
         _disable();
@@ -77,12 +72,9 @@ namespace ke
         // Update to the next thread.
         thread = GetCurrentThread();
 
-        core->SetCurrentThread(thread);
-
-        DbgPrint("Switching to new thread %llu\n", thread->id);
-
+        DbgPrint("Switching to %llu\n", thread->id);
         DbgPrint(
-            "RSP0 0x%llx RIP 0x%llx RSP3 0x%llx\n",
+            "  RSP0 0x%llx RIP 0x%llx RSP3 0x%llx\n",
             thread->context.rsp,
             thread->context.rip,
             thread->user_stack
@@ -90,7 +82,7 @@ namespace ke
 
         // Let the next thread take over.
         x64::LoadContext(&thread->context, thread->user_stack);
-        UNREACHABLE();
+        Panic(Status::Unreachable);
     }
 
     int UserThreadEntry(u64)
@@ -153,7 +145,6 @@ namespace ke
     void StartScheduler()
     {
         auto core = GetCore();
-        core->thread_list.next = nullptr;
 
         // FIXME - can we use kernel_stack_top here?
         // since every thread is going to have its own kernel stack,
@@ -211,45 +202,57 @@ namespace ke
         return thread;
     }
 
+    //
     // Returns true if a new thread was selected.
+    // Always returns with interrupts disabled.
+    //
     bool SelectNextThread()
     {
         _disable();
 
         auto core = GetCore();
-        if (!core->thread_list.next) // No threads available, leave early.
+        if (!core->GetFirstThread()) // No threads available, leave early.
+        {
+            DbgPrint("SelectNextThread: empty\n");
             return false;
+        }
 
+        ec::slist_entry* entry;
         Thread* next;
         auto prev = core->current_thread;
+
         if (prev == core->idle_thread)
         {
             // Switching from idle loop.
             // In this case, start searching from the first thread.
-            next = ( Thread* )core->thread_list.next;
+            DbgPrint("SelectNextThread: attempting switch from idle\n");
 
-            for (;;)
+            for (entry = core->GetFirstThread(); ; entry = entry->m_next)
             {
+                next = CONTAINING_RECORD(entry, Thread, thread_list_entry);
+
                 if (next->state == Thread::State::Ready)
                     break;
                 if (next->state == Thread::State::Waiting && next->delay <= timer::ticks)
                     break;
 
-                next = ( Thread* )next->next;
-
                 // If we're at the end and nothing was found, keep the idle thread.
-                if (!next)
+                if (entry->m_next == core->GetFirstThread())
+                {
+                    DbgPrint("SelectNextThread: staying idle\n");
                     return false;
+                }
             }
+
         }
         else /* Switching from standard thread */
         {
-            next = prev->next;
+            DbgPrint("SelectNextThread: attempting switch from thread %llu\n", prev->id);
 
-            for (;;)
+            // Start searching from the next thread
+            for (entry = prev->thread_list_entry.m_next; ; entry = entry->m_next)
             {
-                if (!next)
-                    next = ( Thread* )core->thread_list.next; // Restart if we're at the end
+                next = CONTAINING_RECORD(entry, Thread, thread_list_entry);
 
                 if (next->state == Thread::State::Ready)
                     break;
@@ -261,13 +264,11 @@ namespace ke
                     if (next->state == Thread::State::Running)
                         return false; // No other suitable thread found, so just take this one again
 
-                    // If we're here, all threads are waiting. Switch to the idle loop until
-                    // there is something to do again.
+                    // If we're here, all threads are waiting.
+                    // Switch to the idle loop until there is something to do.
                     next = core->idle_thread;
                     break;
                 }
-
-                next = ( Thread* )next->next;
             }
         }
 
@@ -278,6 +279,11 @@ namespace ke
         next->state = Thread::State::Running;
         core->current_thread = next;
 
+        // Architecture-specific changes
+        core->kernel_stack = core->tss->rsp0 = next->context.rsp;
+        core->user_stack = next->user_stack;
+
+        DbgPrint("SelectNextThread: switching from %llu to %llu\n", prev->id, next->id);
         return true;
     }
 
@@ -287,23 +293,15 @@ namespace ke
 
         if (SelectNextThread())
         {
-            auto core = GetCore();
             auto next = GetCurrentThread();
 
-            core->SetCurrentThread(next);
-
-            DbgPrint(
-                "\n"
-                "  Yielding\n"
-                "  From id %llu to id %llu\n"
-                "  RSP0: 0x%llx RSP3: 0x%llx\n"
-                "  TSS0 RSP is 0x%llx\n",
-                prev->id, next->id,
-                next->context.rsp, next->user_stack,
-                core->tss->rsp0
-            );
+            DbgPrint("%llu: Yielding\n", prev->id);
 
             x64::SwitchContext(&prev->context, &next->context, next->user_stack);
+        }
+        else
+        {
+            DbgPrint("%llu: Failed to yield\n", prev->id);
         }
     }
 
@@ -316,50 +314,5 @@ namespace ke
             thread->delay = timer::ticks + ticks;
 
         Yield();
-    }
-
-
-
-
-    void PushListEntry(SList* list, void* entry)
-    {
-        auto next = ( SList* )entry;
-        next->next = list->next;
-        list->next = next;
-    }
-
-    void* PopListEntry(SList* list)
-    {
-        if (list->next)
-            list->next = list->next->next;
-        return list->next;
-    }
-
-    size_t GetListLength(SList* list)
-    {
-        size_t len = 0;
-        for (auto p = list->next; p; p = p->next)
-            len++;
-        return len;
-    }
-
-    void* RemoveListEntry(SList* list, void* entry)
-    {
-        auto head = ( SList* )list;
-        auto p1 = head;
-        auto p2 = head->next;
-
-        while (p2)
-        {
-            if (p2 == entry)
-            {
-                p1->next = p2->next;
-                return p1->next;
-            }
-            p1 = p1->next;
-            p2 = p2->next;
-        }
-
-        return p2;
     }
 }

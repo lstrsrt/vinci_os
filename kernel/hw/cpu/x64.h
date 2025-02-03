@@ -375,6 +375,7 @@ namespace x64
     static_assert(sizeof(IdtEntry) == 0x10);
 
     alignas(64) extern ec::array<IdtEntry, 256> idt;
+    static constexpr u64 max_idt_entry = idt.size();
 
 #define TABLE_GDT 0
 #define TABLE_LDT 1
@@ -390,9 +391,6 @@ namespace x64
         u16 bits;
     };
     static_assert(sizeof(SegmentSelector) == sizeof(u16));
-#pragma pack()
-
-    static constexpr u64 max_idt_entry = 256;
 
     struct SyscallFrame
     {
@@ -401,6 +399,8 @@ namespace x64
         u64 rax, rdx, rcx;
         u64 r8, r9, r10, r11;
     };
+    static_assert(sizeof(SyscallFrame) == 0x50);
+#pragma pack()
 
     EXTERN_C_START
 

@@ -7,7 +7,7 @@
 #include "../timer/timer.h"
 #include "../../core/ke.h"
 
-#define DEBUG_CTX_SWITCH
+// #define DEBUG_CTX_SWITCH
 
 #ifdef DEBUG_CTX_SWITCH
 #include "../serial/serial.h"
@@ -100,13 +100,12 @@ namespace x64
             u8 irq = int_no - irq_base;
             if (cpu_info.using_apic || pic::ConfirmIrq(irq))
             {
-                if (irq == 0 && (timer::ticks % 100) == 0 && ke::schedule)
+                if (irq == 0 && (timer::ticks % 10) == 0 && ke::schedule)
                 {
                     auto prev = ke::GetCurrentThread();
 
                     if (ke::SelectNextThread())
                     {
-                        auto core = ke::GetCore();
                         auto next = ke::GetCurrentThread();
 
                         // Save old context
@@ -115,11 +114,8 @@ namespace x64
                         // Switch to new context
                         *frame = next->context;
 
-                        core->SetCurrentThread(next);
-
                         DbgPrint(
-                            "\n"
-                            "  Switching\n"
+                            "Thread switch\n"
                             "  From id %llu to id %llu\n"
                             "  RSP0: 0x%llx RSP3: 0x%llx\n"
                             "  Set new RSP to 0x%llx\n"
@@ -127,7 +123,7 @@ namespace x64
                             prev->id, next->id,
                             next->context.rsp, next->user_stack,
                             frame->rsp,
-                            core->tss->rsp0
+                            ke::GetCore()->tss->rsp0
                         );
                     }
                 }

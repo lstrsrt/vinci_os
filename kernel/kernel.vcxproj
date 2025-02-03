@@ -179,11 +179,13 @@
     <ClInclude Include="lib\base.h" />
     <ClInclude Include="lib\ec\array.h" />
     <ClInclude Include="lib\ec\bitfield.h" />
+    <ClInclude Include="lib\ec\bitmap.h" />
     <ClInclude Include="lib\ec\concepts.h" />
     <ClInclude Include="lib\ec\const.h" />
     <ClInclude Include="lib\ec\enums.h" />
     <ClInclude Include="lib\ec\format.h" />
     <ClInclude Include="lib\ec\iterator.h" />
+    <ClInclude Include="lib\ec\list.h" />
     <ClInclude Include="lib\ec\new.h" />
     <ClInclude Include="lib\ec\string.h" />
     <ClInclude Include="lib\ec\util.h" />
