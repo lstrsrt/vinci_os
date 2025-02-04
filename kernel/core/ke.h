@@ -37,6 +37,8 @@ namespace ke
         ec::slist_entry thread_list_entry;
         x64::Context context;
         uptr_t user_stack;
+        uptr_t user_stack_top;
+        uptr_t kernel_stack_top;
         State state;
         u64 delay;
         ThreadStartFunction function;
@@ -68,6 +70,8 @@ namespace ke
             return this->thread_list_head.m_next;
         }
     };
+    static_assert(OFFSET(Core, kernel_stack) == 40, "Update cpu.asm!");
+    static_assert(OFFSET(Core, user_stack) == 48, "Update cpu.asm!");
 
     void InitializeCore();
 

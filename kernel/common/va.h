@@ -59,7 +59,7 @@ namespace kva
         MiB(64)
     };
 
-    // Kernel pool: 0xffffffff8a000000 - 0xffffffff8a100000
+    // Kernel pool: 0xffffffff'8a000000 - 0xffffffff'8a100000
     constexpr Region kernel_pool{
         frame_buffer.End(),
         MiB(1)

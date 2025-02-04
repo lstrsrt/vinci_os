@@ -50,6 +50,10 @@ namespace ke
 
         thread_map.clear_bit(thread->id);
 
+        Free(( void* )thread->kernel_stack_top);
+        if (thread->user_stack_top)
+            Free(( void* )thread->user_stack_top);
+
         delete thread;
     }
 
@@ -131,6 +135,8 @@ namespace ke
         thread->function = function;
         thread->arg = arg;
 
+        thread->kernel_stack_top = kstack - page_size;
+
         thread->context.rip = ( u64 )KernelThreadEntry;
         thread->context.rsp = kstack;
         thread->context.rflags = ( u64 )(x64::RFLAG::IF | x64::RFLAG::ALWAYS);
@@ -183,6 +189,7 @@ namespace ke
         memcpy(( void* )code, user_function, 100);
         x64::SmapClearAc();
 
+        kthread->user_stack_top = ustack;
         // TODO - randomize all stack offsets
         kthread->user_stack = ustack + page_size - 32;
     }
