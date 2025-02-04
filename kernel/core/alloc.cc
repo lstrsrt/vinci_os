@@ -1,22 +1,23 @@
 #include <libc/mem.h>
-#include <ec/array.h>
+#include <ec/bitmap.h>
 
 #include "ke.h"
 #include "gfx/output.h"
+#include "../hw/serial/serial.h"
 
-#define DEBUG_ALLOC     0
-#define ALLOC_POISON    0
+#define DEBUG_ALLOC
+#define ALLOC_POISON
 
-#if DEBUG_ALLOC == 0
+#ifdef DEBUG_ALLOC
 #define DbgPrint(x, ...) EMPTY_STMT
 #else
-#define DbgPrint(x, ...) Print(x, __VA_ARGS__)
+#define DbgPrint(x, ...) serial::Write(x, __VA_ARGS__)
 #endif
 
-#if ALLOC_POISON == 0
-#define SetMemory(addr, val, n) EMPTY_STMT
+#ifdef ALLOC_POISON
+#define PoisonMemory(addr, val, n) EMPTY_STMT
 #else
-#define SetMemory(addr, val, n) memset(addr, val, n)
+#define PoisonMemory(addr, val, n) memset(addr, val, n)
 #endif
 
 namespace ke
@@ -31,15 +32,11 @@ namespace ke
     [[maybe_unused]] static constexpr u8 fresh = 0xaa, poison = 0xcc;
 
 #pragma data_seg(".data")
-    // TODO use ec::const_bitmap
-    static ec::array<u8, kva::kernel_pool.size / block_size / 8> alloc_map;
-    static size_t total_free;
-    static size_t total_used;
+    static ec::const_bitmap<u64, kva::kernel_pool.size / block_size / 64> alloc_map;
 #pragma data_seg()
 
     void InitializeAllocator()
     {
-        memzero(alloc_map.data(), alloc_map.size());
         total_free = kva::kernel_pool.size; // FIXME - This is wrong; it depends on how much is mapped!
         total_used = 0;
         ke::alloc_initialized = true;
@@ -55,13 +52,25 @@ namespace ke
         if (allocating)
         {
             for (size_t i = info->offset; i < (info->offset + info->blocks); i++)
-                alloc_map[i / 8] |= (1 << (i % 8));
+                alloc_map.set_bit(i);
         }
         else // Freeing
         {
             for (size_t i = info->offset; i < (info->offset + info->blocks); i++)
-                alloc_map[i / 8] &= ~(1 << (i % 8));
+                alloc_map.clear_bit(i);
         }
+    }
+
+    void InitMemory(void* block, size_t size)
+    {
+        // This can be too aggressive - for example if we want to allocate 112 bytes,
+        // alignment will give us 8 extra bytes to memset.
+#ifdef ALLOC_POISON
+        PoisonMemory(memory, fresh, size - sizeof(Allocation));
+#else
+        if (!(flags & AllocFlag::Uninitialized))
+            memzero(memory, size - sizeof(Allocation));
+#endif
     }
 
     ALLOC_FN void* Allocate(size_t size, AllocFlag flags)
@@ -75,28 +84,28 @@ namespace ke
         {
             Print("Allocation error (out of memory for size %llu. Free: %llu)\n", size, total_free);
             Panic(Status::OutOfMemory);
-            // TODO - unreachable macro
         }
 
         u32 blocks_needed = ( u32 )(size / block_size);
         u32 free_blocks = 0, first_block = 0;
 
-        for (u32 i = 0; i < alloc_map.size(); i++)
+        for (u64 i = 0; i < alloc_map.size(); i++)
         {
-            if (alloc_map[i] == ec::umax_v<u8>)
+            if (alloc_map[i] == ec::umax_v<u64>)
             {
-                // No free bits means no available blocks
                 free_blocks = 0;
                 continue;
             }
 
-            for (u32 j = 0; j < 8; j++)
+            for (u64 j = 0; j < alloc_map.bits_per_member; j++)
             {
+                u64 block = i * alloc_map.bits_per_member + j;
+
                 // Is this block in use?
-                if (!(alloc_map[i] & (1 << j)))
+                if (!alloc_map.has_bit(block))
                 {
                     if (!free_blocks)
-                        first_block = (i * 8) + j;
+                        first_block = block;
 
                     if (++free_blocks == blocks_needed)
                     {
@@ -111,14 +120,10 @@ namespace ke
                         // Skip the allocation info when returning to the caller.
                         void* memory = ( void* )(( vaddr_t )alloc + sizeof(Allocation));
 
-                        // This can be too aggressive - for example if we want to allocate 112 bytes,
-                        // alignment will give us 8 extra bytes to memset.
-#if ALLOC_POISON == 0
-                        if (!(flags & AllocFlag::Uninitialized))
-                            memzero(memory, size - sizeof(Allocation));
-#else
-                        SetMemory(memory, fresh, size - sizeof(Allocation));
-#endif
+                        InitMemory(memory, size);
+
+                        DbgPrint("Used: %llu -> %llu\n", total_used, total_used + size);
+
                         total_used += size;
                         total_free -= size;
 
@@ -155,15 +160,15 @@ namespace ke
 
         DbgPrint("Freeing 0x%llx\n", real_address);
         const auto alloc = ( Allocation* )real_address;
-        DbgPrint("Offset: %u, Blocks: %u\n", alloc->offset, alloc->blocks);
-
         SetAllocationState(alloc, false);
 
-        const auto bytes = alloc->blocks * block_size;
-        SetMemory(( void* )real_address, poison, bytes);
+        const auto size = alloc->blocks * block_size;
+        PoisonMemory(( void* )real_address, poison, bytes);
 
-        total_used -= bytes;
-        total_free += bytes;
+        DbgPrint("Used: %llu -> %llu\n", total_used, total_used - size);
+
+        total_used -= size;
+        total_free += size;
     }
 
     DEBUG_FN void PrintAllocations()
@@ -171,8 +176,8 @@ namespace ke
         Print("Total used: %llu bytes, free: %llu bytes\n", total_used, total_free);
         for (size_t i = 0; i < alloc_map.size(); i++)
         {
-            if (u8 b = alloc_map[i])
-                Print("[%llu]: %u\n", i, b);
+            if (auto b = alloc_map[i])
+                Print("[%llu]: 0x%llx\n", i, b);
         }
     }
 }

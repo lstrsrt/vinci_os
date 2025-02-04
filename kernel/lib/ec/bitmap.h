@@ -11,22 +11,24 @@ namespace ec
     {
         constexpr auto has_bit(size_t b) const
         {
-            return this->m_data[b / sizeof(T)] & (1 << (b % sizeof(T)));
+            return this->m_data[b / bits_per_member] & (1 << (b % bits_per_member));
         }
 
         constexpr void set_bit(size_t b)
         {
-            this->m_data[b / sizeof(T)] |= (1 << (b % sizeof(T)));
+            this->m_data[b / bits_per_member] |= (1 << (b % bits_per_member));
         }
 
         constexpr void clear_bit(size_t b)
         {
-            this->m_data[b / sizeof(T)] &= ~(1 << (b % sizeof(T)));
+            this->m_data[b / bits_per_member] &= ~(1 << (b % bits_per_member));
         }
 
-        constexpr u64 bit_count() const
+        constexpr size_t bit_count() const
         {
-            return this->size() * sizeof(T);
+            return this->size() * bits_per_member;
         }
+
+        static constexpr auto bits_per_member = sizeof(T) * 8;
     };
 }

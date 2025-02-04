@@ -107,6 +107,8 @@ namespace ke
     };
 
     inline bool alloc_initialized = false;
+    inline size_t total_free;
+    inline size_t total_used;
 
     void InitializeAllocator();
     ALLOC_FN void* Allocate(size_t size, AllocFlag flags = AllocFlag::None);

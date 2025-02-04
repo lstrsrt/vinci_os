@@ -111,16 +111,21 @@ namespace ke
 
     void AllocateThreadId(Thread* thread)
     {
-        for (u64 i = 0; i < thread_map.bit_count(); i++)
+        for (u64 i = 0; i < thread_map.size(); i++)
         {
             if (thread_map[i] == ec::umax_v<u64>)
                 continue;
 
-            if (!thread_map.has_bit(i))
+            for (u64 j = 0; j < thread_map.bits_per_member; j++)
             {
-                thread_map.set_bit(i);
-                thread->id = i;
-                return;
+                u64 id = i * thread_map.bits_per_member + j;
+
+                if (!thread_map.has_bit(id))
+                {
+                    thread_map.set_bit(id);
+                    thread->id = id;
+                    return;
+                }
             }
         }
 
