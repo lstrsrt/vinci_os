@@ -1,3 +1,4 @@
+#include "../ec/const.h"
 #include "../ec/util.h"
 #include "print.h"
 #include "mem.h"
@@ -127,7 +128,6 @@ static Fmt parse(const char* fmt)
 
 size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
 {
-    // FIXME - str[len++] is not a good idea
     size_t len = 0;
     while (auto c = *fmt++)
     {
@@ -145,7 +145,7 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
             fmt += skip;
             if (f & (FMT_INT | FMT_UNSIGNED | FMT_LONG | FMT_LLONG | FMT_HEX))
             {
-                char buf[64];
+                char buf[64 + sizeof('\0')];
                 if (f & FMT_LLONG)
                 {
                     auto tmp_llong = va_arg(ap, long long);
@@ -181,6 +181,13 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
         else
         {
             str[len++] = c;
+        }
+
+        if (len >= n)
+        {
+            str[len - 1] = '\0';
+            // We don't know the full length yet so we might as well return a sentinel value
+            return ec::umax_v<size_t>;
         }
     }
     return len;

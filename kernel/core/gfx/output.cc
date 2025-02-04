@@ -23,21 +23,55 @@ namespace gfx
         if (!ke::alloc_initialized)
         {
             char str[512]{};
+
             va_list ap;
             va_start(ap, fmt);
-            vsnprintf(str, sizeof str, fmt, ap);
+            size_t len = vsnprintf(str, sizeof str, fmt, ap);
             va_end(ap);
+
+            if (len == ec::umax_v<size_t>)
+            {
+                constexpr auto err = "Print: Stack buffer too small!\n";
+                strlcpy(str, err, sizeof str);
+            }
+
             s = str;
         }
         else
         {
-            ec::string str;
-            str.reserve(512);
-            va_list ap;
+            char str[512]{};
+            size_t len;
+
+            va_list ap, copy;
             va_start(ap, fmt);
-            vsnprintf(str.data(), str.length(), fmt, ap);
+            va_copy(copy, ap);
+            len = vsnprintf(str, sizeof str, fmt, ap);
             va_end(ap);
-            s = str.data();
+
+            if (len == ec::umax_v<size_t>)
+            {
+                ec::string heap_str;
+                heap_str.reserve(2048);
+
+                va_start(copy, fmt);
+                len = vsnprintf(heap_str.data(), heap_str.capacity(), fmt, copy);
+                va_end(copy);
+
+                if (len == ec::umax_v<size_t>)
+                {
+                    constexpr auto err = "Print: Heap buffer too small!\n";
+                    strlcpy(str, err, sizeof str);
+                    s = str;
+                }
+                else
+                {
+                    s = heap_str.data();
+                }
+            }
+            else
+            {
+                s = str;
+            }
         }
 
         while (*s)

@@ -1,5 +1,5 @@
 CXX = clang
-CXXFLAGS = -std=c++20 -Wall -Wno-unused-function -Wno-deprecated-volatile -target x86_64-windows -nostdlib \
+CXXFLAGS = -std=c++23 -Wall -Wno-unused-function -Wno-deprecated-volatile -target x86_64-windows -nostdlib \
     -ffreestanding -mno-stack-arg-probe -mgeneral-regs-only -fno-asynchronous-unwind-tables -mno-red-zone \
     -mno-80387 -mno-mmx -mno-sse -mno-sse2 -fno-exceptions -fno-rtti -fno-omit-frame-pointer -mcmodel=kernel \
     -I $(INCLUDE)

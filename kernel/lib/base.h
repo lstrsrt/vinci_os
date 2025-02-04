@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __clang__
 #define COMPILER_CLANG
@@ -64,8 +65,6 @@ typedef double f64;
 
 typedef u8 byte;
 typedef u8 uchar;
-typedef u64 size_t;
-typedef i64 ssize_t;
 typedef uintptr_t uptr_t;
 typedef intptr_t iptr_t;
 
