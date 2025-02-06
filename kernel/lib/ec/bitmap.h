@@ -9,19 +9,19 @@ namespace ec
     template<ec::$integral T, size_t N>
     struct const_bitmap : ec::array<T, N>
     {
-        constexpr auto has_bit(size_t b) const
+        constexpr auto has_bit(u64 b) const
         {
-            return this->m_data[b / bits_per_member] & (1 << (b % bits_per_member));
+            return this->m_data[b / bits_per_member] & (1ULL << (b % bits_per_member));
         }
 
-        constexpr void set_bit(size_t b)
+        constexpr void set_bit(u64 b)
         {
-            this->m_data[b / bits_per_member] |= (1 << (b % bits_per_member));
+            this->m_data[b / bits_per_member] |= (1ULL << (b % bits_per_member));
         }
 
-        constexpr void clear_bit(size_t b)
+        constexpr void clear_bit(u64 b)
         {
-            this->m_data[b / bits_per_member] &= ~(1 << (b % bits_per_member));
+            this->m_data[b / bits_per_member] &= ~(1ULL << (b % bits_per_member));
         }
 
         constexpr size_t bit_count() const

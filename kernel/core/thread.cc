@@ -19,8 +19,6 @@ EXTERN_C uptr_t kernel_stack_top;
 
 namespace ke
 {
-    void UpdateThreadId(Thread* thread, bool creating);
-
     ec::const_bitmap<u64, 8> thread_map{}; // max 511 threads (idle = 0)
 
     NO_RETURN int IdleLoop(u64)
@@ -156,6 +154,7 @@ namespace ke
     void StartScheduler()
     {
         auto core = GetCore();
+        memzero(thread_map.data(), thread_map.size());
 
         // FIXME - can we use kernel_stack_top here?
         // since every thread is going to have its own kernel stack,

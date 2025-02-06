@@ -37,6 +37,7 @@ namespace ke
 
     void InitializeAllocator()
     {
+        memzero(alloc_map.data(), alloc_map.size());
         total_free = kva::kernel_pool.size; // FIXME - This is wrong; it depends on how much is mapped!
         total_used = 0;
         ke::alloc_initialized = true;
@@ -61,15 +62,15 @@ namespace ke
         }
     }
 
-    void InitMemory(void* block, size_t size)
+    void InitMemory(UNUSED void* block, UNUSED size_t size, UNUSED AllocFlag flags)
     {
         // This can be too aggressive - for example if we want to allocate 112 bytes,
         // alignment will give us 8 extra bytes to memset.
 #ifdef ALLOC_POISON
-        PoisonMemory(memory, fresh, size - sizeof(Allocation));
+        PoisonMemory(block, fresh, size - sizeof(Allocation));
 #else
         if (!(flags & AllocFlag::Uninitialized))
-            memzero(memory, size - sizeof(Allocation));
+            memzero(block, size - sizeof(Allocation));
 #endif
     }
 
@@ -120,7 +121,7 @@ namespace ke
                         // Skip the allocation info when returning to the caller.
                         void* memory = ( void* )(( vaddr_t )alloc + sizeof(Allocation));
 
-                        InitMemory(memory, size);
+                        InitMemory(memory, size, flags);
 
                         DbgPrint("Used: %llu -> %llu\n", total_used, total_used + size);
 
@@ -163,9 +164,9 @@ namespace ke
         SetAllocationState(alloc, false);
 
         const auto size = alloc->blocks * block_size;
-        PoisonMemory(( void* )real_address, poison, bytes);
-
         DbgPrint("Used: %llu -> %llu\n", total_used, total_used - size);
+
+        PoisonMemory(( void* )real_address, poison, bytes);
 
         total_used -= size;
         total_free += size;

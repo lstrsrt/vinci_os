@@ -2,6 +2,14 @@
 
 #include <stdint.h>
 
+#ifdef __clang__
+#define COMPILER_CLANG
+#else
+#ifdef _MSC_VER
+#define COMPILER_MSVC
+#endif
+#endif
+
 #ifdef COMPILER_MSVC
 #ifndef EFIAPI
 #define EFIAPI __cdecl
