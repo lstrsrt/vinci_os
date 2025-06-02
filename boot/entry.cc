@@ -85,7 +85,7 @@ DEBUG_FN static void print_runtime_descriptors(uefi::memory_descriptor* map, uin
         if (current->virtual_start || current->attribute & uefi::memory_runtime)
         {
             print_string(
-                u"[%llu]: Type: %d   PA: 0x%llx   VA: 0x%llx (pages: %llu) Attr 0x%llx\r\n",
+                u"[%llu]: Type: %d   PA: 0x%p   VA: 0x%p (pages: %llu) Attr 0x%llx\r\n",
                 i++,
                 current->type,
                 current->physical_start,
@@ -187,9 +187,9 @@ static uefi::status load_kernel_executable(uefi::file* file, LoaderBlock* loader
     const auto entry_point = nt->OptionalHeader.AddressOfEntryPoint;
     const auto image_size = nt->OptionalHeader.SizeOfImage;
 
-    print_string(u"Image base (physical): 0x%llx\r\n", physical_base);
+    print_string(u"Image base (physical): 0x%p\r\n", physical_base);
     print_string(u"Image size: 0x%x\r\n", image_size);
-    print_string(u"Entry point (physical): 0x%llx\r\n", physical_base + entry_point);
+    print_string(u"Entry point (physical): 0x%p\r\n", physical_base + entry_point);
 
     // Then read sections
     auto section = GetFirstSection(nt);
@@ -505,8 +505,8 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     // TODO - which mode to use?
     efi_check(graphics_protocol->query_mode(graphics_protocol->mode->mode_number, &size, &graphics_mode_info));
 
-    // print_string(u"Frame buffer base: 0x%llx\r\n", graphics_protocol->Mode->FrameBufferBase);
-    // print_string(u"Frame buffer size: 0x%llx\r\n", graphics_protocol->Mode->FrameBufferSize);
+    // print_string(u"Frame buffer base: 0x%p\r\n", graphics_protocol->Mode->FrameBufferBase);
+    // print_string(u"Frame buffer size: 0x%p\r\n", graphics_protocol->Mode->FrameBufferSize);
     print_string(u"Resolution: %u x %u\r\n",
         graphics_mode_info->horizontal_resolution, graphics_mode_info->vertical_resolution);
 

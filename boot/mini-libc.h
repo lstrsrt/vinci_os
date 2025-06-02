@@ -273,14 +273,13 @@ namespace {
         {
             if (*fmt == 'x')
                 return SPEC_LLONG | SPEC_HEX;
-            else if (*fmt == 'u')
+            if (*fmt == 'u')
                 return SPEC_LLONG | SPEC_UNSIGNED;
-            else
-                return SPEC_LLONG;
+            return SPEC_LLONG;
         }
-        else if (*--fmt == 'u')
+        if (*--fmt == 'u')
             return SPEC_LONG | SPEC_UNSIGNED;
-        else if (*fmt == 'x')
+        if (*fmt == 'x')
             return SPEC_LONG | SPEC_HEX;
         return SPEC_LONG;
     }
@@ -322,7 +321,7 @@ static size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list a
             }
             fmt += skip;
             if (f & SPEC_POINTER)
-                f = ( Fmt )(SPEC_LLONG | SPEC_HEX);
+                f = ( Fmt )(SPEC_UNSIGNED | SPEC_LLONG | SPEC_HEX);
             if (f & (SPEC_INT | SPEC_UNSIGNED | SPEC_LONG | SPEC_LLONG | SPEC_HEX))
             {
                 char16_t buf[64]{};

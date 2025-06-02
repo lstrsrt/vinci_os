@@ -114,7 +114,7 @@ namespace ke
                         alloc->blocks = blocks_needed;
                         alloc->offset = first_block;
 
-                        DbgPrint("Found suitable block starting at 0x%llx\n", alloc);
+                        DbgPrint("Found suitable block starting at 0x%p\n", alloc);
 
                         SetAllocationState(alloc, true);
 
@@ -145,7 +145,7 @@ namespace ke
 
     void Free(void* address)
     {
-        DbgPrint("Free() - address 0x%llx\n", address);
+        DbgPrint("Free() - address 0x%p\n", address);
 
         if (!address)
             return;
@@ -155,11 +155,11 @@ namespace ke
         const auto real_address = ( uptr_t )address - sizeof(Allocation);
         if (!kva::kernel_pool.Contains(( vaddr_t )real_address))
         {
-            DbgPrint("Invalid address passed to Free (0x%llx, 0x%llx), returning.\n", address, real_address);
+            DbgPrint("Invalid address passed to Free (0x%p, 0x%p), returning.\n", address, real_address);
             return;
         }
 
-        DbgPrint("Freeing 0x%llx\n", real_address);
+        DbgPrint("Freeing 0x%p\n", real_address);
         const auto alloc = ( Allocation* )real_address;
         SetAllocationState(alloc, false);
 

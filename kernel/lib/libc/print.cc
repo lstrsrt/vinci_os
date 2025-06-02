@@ -91,6 +91,7 @@ enum Fmt
     FMT_LONG = 1 << 6,
     FMT_LLONG = 1 << 7,
     FMT_HEX = 1 << 8,
+    FMT_POINTER = 1 << 9,
 };
 
 static int parse_l(const char* fmt)
@@ -99,7 +100,7 @@ static int parse_l(const char* fmt)
     {
         if (*fmt == 'x')
             return FMT_LLONG | FMT_HEX;
-        else if (*fmt == 'u')
+        if (*fmt == 'u')
             return FMT_LLONG | FMT_UNSIGNED;
         return FMT_LLONG;
     }
@@ -121,6 +122,7 @@ static Fmt parse(const char* fmt)
     case 'd': return FMT_INT;
     case 'u': return FMT_UNSIGNED;
     case 'x': return FMT_HEX;
+    case 'p': return FMT_POINTER;
     case 'l': return ( Fmt )parse_l(fmt);
     }
     return FMT_NONE;
@@ -143,6 +145,8 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
                     skip++;
             }
             fmt += skip;
+            if (f & FMT_POINTER)
+                f = ( Fmt )(FMT_UNSIGNED | FMT_LLONG | FMT_HEX);
             if (f & (FMT_INT | FMT_UNSIGNED | FMT_LONG | FMT_LLONG | FMT_HEX))
             {
                 char buf[64 + sizeof('\0')];

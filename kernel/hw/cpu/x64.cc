@@ -548,7 +548,7 @@ namespace x64
         case 3: ExitThread(( int )frame->rdi); break;
         }
 
-        Print("Returning to 0x%llx\n", frame->rcx);
+        Print("Returning to 0x%p\n", frame->rcx);
         return 0;
     }
 

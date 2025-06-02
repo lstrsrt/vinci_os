@@ -76,7 +76,7 @@ namespace x64
                 auto op = frame->error_code & 2 ? "write" : "read";
                 auto ring = frame->error_code & 4 ? "ring 3" : "ring 0";
                 Print(
-                    "Page fault: 0x%llx (%s, %s, %s) at IP 0x%llx\n",
+                    "Page fault: 0x%p (%s, %s, %s) at IP 0x%p\n",
                     __readcr2(),
                     present,
                     op,
@@ -87,7 +87,7 @@ namespace x64
             else
             {
                 Print(
-                    "Interrupt %u (%llu) (%s) at IP 0x%llx\n",
+                    "Interrupt %u (0x%llx) (%s) at IP 0x%p\n",
                     int_no,
                     frame->error_code,
                     exception_strings[int_no],
@@ -117,9 +117,9 @@ namespace x64
                         DbgPrint(
                             "Thread switch\n"
                             "  From id %llu to id %llu\n"
-                            "  RSP0: 0x%llx RSP3: 0x%llx\n"
-                            "  Set new RSP to 0x%llx\n"
-                            "  TSS0 RSP is 0x%llx\n",
+                            "  RSP0: 0x%p RSP3: 0x%p\n"
+                            "  Set new RSP to 0x%p\n"
+                            "  TSS0 RSP is 0x%p\n",
                             prev->id, next->id,
                             next->context.rsp, next->user_stack,
                             frame->rsp,

@@ -35,7 +35,7 @@ DEBUG_FN EARLY static void SerialPrintDescriptors(MemoryMap& m)
     IterateMemoryDescriptors(m, [&i](uefi::memory_descriptor* desc)
     {
         serial::Write(
-            "[%llu]: Type: %d   PA: 0x%llx   VA: 0x%llx (pages: %llu) Attr 0x%llx\n",
+            "[%llu]: Type: %d   PA: 0x%p   VA: 0x%p (pages: %llu) Attr 0x%p\n",
             i++,
             desc->type,
             desc->physical_start,
@@ -96,7 +96,7 @@ EARLY static void MapUefiRuntime(const MemoryMap& memory_map, mm::PageTable& tab
         if (desc->attribute & uefi::memory_runtime)
         {
             Print(
-                "Mapping UEFI runtime: 0x%llx -> 0x%llx (%llu pages)\n",
+                "Mapping UEFI runtime: 0x%p -> 0x%p (%llu pages)\n",
                 desc->physical_start,
                 desc->virtual_start,
                 desc->number_of_pages

@@ -76,7 +76,7 @@ namespace ke
 
         DbgPrint("Switching to %llu\n", thread->id);
         DbgPrint(
-            "  RSP0 0x%llx RIP 0x%llx RSP3 0x%llx\n",
+            "  RSP0 0x%p RIP 0x%p RSP3 0x%p\n",
             thread->context.rsp,
             thread->context.rip,
             thread->user_stack
