@@ -2,7 +2,7 @@
 #include "../cpu/x64.h"
 #include "../cpu/isr.h"
 #include "../cmos/cmos.h"
-#include "../../core/gfx/output.h"
+#include "../gfx/output.h"
 
 namespace timer
 {

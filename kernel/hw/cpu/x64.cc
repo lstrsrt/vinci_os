@@ -3,7 +3,7 @@
 #include "isr.h"
 #include "msr.h"
 #include "../../core/ke.h"
-#include "../../core/gfx/output.h"
+#include "../gfx/output.h"
 
 namespace x64
 {

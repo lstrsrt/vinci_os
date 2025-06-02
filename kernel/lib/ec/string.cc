@@ -1,7 +1,5 @@
 #include "string.h"
 
-#include "../core/gfx/output.h"
-
 namespace ec
 {
     string& string::operator=(const char* cstr)

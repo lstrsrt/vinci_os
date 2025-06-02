@@ -6,7 +6,7 @@
 #include "../common/pe64.h"
 #include "../hw/acpi/acpi.h"
 #include "../hw/cpu/isr.h"
-#include "gfx/output.h"
+#include "../hw/gfx/output.h"
 #include "../hw/cpu/x64.h"
 #include "../hw/cpu/msr.h"
 #include "../hw/ps2/ps2.h"

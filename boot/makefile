@@ -21,4 +21,4 @@ boot.o: entry.cc
 .SILENT:
 .PHONY: all clean
 clean:
-	find -type f -name "*.o" -delete -o -name "*.efi" -delete
+	find -type f -name "*.o" -delete -o -name "*.EFI" -delete

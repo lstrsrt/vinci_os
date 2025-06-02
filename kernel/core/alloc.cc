@@ -2,7 +2,7 @@
 #include <ec/bitmap.h>
 
 #include "ke.h"
-#include "gfx/output.h"
+#include "../hw/gfx/output.h"
 #include "../hw/serial/serial.h"
 
 #define DEBUG_ALLOC

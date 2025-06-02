@@ -4,7 +4,7 @@
 #include <ec/array.h>
 
 #include "x64.h"
-#include "../core/gfx/output.h"
+#include "../gfx/output.h"
 
 namespace apic
 {

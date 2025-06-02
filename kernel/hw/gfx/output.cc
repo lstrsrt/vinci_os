@@ -5,7 +5,7 @@
 #define SSFN_CONSOLEBITMAP_CONTROL
 #include "ssfn.h"
 
-#include "../ke.h"
+#include "../../core/ke.h"
 #include <ec/string.h>
 
 namespace gfx

@@ -5,7 +5,7 @@
 #include "keyboard.h"
 #include "../cpu/x64.h"
 #include "../cpu/isr.h"
-#include "../../core/gfx/output.h"
+#include "../gfx/output.h"
 
 namespace ps2
 {

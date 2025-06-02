@@ -13,25 +13,27 @@ LFLAGS = -subsystem:native -section:"INIT,RED" -section:".CRT,RED" -section:"PRO
 
 INCLUDE = ./lib/
 
-OBJECTS = ./lib/libc/mem.o \
-./lib/libc/str.o \
-./lib/libc/print.o \
+OBJECTS = ./core/alloc.o \
+./core/init.o \
+./core/panic.o \
+./core/thread.o \
 ./lib/ec/new.o \
 ./lib/ec/string.o \
+./lib/libc/mem.o \
+./lib/libc/print.o \
+./lib/libc/str.o \
 ./hw/acpi/acpi.o \
-./hw/serial/serial.o \
 ./hw/cpu/cpu.o \
 ./hw/cpu/isr.o \
 ./hw/cpu/intctrl.o \
 ./hw/cpu/x64.o \
-./hw/timer/timer.o \
-./hw/ps2/ps2.o \
+./hw/gfx/output.o \
+./hw/nvme/nvme.o \
+./hw/pci/pci.o \
 ./hw/ps2/keyboard.o \
-./core/gfx/output.o \
-./core/panic.o \
-./core/alloc.o \
-./core/thread.o \
-./core/init.o
+./hw/ps2/ps2.o \
+./hw/serial/serial.o \
+./hw/timer/timer.o \
 
 all: kernel.exe
 	mv kernel.exe ../bin/Debug/vdisk/EFI/BOOT/kernel.exe

@@ -3,7 +3,7 @@
 #include "serial.h"
 #include "../cpu/x64.h"
 #include "../cpu/isr.h"
-#include "../../core/gfx/output.h"
+#include "../gfx/output.h"
 
 #define SERIAL_STDIO 0
 

@@ -1,5 +1,5 @@
 #include "ke.h"
-#include "gfx/output.h"
+#include "../hw/gfx/output.h"
 #include "../hw/cpu/x64.h"
 
 namespace ke

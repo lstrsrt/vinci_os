@@ -3,7 +3,7 @@
 #include <ec/new.h>
 
 #include "ke.h"
-#include "gfx/output.h"
+#include "../hw/gfx/output.h"
 #include "../hw/timer/timer.h"
 
 // #define DEBUG_CTX_SWITCH
