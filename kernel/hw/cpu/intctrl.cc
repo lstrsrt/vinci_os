@@ -281,8 +281,7 @@ namespace pic
 {
     static INLINE void Write(u16 port, u8 data)
     {
-        WritePort8(port, data);
-        x64::IoDelay();
+        x64::WritePort8(port, data);
     }
 
     static bool IsSpurious(u16 port)
@@ -293,7 +292,7 @@ namespace pic
         ocw.ocw3.read_type = 3; // ISR
 
         Write(port, ocw.bits);
-        const InServiceRegister isr = ReadPort8(port);
+        const InServiceRegister isr = x64::ReadPort8(port);
 
         return !isr.irq7;
     }

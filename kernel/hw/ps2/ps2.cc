@@ -40,11 +40,11 @@ namespace ps2
 
     static bool CheckStatus(bool writable)
     {
-        auto status = ReadPort8(port::ctrl);
+        auto status = x64::ReadPort8(port::ctrl);
         for (i32 i = 0; i < 10; i++)
         {
             if (writable ? status & StatusFlag::InFull : !(status & StatusFlag::OutFull))
-                status = ReadPort8(port::ctrl);
+                status = x64::ReadPort8(port::ctrl);
             else return true;
         }
         return false;
@@ -111,7 +111,7 @@ namespace ps2
     void Write(u16 port, u8 data)
     {
         if (CheckStatus(true))
-            WritePort8(port, data);
+            x64::WritePort8(port, data);
         else
             Print("PS/2: Write failed\n");
     }
@@ -128,7 +128,7 @@ namespace ps2
             return false;
         }
 
-        reply = ReadPort8(port);
+        reply = x64::ReadPort8(port);
         return true;
     }
 
@@ -159,7 +159,7 @@ namespace ps2
     {
         // Translate key and print to screen if valid
         kbd::Key key{};
-        if (kbd::HandleInput(ReadPort8(port::data), key))
+        if (kbd::HandleInput(x64::ReadPort8(port::data), key))
             gfx::OnKey(key);
     }
 

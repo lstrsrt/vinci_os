@@ -38,9 +38,9 @@ namespace timer::pit
         const auto mode = ( u8 )Mode::RateGenerator;
         const auto bcd_binary = ( u8 )BcdBinary::Binary;
 
-        WritePort8(port::ctrl, channel | access | mode | bcd_binary);
-        WritePort8(port::data0, LOW8(divisor));
-        WritePort8(port::data0, HIGH8(divisor));
+        x64::WritePort8(port::ctrl, channel | access | mode | bcd_binary);
+        x64::WritePort8(port::data0, LOW8(divisor));
+        x64::WritePort8(port::data0, HIGH8(divisor));
     }
 }
 

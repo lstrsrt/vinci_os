@@ -8,12 +8,6 @@
 #include "../common/va.h"
 #include "asm-wrappers.h"
 
-#define ReadPort8 __inbyte
-#define ReadPort16 __inword
-#define ReadPort32 __indword
-#define WritePort8 __outbyte
-#define WritePort16 __outword
-#define WritePort32 __outdword
 #define ReadFlags() (( x64::RFLAG )__readeflags())
 
 namespace x64
@@ -433,7 +427,46 @@ namespace x64
 
     INLINE void IoDelay()
     {
-        WritePort8(0x80, 0);
+        __outbyte(0x80, 0);
+    }
+
+    INLINE void WritePort8(u16 port, u8 data)
+    {
+        __outbyte(port, data);
+        IoDelay();
+    }
+
+    INLINE void WritePort16(u16 port, u16 data)
+    {
+        __outword(port, data);
+        IoDelay();
+    }
+
+    INLINE void WritePort32(u16 port, u32 data)
+    {
+        __outdword(port, data);
+        IoDelay();
+    }
+
+    INLINE u8 ReadPort8(u16 port)
+    {
+        u8 data = __inbyte(port);
+        IoDelay();
+        return data;
+    }
+
+    INLINE u16 ReadPort16(u16 port)
+    {
+        u16 data = __inword(port);
+        IoDelay();
+        return data;
+    }
+
+    INLINE u32 ReadPort32(u16 port)
+    {
+        u32 data = __indword(port);
+        IoDelay();
+        return data;
     }
 
     INLINE bool InterruptsEnabled()

@@ -14,7 +14,7 @@ namespace serial
 
     void Isr()
     {
-        char c = ReadPort8(output_port);
+        char c = x64::ReadPort8(output_port);
         if (c == '\r')
             c = '\n';
 
@@ -31,7 +31,7 @@ namespace serial
         {
             for (u32 i = 0; i < 1000; i++)
                 x64::IoDelay();
-            WritePort8(port + reg, data);
+            x64::WritePort8(port + reg, data);
         };
 
 #if SERIAL_STDIO == 1
@@ -64,7 +64,7 @@ namespace serial
         for (u32 i = 0; i < 1000; i++)
             x64::IoDelay();
 
-        if (ReadPort8(port + reg::data) != 0xff)
+        if (x64::ReadPort8(port + reg::data) != 0xff)
         {
             Print("Serial: Port 0x%x returned an invalid response\n", port);
             return false;
@@ -102,16 +102,16 @@ namespace serial
 
     u8 Read(u16 port, u16 reg)
     {
-        while (!(ReadPort8(port + reg::line_status) & ( u8 )LineStatus::DataReady))
+        while (!(x64::ReadPort8(port + reg::line_status) & ( u8 )LineStatus::DataReady))
             x64::IoDelay();
-        return ReadPort8(port + reg);
+        return x64::ReadPort8(port + reg);
     }
 
     void Write(u16 port, u16 reg, u8 data)
     {
-        while (!(ReadPort8(port + reg::line_status) & ( u8 )LineStatus::EmptyTransmitReg))
+        while (!(x64::ReadPort8(port + reg::line_status) & ( u8 )LineStatus::EmptyTransmitReg))
             x64::IoDelay();
-        WritePort8(port + reg, data);
+        x64::WritePort8(port + reg, data);
     }
 
     void Write(const char* fmt, ...)
