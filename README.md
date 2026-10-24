@@ -10,6 +10,7 @@
 * Includes drivers for PIT, HPET, PIC, APIC (incomplete), PS/2 keyboard and serial port
 
 ![kernel](https://github.com/lstrsrt/os64/assets/79076531/fe3d3c87-90fb-4902-ba26-c04db0e86d6b)
+<img width="848" height="712" alt="Screenshot From 2026-10-24 13-14-42" src="https://github.com/user-attachments/assets/dfef42da-e551-4764-b7d6-72727087471b" />
 
 ## Bootloader
 
