@@ -1,0 +1,45 @@
+BasedOnStyle: Microsoft
+
+Language: Cpp
+ColumnLimit: 120
+Standard: Latest
+
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+AlignAfterOpenBracket: DontAlign
+AlignEscapedNewlines: Left
+AllowShortBlocksOnASingleLine: Never
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortLambdasOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AlwaysBreakTemplateDeclarations: Yes
+BinPackParameters: OnePerLine
+BreakBeforeBraces: Custom
+BreakBeforeBinaryOperators: true
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  BeforeElse: true
+  BeforeLambdaBody: false
+  BeforeWhile: true
+IndentCaseLabels: true
+IndentRequiresClause: false
+InsertNewlineAtEOF: true
+LineEnding: LF
+NamespaceIndentation: All
+PointerAlignment: Left
+SeparateDefinitionBlocks: Always
+SpaceAfterTemplateKeyword: false
+SpaceBeforeCpp11BracedList: false
+SpaceInEmptyBraces: Block
+SpacesInParens: Custom
+SpacesInParensOptions:
+  InCStyleCasts: true
+
