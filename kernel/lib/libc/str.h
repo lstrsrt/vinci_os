@@ -4,7 +4,11 @@
 
 EXTERN_C_START
 
-#ifndef COMPILER_MSVC
+#ifdef COMPILER_MSVC
+// MSVC treats strlen as an intrinsic and calls this when it can't inline it.
+// Defined in str.cc.
+size_t strlen(const char* str);
+#else
 constexpr size_t strlen(const char* str)
 {
     size_t i = 0;

@@ -73,7 +73,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <CompileAs />
-      <AdditionalOptions>/Zc:threadSafeInit- /source-charset:.1252 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:threadSafeInit- /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
       <DisableSpecificWarnings>4201;4458;4505;26495</DisableSpecificWarnings>
       <FloatingPointExceptions>false</FloatingPointExceptions>
@@ -110,7 +110,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalOptions>/Zc:threadSafeInit- /source-charset:.1252 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/Zc:threadSafeInit- /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <Optimization>MaxSpeed</Optimization>
