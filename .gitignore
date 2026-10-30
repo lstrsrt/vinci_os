@@ -8,6 +8,7 @@ notes/
 *.EFI
 *.efi
 *.img
+*.json
 
 # Prerequisites
 *.d
@@ -41,3 +42,7 @@ notes/
 *.exe
 *.out
 *.app
+
+# clangd
+compile_commands.json
+.cache/
