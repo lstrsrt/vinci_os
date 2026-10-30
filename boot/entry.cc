@@ -12,20 +12,20 @@
 #else
 INLINE void __writecr0(u64 cr0)
 {
-    asm volatile("mov %%rax, %%cr0" :: "a"(cr0));
+    asm volatile("mov %%rax, %%cr0" :: "a"(cr0) : "memory");
 }
 
 INLINE u64 __readcr0()
 {
     u64 cr0;
-    asm("mov %%cr0, %%rax" : "=a"(cr0));
+    asm volatile("mov %%cr0, %%rax" : "=a"(cr0));
     return cr0;
 }
 
 INLINE u64 __readcr3()
 {
     u64 cr3;
-    asm("mov %%cr3, %%rax" : "=a"(cr3));
+    asm volatile("mov %%cr3, %%rax" : "=a"(cr3));
     return cr3;
 }
 #endif
@@ -462,7 +462,7 @@ extern "C" uefi::status EfiMain(uefi::handle image_handle, uefi::system_table* s
     g_con_out->set_attribute(uefi::white);
 #ifdef _RELEASE
     print_string(u"Press Q to quit or any other key to continue.\r\n");
-    if (wait_for_key() == 'q')
+    if (wait_for_key().unicode_char == u'q')
         return uefi::err_aborted;
 #endif
 
