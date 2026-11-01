@@ -73,7 +73,6 @@ namespace timer::hpet
             // With TmrSetAccumulator set, the first write sets the first deadline
             // and the second sets the period added after each interrupt.
             timer.comparator = ticks_per_interrupt;
-            timer.comparator = ticks_per_interrupt;
 
             // Start the main counter
             regs->config = ( Config )(regs->config | CfgEnable);
