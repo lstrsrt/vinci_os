@@ -254,22 +254,31 @@ const char *ssfn_errstr[] = { "",
 };
 
 /**
- * Decode an UTF-8 multibyte, advance string pointer and return UNICODE. Watch out, no input checks
+ * Decode an UTF-8 multibyte, advance string pointer and return UNICODE.
+ * A truncated sequence returns 0 and leaves *s on the offending byte (e.g. the NUL terminator),
+ * so callers looping on *s never step past the end of the string.
  *
  * @param **s pointer to an UTF-8 string pointer
  * @return unicode, and *s moved to next multibyte sequence
  */
 uint32_t ssfn_utf8(char **s)
 {
-    uint32_t c = **s;
+    uint32_t c = (uint8_t)**s;
+    int i, n = 0;
 
-    if((**s & 128) != 0) {
-        if(!(**s & 32)) { c = ((**s & 0x1F)<<6)|(*(*s+1) & 0x3F); *s += 1; } else
-        if(!(**s & 16)) { c = ((**s & 0xF)<<12)|((*(*s+1) & 0x3F)<<6)|(*(*s+2) & 0x3F); *s += 2; } else
-        if(!(**s & 8)) { c = ((**s & 0x7)<<18)|((*(*s+1) & 0x3F)<<12)|((*(*s+2) & 0x3F)<<6)|(*(*s+3) & 0x3F); *s += 3; }
+    if(c & 0x80) {
+        if(!(c & 0x20)) { c &= 0x1F; n = 1; } else
+        if(!(c & 0x10)) { c &= 0x0F; n = 2; } else
+        if(!(c & 0x08)) { c &= 0x07; n = 3; }
         else c = 0;
     }
     (*s)++;
+
+    for(i = 0; i < n; i++, (*s)++) {
+        if((**s & 0xC0) != 0x80)
+            return 0;
+        c = (c << 6) | (**s & 0x3F);
+    }
     return c;
 }
 #endif
@@ -1469,7 +1478,7 @@ int ssfn_putc(uint32_t unicode)
 # endif
     SSFN_PIXEL *o, *p;
     uint8_t *ptr, *chr = 0, *frg;
-    int i, j, k, l, m, x, y, w, s = ssfn_dst.p / sizeof(SSFN_PIXEL);
+    int i, j, k, l, m, y, w, s = ssfn_dst.p / sizeof(SSFN_PIXEL);
 
     if (!ssfn_src || !ssfn_dst.ptr || !ssfn_dst.p)
         return SSFN_ERR_INVINP;
@@ -1510,7 +1519,7 @@ int ssfn_putc(uint32_t unicode)
     }
 
 #ifdef SSFN_CONSOLEBITMAP_CONTROL
-    int src_h = ssfn_src->height;
+    int x, src_h = ssfn_src->height;
 
     if (chr && w)
     {
@@ -1544,7 +1553,8 @@ int ssfn_putc(uint32_t unicode)
         /* Blank out the last line. */
         for (y = last_line; y < last_line + src_h; y++)
         {
-            for (x = 0; x < ssfn_dst.p; x++)
+            /* s is the pitch in pixels; ssfn_dst.p is in bytes. */
+            for (x = 0; x < s; x++)
                 *( SSFN_PIXEL* )(ssfn_dst.ptr + y * ssfn_dst.p + x * sizeof(SSFN_PIXEL)) = ssfn_dst.bg;
         }
     }

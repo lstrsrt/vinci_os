@@ -13,7 +13,7 @@ namespace cmos
         // Setting bit 7 also disables NMIs.
         // This is necessary so the RTC doesn't get interrupted
         // which can cause its state to become undefined.
-        WritePort8(port::address, reg | (1 << 7));
+        x64::WritePort8(port::address, reg | (1 << 7));
         x64::IoDelay();
     }
 
@@ -43,7 +43,7 @@ namespace cmos
 
         time.weekday = bcd2bin(Read(port::rtc_wd));
         time.day = bcd2bin(Read(port::rtc_d));
-        time.month = bcd2bin(Read(port::rtc_m));
+        time.month = bcd2bin(Read(port::rtc_mon));
         time.year = bcd2bin(Read(port::rtc_y));
         time.century = rtc_has_century ? bcd2bin(Read(port::rtc_c)) : 20;
     }
@@ -110,20 +110,23 @@ namespace cmos
 
     u8 Read(u8 reg)
     {
-        _disable();
+        // Restore the previous interrupt state since this is also called from the ISR
+        const bool prev = x64::DisableInterrupts();
         SelectReg(reg);
-        u8 r = ReadPort8(port::data);
-        _enable();
+        u8 r = x64::ReadPort8(port::data);
+        if (prev)
+            x64::EnableInterrupts();
         x64::EnableNmi();
         return r;
     }
 
     void Write(u8 reg, u8 data)
     {
-        _disable();
+        const bool prev = x64::DisableInterrupts();
         SelectReg(reg);
-        WritePort8(port::data, data);
-        _enable();
+        x64::WritePort8(port::data, data);
+        if (prev)
+            x64::EnableInterrupts();
         x64::EnableNmi();
     }
 

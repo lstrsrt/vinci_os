@@ -1,9 +1,13 @@
-#include "x64.h"
+#include <libc/str.h>
+
+#include "../../core/ke.h"
+#include "../gfx/output.h"
 #include "cpuid.h"
 #include "isr.h"
 #include "msr.h"
-#include "../../core/ke.h"
-#include "../gfx/output.h"
+#include "x64.h"
+
+#pragma section("PROTDATA", read)
 
 namespace x64
 {
@@ -13,19 +17,20 @@ namespace x64
     void SyscallEntry();
     EXTERN_C_END
 
-#pragma data_seg("PROTDATA")
-    alignas(64) const ec::array<GdtEntry, 8> gdt{
-        GdtEntry::Null(),                              // Empty
-        GdtEntry(0, GDT_ENTRY_CODE | GDT_READ),        // Ring 0 code
-        GdtEntry(0, GDT_ENTRY_DATA | GDT_WRITE),       // Ring 0 data
-        GdtEntry(3, GDT_ENTRY_CODE | GDT_READ, false), // Ring 3 code, 32 bit
-        GdtEntry(3, GDT_ENTRY_DATA | GDT_WRITE),       // Ring 3 data
-        GdtEntry(3, GDT_ENTRY_CODE | GDT_READ),        // Ring 3 code
-        GdtEntry::TssLow(&kernel_tss),                 // TSS low
-        GdtEntry::TssHigh(&kernel_tss)                 // TSS high
+#pragma bss_seg("PROTDATA")
+    alignas(page_size) DATA_SEG("PROTDATA") const ec::array<GdtEntry, 8> gdt{
+        GdtEntry::Null(),                                       // Empty
+        GdtEntry(0, GDT_ENTRY_CODE | GDT_READ | GDT_ACCESSED),  // Ring 0 code
+        GdtEntry(0, GDT_ENTRY_DATA | GDT_WRITE | GDT_ACCESSED), // Ring 0 data
+        GdtEntry(3, GDT_ENTRY_CODE | GDT_READ, false, false),   // Ring 3 code, 32 bit
+        GdtEntry(3, GDT_ENTRY_DATA | GDT_WRITE | GDT_ACCESSED), // Ring 3 data
+        GdtEntry(3, GDT_ENTRY_CODE | GDT_READ | GDT_ACCESSED),  // Ring 3 code
+        GdtEntry::TssLow(&kernel_tss),                          // TSS low
+        GdtEntry::TssHigh(&kernel_tss)                          // TSS high
     };
 
-    alignas(64) ec::array<IdtEntry, 256> idt{
+    // clang-format off
+    alignas(page_size) DATA_SEG("PROTDATA") ec::array<IdtEntry, 256> idt{
         IdtEntry(_Isr0, 0), // Only has to be explicit the first time
         { _Isr1, 0, DebugIst },
         { _Isr2, 0, NmiIst },
@@ -283,11 +288,18 @@ namespace x64
         { _Isr254, 0 },
         { _Isr255, 0 }
     };
-#pragma data_seg()
+    // clang-format on
+#pragma bss_seg()
 
     EARLY static void GetCpuModel()
     {
         Print("CPU vendor: %s\n", GetVendorString(cpu_info.vendor_string));
+        if (strcmp(cpu_info.vendor_string, "AuthenticAMD") == 0)
+            cpu_info.vendor = Vendor::AMD;
+        else if (strcmp(cpu_info.vendor_string, "GenuineIntel") == 0)
+            cpu_info.vendor = Vendor::Intel;
+        else
+            cpu_info.vendor = Vendor::Unknown;
 
         Cpuid ids(CpuidLeaf::Info);
 
@@ -312,16 +324,20 @@ namespace x64
     }
 
 #define CheckRequiredFeature(reg, feat) \
-    if (!CheckCpuid(reg, feat)) { \
-        CpuidPanic(#feat); \
-    } else { \
-        Print("%s", #feat " "); \
+    if (!CheckCpuid(reg, feat))         \
+    {                                   \
+        CpuidPanic(#feat);              \
+    }                                   \
+    else                                \
+    {                                   \
+        Print("%s", #feat " ");         \
     }
 
 #define CheckOptionalFeature(info, reg, feat) \
-    info = CheckCpuid(reg, feat); \
-    if (info) { \
-        Print("%s", #feat " "); \
+    info = CheckCpuid(reg, feat);             \
+    if (info)                                 \
+    {                                         \
+        Print("%s", #feat " ");               \
     }
 
     EARLY static void CheckFeatureSupport()
@@ -333,12 +349,9 @@ namespace x64
         {
             Cpuid ids(CpuidLeaf::Info);
 
-            CheckOptionalFeature(cpu_info.tsc_supported, ids.ecx, TSC);
+            CheckOptionalFeature(cpu_info.tsc_supported, ids.edx, TSC);
             CheckOptionalFeature(cpu_info.hypervisor, ids.ecx, HYPERVISOR);
             CheckOptionalFeature(cpu_info.has_x2apic, ids.ecx, X2APIC);
-
-            // TODO - do this when it works on hardware
-            // CheckOptionalFeature(cpu_info.using_apic, ids.edx, APIC);
         }
 
         {
@@ -353,7 +366,7 @@ namespace x64
     EARLY static void SetCr0Bits()
     {
         // TODO - set ET?
-        WriteCr0(ReadCr0() & ~(Cr0::MP | Cr0::NE));
+        WriteCr0((ReadCr0() & ~Cr0::EM) | Cr0::MP | Cr0::NE | Cr0::WP);
     }
 
     EARLY static void SetCr4Bits()
@@ -365,8 +378,8 @@ namespace x64
 
         if (CheckCpuid(ids.ebx, CpuidFeature::FSGSBASE))
         {
-            cr4 |= Cr4::FSGSBASE;
-            Print("FSGSBASE ");
+            // NOTE: remember to harden GENERATE_PARANOID_ISR if this is turned on again
+            cr4 &= ~Cr4::FSGSBASE;
         }
 
         if (CheckCpuid(ids.ebx, CpuidFeature::SMEP))
@@ -407,15 +420,14 @@ namespace x64
     {
         // This is the same as the default PAT entries
         // but with one exception: PAT4 selects WC instead of WB
-        static constexpr auto pat_entries = (
-            (MemoryType::WriteBack)              // PAT0: WB
-            | (MemoryType::WriteThrough << 8)    // PAT1: WT
-            | (MemoryType::Uncached << 16)       // PAT2: UC-
-            | (MemoryType::Uncacheable << 24)    // PAT3: UC+
-            | (MemoryType::WriteCombining << 32) // PAT4: WC
-            | (MemoryType::WriteThrough << 40)   // PAT5: WT
-            | (MemoryType::Uncached << 48)       // PAT6: UC-
-            | (MemoryType::Uncacheable << 56));  // PAT7: UC+
+        static constexpr auto pat_entries = ((MemoryType::WriteBack)              // PAT0: WB
+                                             | (MemoryType::WriteThrough << 8)    // PAT1: WT
+                                             | (MemoryType::Uncached << 16)       // PAT2: UC-
+                                             | (MemoryType::Uncacheable << 24)    // PAT3: UC+
+                                             | (MemoryType::WriteCombining << 32) // PAT4: WC
+                                             | (MemoryType::WriteThrough << 40)   // PAT5: WT
+                                             | (MemoryType::Uncached << 48)       // PAT6: UC-
+                                             | (MemoryType::Uncacheable << 56));  // PAT7: UC+
 
         TlbFlush();
         __wbinvd();
@@ -453,7 +465,6 @@ namespace x64
         if (cpu_info.pic_present)
             pic::InitializeController();
 
-        // FIXME does not work on real hardware
         if (cpu_info.using_apic)
         {
             Print("Using APIC for interrupts.\n");
@@ -504,7 +515,7 @@ namespace x64
         WriteMsr(Msr::LSTAR, ( uptr_t )SyscallEntry);
 
         // Mask interrupts & traps and clear direction flag on syscalls
-        WriteMsr(Msr::FMASK, ( u64 )(RFLAG::AC | RFLAG::IF | RFLAG::TF));
+        WriteMsr(Msr::SFMASK, ( u64 )(RFLAG::AC | RFLAG::IF | RFLAG::TF | RFLAG::DF));
 
         // Enable syscall extensions
         auto efer = ReadMsr(Msr::EFER);
@@ -542,17 +553,28 @@ namespace x64
         // TODO - call into a table from asm instead
         switch (sys_no)
         {
-        case 0: PrintNumber(( int )frame->rdi); break;
-        case 1: UserYield(); break;
-        case 2: UserDelay(frame->rdi); break;
-        case 3: ExitThread(( int )frame->rdi); break;
+        case 0:
+            PrintNumber(( int )frame->rdi);
+            break;
+        case 1:
+            UserYield();
+            break;
+        case 2:
+            UserDelay(frame->rdi);
+            break;
+        case 3:
+            ExitThread(( int )frame->rdi);
+            break;
+        default:
+            Print("Unknown syscall\n");
+            break;
         }
 
         Print("Returning to 0x%p\n", frame->rcx);
         return 0;
     }
 
-    EARLY void Initialize(uptr_t kernel_stack)
+    EARLY void InitializeStage1(uptr_t kernel_stack)
     {
         kernel_tss.rsp0 = kernel_stack;
 
@@ -563,9 +585,11 @@ namespace x64
 
         LoadPageAttributeTable();
         LoadDescriptorTables();
+    }
 
+    EARLY void InitializeStage2()
+    {
         InitializeInterrupts();
-
         InitializeSyscalls();
     }
-}
+} // namespace x64

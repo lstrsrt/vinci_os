@@ -329,10 +329,10 @@ namespace mm
     template<Region rg>
     static bool MapPagesInRegion(PageTable& table, uptr_t* phys_virt, size_t count)
     {
-        if ((*phys_virt + count * page_size) > rg.End())
+        if (count * page_size > rg.size)
             return false;
 
-        for (vaddr_t page = rg.base; page < (page + rg.size); page += page_size)
+        for (vaddr_t page = rg.base; page + count * page_size <= rg.End(); page += page_size)
         {
             if (IsPagePresent(table, page))
                 continue;

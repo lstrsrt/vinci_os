@@ -1,23 +1,23 @@
-#include <libc/mem.h>
 #include <ec/bitmap.h>
+#include <libc/mem.h>
 
-#include "ke.h"
 #include "../hw/gfx/output.h"
 #include "../hw/serial/serial.h"
+#include "ke.h"
 
-#define DEBUG_ALLOC
-#define ALLOC_POISON
+// #define DEBUG_ALLOC
+// #define ALLOC_POISON
 
 #ifdef DEBUG_ALLOC
-#define DbgPrint(x, ...) EMPTY_STMT
-#else
 #define DbgPrint(x, ...) serial::Write(x, __VA_ARGS__)
+#else
+#define DbgPrint(x, ...) EMPTY_STMT
 #endif
 
 #ifdef ALLOC_POISON
-#define PoisonMemory(addr, val, n) EMPTY_STMT
-#else
 #define PoisonMemory(addr, val, n) memset(addr, val, n)
+#else
+#define PoisonMemory(addr, val, n) EMPTY_STMT
 #endif
 
 namespace ke
@@ -42,11 +42,6 @@ namespace ke
         total_used = 0;
         ke::alloc_initialized = true;
     }
-
-    constexpr auto AlignUp(size_t value, size_t align)
-    {
-        return (value + align - 1) & ~(align - 1);
-    };
 
     void SetAllocationState(Allocation* info, bool allocating)
     {
@@ -166,7 +161,7 @@ namespace ke
         const auto size = alloc->blocks * block_size;
         DbgPrint("Used: %llu -> %llu\n", total_used, total_used - size);
 
-        PoisonMemory(( void* )real_address, poison, bytes);
+        PoisonMemory(( void* )real_address, poison, size);
 
         total_used -= size;
         total_free += size;
@@ -181,4 +176,4 @@ namespace ke
                 Print("[%llu]: 0x%llx\n", i, b);
         }
     }
-}
+} // namespace ke

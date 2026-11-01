@@ -67,9 +67,6 @@ extern IsrCommon
 HAS_ERROR equ 1
 NO_ERROR  equ 0
 
-R0_CODE_SEL equ 1*8
-R0_DATA_SEL equ 2*8
-
 ; %1 int_no, %2 has_error
 %macro GENERATE_ISR 2
 global _Isr%1
@@ -79,9 +76,9 @@ _Isr%1:
         push 0
     %endif
 
-    ; + 16 is cs in the interrupt frame
+    ; + 16 is CS in the interrupt frame
     ; before the rest has been set up
-    cmp qword [rsp + 16], R0_CODE_SEL
+    test byte [rsp + 16], 3
     je .kentry
 
     ; Only swap GS if coming from user mode
@@ -94,17 +91,18 @@ _Isr%1:
 
     ; Call generic handler
     mov rcx, rsp ; stack
-    mov rdx, %1 ; int no
-    sub rsp, 32 ; shadow space
-    cld
+    mov rdx, %1  ; int no
+    sub rsp, 40  ; shadow space
+    push qword 2 ; clear rflags
+    popfq
     call IsrCommon
-    add rsp, 32
+    add rsp, 40
 
     ; Free interrupt frame
     POP_GPR
     pop rbp
 
-    cmp qword [rsp + 16], R0_CODE_SEL
+    test byte [rsp + 16], 3
     je .kexit
 
     swapgs
@@ -125,6 +123,57 @@ _Isr%1:
     %endrep
 %endmacro
 
+; This macro is used for interrupts that ignore RFLAG::IF,
+; currently #NMI, #DB and #MC. If e.g. a syscall gets interrupted
+; by one of these before it can swapgs, our CS=3 test would fail
+; and we would run with a user GS.
+; This macro reads the GS base directly instead.
+;
+; %1 int_no
+%macro GENERATE_PARANOID_ISR 1
+global _Isr%1
+_Isr%1:
+    ; Fake error code
+    push 0
+    ; Generate rest of interrupt frame
+    push rbp
+    PUSH_GPR
+
+    ; Read GS base
+    mov ecx, 0xC0000101
+    rdmsr
+    xor ebx, ebx
+    test edx, edx
+    js .kentry ; signed = kernel
+
+    ; Swap GS if base is usermode
+    swapgs
+    mov ebx, 1
+
+.kentry:
+    ; Call generic handler
+    mov rcx, rsp ; stack
+    mov rdx, %1  ; int no
+    sub rsp, 40  ; shadow space
+    push qword 2 ; clear rflags
+    popfq
+    call IsrCommon
+    add rsp, 40
+
+    test ebx, ebx
+    jz .kexit
+    swapgs
+
+.kexit:
+    ; Free interrupt frame
+    POP_GPR
+    pop rbp
+
+    ; Free error code
+    add rsp, 8
+    iretq
+%endmacro
+
 global _IsrSpurious
 _IsrSpurious:
     inc qword [rel spurious_irqs]
@@ -132,18 +181,19 @@ _IsrSpurious:
     ; and issue a warning or mask the interrupt entirely
     iretq
 
-GENERATE_ISRS 0, 7, NO_ERROR
+GENERATE_ISR 0, NO_ERROR
+GENERATE_PARANOID_ISR 1
+GENERATE_PARANOID_ISR 2
+GENERATE_ISRS 3, 7, NO_ERROR
 GENERATE_ISR 8, HAS_ERROR
 GENERATE_ISR 9, NO_ERROR
 GENERATE_ISRS 10, 14, HAS_ERROR
-GENERATE_ISR 15, NO_ERROR
-GENERATE_ISR 16, NO_ERROR
+GENERATE_ISRS 15, 16, NO_ERROR
 GENERATE_ISR 17, HAS_ERROR
-GENERATE_ISR 18, NO_ERROR
-GENERATE_ISR 19, NO_ERROR
-GENERATE_ISR 20, NO_ERROR
+GENERATE_PARANOID_ISR 18
+GENERATE_ISRS 19, 20, NO_ERROR
 GENERATE_ISR 21, HAS_ERROR
-GENERATE_ISRS 22, 29, NO_ERROR
-GENERATE_ISR 30, HAS_ERROR
+GENERATE_ISRS 22, 28, NO_ERROR
+GENERATE_ISRS 29, 30, HAS_ERROR
 GENERATE_ISR 31, NO_ERROR
 GENERATE_ISRS 32, 255, NO_ERROR

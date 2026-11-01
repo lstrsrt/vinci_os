@@ -57,20 +57,28 @@ namespace ec
 
         INLINE void remove(slist_entry* entry)
         {
-            auto p1 = this;
-            auto p2 = m_next;
+            if (!m_next)
+                return;
 
-            while (p2)
+            // The list is a ring, so find the entry before the one being removed.
+            auto prev = m_next;
+            while (prev->m_next != entry)
             {
-                if (p2 == entry)
-                {
-                    p1->m_next = p2->m_next;
-                    return;
-                }
-
-                p1 = p1->m_next;
-                p2 = p2->m_next;
+                prev = prev->m_next;
+                if (prev == m_next)
+                    return; // Not in the list
             }
+
+            if (prev == entry)
+            {
+                // It was the only entry
+                m_next = nullptr;
+                return;
+            }
+
+            prev->m_next = entry->m_next;
+            if (m_next == entry)
+                m_next = entry->m_next;
         }
 
         slist_entry* m_next{};

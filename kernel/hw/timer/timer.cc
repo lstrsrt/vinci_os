@@ -1,7 +1,7 @@
 #include "timer.h"
-#include "../cpu/x64.h"
-#include "../cpu/isr.h"
 #include "../cmos/cmos.h"
+#include "../cpu/isr.h"
+#include "../cpu/x64.h"
 #include "../gfx/output.h"
 
 namespace timer
@@ -27,7 +27,7 @@ namespace timer
     {
         ticks++;
     }
-}
+} // namespace timer
 
 namespace timer::pit
 {
@@ -42,39 +42,44 @@ namespace timer::pit
         x64::WritePort8(port::data0, LOW8(divisor));
         x64::WritePort8(port::data0, HIGH8(divisor));
     }
-}
+} // namespace timer::pit
 
 namespace timer::hpet
 {
     EARLY bool Initialize(u64 hpet_address)
     {
-        // TODO - accessing registers in Release builds hangs the system
+        if (!hpet_address)
+            return false;
+
         auto regs = ( volatile Registers* )hpet_address;
-        auto time = regs->tick_period / hz;
-        auto period = ( u64 )regs->counter + time;
+        if (!regs->tick_period)
+            return false;
 
-        // general[12:8] is the highest timer # counting from 0.
-        u32 timer_count = EXTRACT64(regs->general, 8, 12) + 1;
-        for (u32 i = 0; i < timer_count; i++)
+        // tick_period is the length of one counter tick in femtoseconds (10^-15 s).
+        const u64 ticks_per_interrupt = 1'000'000'000'000'000ull / regs->tick_period / hz;
+
+        // Only timer 0 is supported (legacy conf).
+        auto& timer = regs->timers[0];
+        if (timer.general & TmrPeriodicSupport)
         {
-            auto& timer = regs->timers[i];
-            if (timer.general & TmrPeriodicSupport)
-            {
-                // Enable timer and set to periodic
-                timer.general = ( TimerConfig )(timer.general |
-                    TmrEnable | TmrPeriodic | TmrSetAccumulator);
+            // Halt the main counter while resetting it (writing it while running is undefined).
+            regs->config = ( Config )((regs->config & ~CfgEnable) | CfgLegacyReplacement);
+            regs->counter = 0;
 
-                // Also enable HPET here
-                regs->config = ( Config )(regs->config | CfgEnable);
+            // Enable timer and set to periodic
+            timer.general
+                = ( TimerConfig )((timer.general & ~TmrLevelTriggered) | TmrEnable | TmrPeriodic | TmrSetAccumulator);
 
-                // Reset counter and set the comparator and accumulator
-                regs->counter = 0;
-                timer.comparator = ( u64 )regs->tick_period + period;
-                timer.comparator = period;
-                return true;
-            }
+            // With TmrSetAccumulator set, the first write sets the first deadline
+            // and the second sets the period added after each interrupt.
+            timer.comparator = ticks_per_interrupt;
+            timer.comparator = ticks_per_interrupt;
+
+            // Start the main counter
+            regs->config = ( Config )(regs->config | CfgEnable);
+            return true;
         }
 
         return false;
     }
-}
+} // namespace timer::hpet

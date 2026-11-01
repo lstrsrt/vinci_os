@@ -40,7 +40,7 @@ namespace gfx
 
     void SetColor(u8 r, u8 g, u8 b);
 
-    void SetFrameBufferAddress(u64 address);
+    void SetFrameBufferAddress(u64 frame_buffer, u64 back_buffer);
 
     void OnKey(const kbd::Key& key);
 

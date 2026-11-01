@@ -25,15 +25,17 @@ endstruc
 %define sysretq o64 sysret
 
 section .data
-extern kernel_stack_top
+extern kernel_stack_base
 
 section .text
 extern OsInitialize
 extern SyscallCxx
+extern _ExitThread
 
 global x64Entry
 global ReloadSegments
 global LoadTr
+global UserThreadEntry
 global Ring3Function
 global SyscallEntry
 global LoadContext
@@ -48,8 +50,8 @@ global SwitchContext
 ;
 x64Entry:
     cli
-    mov rsp, [rel kernel_stack_top]
-    sub rsp, 32
+    mov rsp, [rel kernel_stack_base]
+    sub rsp, 40
     jmp OsInitialize
 
 ;
@@ -64,6 +66,8 @@ x64Entry:
 ReloadSegments:
     ; Loading data segments can be done with simple movs
     mov ds, dx
+    mov es, dx
+    mov fs, dx
     mov ss, dx
 
     ; Set rdx to the label address and do a far return
@@ -89,23 +93,37 @@ LoadTr:
     ret
 
 ;
-; NO_RETURN void Ring3Function()
+; NO_RETURN int UserThreadEntry(u64 arg, void* function)
+;
+; User mode thread entry point.
+;
+; rcx = User arg
+; rdx = User function
+;
+UserThreadEntry:
+    sub rsp, 40
+    call rdx
+    mov edi, eax
+    mov eax, 3
+    syscall ; ExitThread
+    ud2
+
+;
+; NO_RETURN int Ring3Function(u64 arg)
 ;
 ; Sample function to demonstrate entering ring 3.
 ;
+; rcx = Limit
+;
 Ring3Function:
-    mov ebx, 5
+    mov rdx, rcx
 .loop:
     mov eax, 2
     mov edi, 1000
     syscall ; Delay
-    dec ebx
+    dec edx
     jnz .loop
-    ; jmp .loop
-
     mov eax, 3
-    mov edi, 5
-    syscall ; ExitThread
     ret
 
 ;
@@ -118,10 +136,11 @@ Ring3Function:
 ; Result is returned in rax.
 ;
 SyscallEntry:
-    swapgs           ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
+    swapgs             ; Switch to kernel gs (at KERNEL_GS_BASE MSR)
 
-    mov gs:[48], rsp ; core->user_stack = rsp
-    mov rsp, gs:[40] ; rsp = core->kernel_stack
+    mov gs:[48], rsp   ; core->user_stack = rsp
+    mov rsp, gs:[40]   ; rsp = core->kernel_stack_top
+    push qword gs:[48] ; push core->user_stack
 
     sti
 
@@ -138,9 +157,13 @@ SyscallEntry:
 
     mov rcx, rsp  ; frame
     mov rdx, rax  ; int_no
-    sub rsp, 32   ; shadow space
+    sub rsp, 40   ; shadow space
     call SyscallCxx
-    add rsp, 32
+    add rsp, 40
+
+    mov rdx, [rsp + 40]
+    shr rdx, 47
+    jnz .not_canonical
 
     pop r11
     pop rsi
@@ -154,76 +177,76 @@ SyscallEntry:
     pop r11
 
     cli
-
-    mov gs:[40], rsp
-    mov rsp, gs:[48]
+    pop rsp
 
     ; Back to user mode
     swapgs
     sysretq
 
+.not_canonical:
+    sub rsp, 40
+    mov ecx, -1
+    call _ExitThread
+    ud2
+
 ;
-; NO_RETURN void LoadContext(Context* ctx, uptr_t user_stack)
+; NO_RETURN void LoadContext(Context* ctx)
 ;
 ; Loads a new thread context.
 ;
 ; rcx = Thread context
-; rdx = Thread user stack if applicable
 ;
 LoadContext:
+    cli
+
+    push [rcx + Context.ss]
+    push [rcx + Context.rsp]
+    push [rcx + Context.rflags]
+    push [rcx + Context.cs]
+    push [rcx + Context.rip]
+
     mov rbp, [rcx + Context.rbp]
+    mov rax, [rcx + Context.rax]
     mov rbx, [rcx + Context.rbx]
+    mov rdx, [rcx + Context.rdx]
     mov rdi, [rcx + Context.rdi]
     mov rsi, [rcx + Context.rsi]
+    mov r8, [rcx + Context.r8]
+    mov r9, [rcx + Context.r9]
+    mov r10, [rcx + Context.r10]
+    mov r11, [rcx + Context.r11]
     mov r12, [rcx + Context.r12]
     mov r13, [rcx + Context.r13]
     mov r14, [rcx + Context.r14]
     mov r15, [rcx + Context.r15]
 
-    mov r11, [rcx + Context.rflags]
-
-    mov rsp, [rcx + Context.rsp]
-    mov rcx, [rcx + Context.rip]
-
-    ; Was a user stack provided?
-    test rdx, rdx
-    jz .ring0
-
-    ; Is RIP in ring 0 even though it's a user thread?
-    ; This can happen when a syscall was interrupted
-    mov r9, 7fffffff0000h
-    cmp rcx, r9
-    jb .ring3
-
-.ring0:
-    ; We're staying in ring 0 - flags have to be loaded manually.
-    push r11
-    popfq
-
-    ; Go to the new thread IP, no more work required
-    jmp rcx
-
-.ring3:
-    mov rsp, rdx
-    ; User mode needs to change selectors, so simulate a system call return.
-    ; Flags are loaded automatically from r11.
+    test byte [rcx + Context.cs], 3
+    je .kernel
     swapgs
-    sysretq
+.kernel:
+    mov rcx, [rcx + Context.rcx]
+    iretq
 
 ;
-; NO_RETURN void SwitchContext(Context* prev, Context* next, uptr_t user_stack)
+; NO_RETURN void SwitchContext(Context* prev, Context* next)
 ;
 ; Stores the context of the calling thread in `prev` and loads `next`.
 ;
 ; rcx = Previous context
 ; rdx = Next context
-; r8  = Thread user stack if applicable
 ;
 SwitchContext:
     mov [rcx + Context.rbp], rbp
+    mov [rcx + Context.rax], rax
     mov [rcx + Context.rbx], rbx
+    mov [rcx + Context.rcx], rcx
+    mov [rcx + Context.rdx], rdx
     mov [rcx + Context.rdi], rdi
     mov [rcx + Context.rsi], rsi
+    mov [rcx + Context.r8], r8
+    mov [rcx + Context.r9], r9
+    mov [rcx + Context.r10], r10
+    mov [rcx + Context.r11], r11
     mov [rcx + Context.r12], r12
     mov [rcx + Context.r13], r13
     mov [rcx + Context.r14], r14
@@ -239,6 +262,9 @@ SwitchContext:
 
     mov [rcx + Context.rsp], rsp
 
+    mov [rcx + Context.ss], ss
+    mov eax, cs
+    mov [rcx + Context.cs], rax ; zero-fill
+
     mov rcx, rdx
-    mov rdx, r8
     jmp LoadContext

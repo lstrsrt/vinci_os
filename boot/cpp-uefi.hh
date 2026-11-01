@@ -28,17 +28,28 @@
 #define OPTIONAL_INSERT_COMMA(...) __VA_OPT__(, __VA_ARGS__)
 #endif
 
-#define THISPTR_FN(ret, name, args, ...) using name##_t = ret(EFIAPI*)(void* thisptr OPTIONAL_INSERT_COMMA(__VA_ARGS__)); \
-    private: name##_t _##name; \
-    public: inline auto name(OPTIONAL_INSERT(__VA_ARGS__)) { return _##name args; }
+#define THISPTR_FN(ret, name, args, ...)                                             \
+    using name##_t = ret(EFIAPI*)(void* thisptr OPTIONAL_INSERT_COMMA(__VA_ARGS__)); \
+                                                                                     \
+  private:                                                                           \
+    name##_t _##name;                                                                \
+                                                                                     \
+  public:                                                                            \
+    inline auto name(OPTIONAL_INSERT(__VA_ARGS__))                                   \
+    {                                                                                \
+        return _##name args;                                                         \
+    }
 
-#define MEMBER_FN(ret, name, ...) using name##_t = ret(EFIAPI*)(OPTIONAL_INSERT(__VA_ARGS__)); \
-    public: name##_t name
+#define MEMBER_FN(ret, name, ...)                                \
+    using name##_t = ret(EFIAPI*)(OPTIONAL_INSERT(__VA_ARGS__)); \
+                                                                 \
+  public:                                                        \
+    name##_t name
 
-namespace uefi {
-
-    inline namespace types {
-
+namespace uefi
+{
+    inline namespace types
+    {
         using boolean = bool;
 
         using int8 = int8_t;
@@ -52,7 +63,7 @@ namespace uefi {
         using intn = intptr_t;
         using uintn = uintptr_t;
 
-        using char8 = char8_t;
+        using char8 = char;
         using char16 = char16_t;
 
         using physical_address = uint64;
@@ -60,15 +71,15 @@ namespace uefi {
         using handle = void*;
         using event = void*;
         using lba = uint64;
-
-    }
+    } // namespace types
 
 #pragma region basic_constants
+
     namespace signature
     {
         static constexpr uint64 system_table = 0x5453595320494249;
         static constexpr uint64 boot_services = 0x56524553544f4f42;
-    }
+    } // namespace signature
 
     namespace revision
     {
@@ -98,10 +109,12 @@ namespace uefi {
 
         static constexpr uint32 loaded_image = 0x1000;
         static constexpr uint32 image_information = loaded_image;
-    }
+    } // namespace revision
+
 #pragma endregion
 
 #pragma region guids
+
     struct guid
     {
         uint32 data1;
@@ -112,27 +125,36 @@ namespace uefi {
 
     namespace protocol
     {
-        static constexpr guid simple_text_output{ 0x387477c2, 0x69c7, 0x11d2, { 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b } };
-        static constexpr guid simple_text_input{ 0x387477c1, 0x69c7, 0x11d2, { 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b } };
-        static constexpr guid simple_file_system{ 0x964e5b22, 0x6459, 0x11d2, { 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b } };
-        static constexpr guid loaded_image{ 0x5b1b31a1, 0x9562, 0x11d2, { 0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b } };
-        static constexpr guid loaded_image_device_path{ 0xbc62157e, 0x3e33, 0x4fec, { 0x99, 0x20, 0x2d, 0x3b, 0x36, 0xd7, 0x50, 0xdf } };
-        static constexpr guid device_path{ 0x09576e91, 0x6d3f, 0x11d2, { 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b } };
-        static constexpr guid graphics_output{ 0x9042a9de, 0x23dc, 0x4a38, {0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a } };
-    }
+        static constexpr guid simple_text_output{
+            0x387477c2, 0x69c7, 0x11d2, {0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
+        static constexpr guid simple_text_input{
+            0x387477c1, 0x69c7, 0x11d2, {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
+        static constexpr guid simple_file_system{
+            0x964e5b22, 0x6459, 0x11d2, {0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
+        static constexpr guid loaded_image{
+            0x5b1b31a1, 0x9562, 0x11d2, {0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
+        static constexpr guid loaded_image_device_path{
+            0xbc62157e, 0x3e33, 0x4fec, {0x99, 0x20, 0x2d, 0x3b, 0x36, 0xd7, 0x50, 0xdf}};
+        static constexpr guid device_path{0x09576e91, 0x6d3f, 0x11d2, {0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b}};
+        static constexpr guid graphics_output{
+            0x9042a9de, 0x23dc, 0x4a38, {0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a}};
+    } // namespace protocol
 
     namespace table
     {
-        static constexpr guid mps{ 0xeb9d2d2f, 0x2d88, 0x11d3, { 0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } };
-        static constexpr guid acpi{ 0xeb9d2d30, 0x2d88, 0x11d3, { 0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } };
-        static constexpr guid acpi20{ 0x8868e871, 0xe4f1, 0x11d3, { 0xbc, 0x22, 0x0, 0x80, 0xc7, 0x3c, 0x88, 0x81 } };
-        static constexpr guid smbios{ 0xeb9d2d31, 0x2d88, 0x11d3, { 0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } };
-        static constexpr guid smbios3{ 0xf2fd1544, 0x9794, 0x4a2c, { 0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94 } };
-        static constexpr guid sal_system_table{ 0xeb9d2d32, 0x2d88, 0x11d3, { 0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } };
-    }
+        static constexpr guid mps{0xeb9d2d2f, 0x2d88, 0x11d3, {0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d}};
+        static constexpr guid acpi{0xeb9d2d30, 0x2d88, 0x11d3, {0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d}};
+        static constexpr guid acpi20{0x8868e871, 0xe4f1, 0x11d3, {0xbc, 0x22, 0x0, 0x80, 0xc7, 0x3c, 0x88, 0x81}};
+        static constexpr guid smbios{0xeb9d2d31, 0x2d88, 0x11d3, {0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d}};
+        static constexpr guid smbios3{0xf2fd1544, 0x9794, 0x4a2c, {0x99, 0x2e, 0xe5, 0xbb, 0xcf, 0x20, 0xe3, 0x94}};
+        static constexpr guid sal_system_table{
+            0xeb9d2d32, 0x2d88, 0x11d3, {0x9a, 0x16, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d}};
+    } // namespace table
+
 #pragma endregion
 
 #pragma region general
+
     enum status : uintn
     {
         mask_error = 0x8000000000000000,
@@ -182,7 +204,10 @@ namespace uefi {
         err_http_error,
     };
 
-    inline constexpr boolean is_error(status s) { return s & mask_error; };
+    inline constexpr boolean is_error(status s)
+    {
+        return s & mask_error;
+    };
 
     enum class image_machine
     {
@@ -259,7 +284,7 @@ namespace uefi {
         uint64 attribute;
     };
 
-#define uefi_next_memory_descriptor(ptr, size)  ((uefi::memory_descriptor *)(((uint8 *)ptr) + size))
+#define uefi_next_memory_descriptor(ptr, size) (( uefi::memory_descriptor* )((( uint8* )ptr) + size))
 
     static constexpr uintn page_size = 4096;
     static constexpr uintn page_mask = 0xfff;
@@ -309,9 +334,11 @@ namespace uefi {
         uint32 crc32;
         uint32 reserved;
     };
+
 #pragma endregion
 
 #pragma region text
+
     enum text_attribute : uintn
     {
         bg_shift = 4,
@@ -384,6 +411,7 @@ namespace uefi {
 #pragma endregion
 
 #pragma region files
+
     enum file_mode : uint64
     {
         file_mode_read = 1 << 0,
@@ -410,23 +438,45 @@ namespace uefi {
     struct file_protocol
     {
         uint64 revision;
-        THISPTR_FN(status, open, (this, new_handle, file_name, open_mode, attributes),
-            file_protocol** new_handle, char16* file_name, uint64 open_mode, uint64 attributes);
+        THISPTR_FN(status,
+            open,
+            (this, new_handle, file_name, open_mode, attributes),
+            file_protocol** new_handle,
+            char16* file_name,
+            uint64 open_mode,
+            uint64 attributes);
         THISPTR_FN(status, close, (this));
         THISPTR_FN(status, delete_, (this));
         THISPTR_FN(status, read, (this, buffer_size, buffer), uintn* buffer_size, void* buffer);
         THISPTR_FN(status, write, (this, buffer_size, buffer), uintn* buffer_size, void* buffer);
         THISPTR_FN(status, get_position, (this, position), uint64* position);
         THISPTR_FN(status, set_position, (this, position), uint64 position);
-        THISPTR_FN(status, get_info, (this, information_type, buffer_size, buffer), guid* information_type, uintn* buffer_size, void* buffer);
-        THISPTR_FN(status, set_info, (this, information_type, buffer_size, buffer), guid* information_type, uintn* buffer_size, void* buffer);
+        THISPTR_FN(status,
+            get_info,
+            (this, information_type, buffer_size, buffer),
+            guid* information_type,
+            uintn* buffer_size,
+            void* buffer);
+        THISPTR_FN(status,
+            set_info,
+            (this, information_type, buffer_size, buffer),
+            guid* information_type,
+            uintn* buffer_size,
+            void* buffer);
         THISPTR_FN(status, flush, (this));
-        THISPTR_FN(status, open_ex, (this, new_handle, file_name, open_mode, attributes, token),
-            file_protocol** new_handle, char16* file_name, uint64 open_mode, uint64 attributes, file_io_token* token);
+        THISPTR_FN(status,
+            open_ex,
+            (this, new_handle, file_name, open_mode, attributes, token),
+            file_protocol** new_handle,
+            char16* file_name,
+            uint64 open_mode,
+            uint64 attributes,
+            file_io_token* token);
         THISPTR_FN(status, read_ex, (this, token), file_io_token* token);
         THISPTR_FN(status, write_ex, (this, token), file_io_token* token);
         THISPTR_FN(status, flush_ex, (this, token), file_io_token* token);
     };
+
     using file_handle = file_protocol;
     using file = file_protocol;
 
@@ -435,6 +485,7 @@ namespace uefi {
         uint64 revision;
         THISPTR_FN(status, open_volume, (this, root), file_handle** root);
     };
+
     using file_io_interface = simple_file_system_protocol;
 
     enum class device_path_type : uint8
@@ -453,6 +504,7 @@ namespace uefi {
         uint8 sub_type;
         uint8 length[2];
     };
+
     using device_path = device_path_protocol;
 
     struct loaded_image_protocol
@@ -475,6 +527,7 @@ namespace uefi {
 #pragma endregion
 
 #pragma region graphics
+
     struct pixel_bitmask
     {
         uint32 red_mask;
@@ -535,15 +588,28 @@ namespace uefi {
 
     struct graphics_output_protocol
     {
-        THISPTR_FN(status, query_mode, (this, mode_number, size_of_info, info),
-            uint32 mode_number, uintn* size_of_info, graphics_output_mode_information** info);
+        THISPTR_FN(status,
+            query_mode,
+            (this, mode_number, size_of_info, info),
+            uint32 mode_number,
+            uintn* size_of_info,
+            graphics_output_mode_information** info);
         THISPTR_FN(status, set_mode, (this, mode_number), uint32 mode_number);
-        THISPTR_FN(status, blt, (this, blt_buffer, blt_operation, source_x, source_y, destination_x, destination_y, width, height, delta),
-            graphics_output_blt_pixel* blt_buffer, graphics_output_blt_operation blt_operation,
-            uintn source_x, uintn source_y, uintn destination_x, uintn destination_y,
-            uintn width, uintn height, uintn delta)
-            graphics_output_protocol_mode* mode;
+        THISPTR_FN(status,
+            blt,
+            (this, blt_buffer, blt_operation, source_x, source_y, destination_x, destination_y, width, height, delta),
+            graphics_output_blt_pixel* blt_buffer,
+            graphics_output_blt_operation blt_operation,
+            uintn source_x,
+            uintn source_y,
+            uintn destination_x,
+            uintn destination_y,
+            uintn width,
+            uintn height,
+            uintn delta)
+        graphics_output_protocol_mode* mode;
     };
+
 #pragma endregion
 
 #pragma region services
@@ -628,6 +694,7 @@ namespace uefi {
     struct capsule_block_descriptor
     {
         uint64 length;
+
         union
         {
             physical_address data_block;
@@ -648,26 +715,53 @@ namespace uefi {
         table_header header;
         MEMBER_FN(tpl, raise_tpl, tpl level);
         MEMBER_FN(void, restore_tpl, tpl level);
-        MEMBER_FN(status, allocate_pages, allocation_type type, memory_type mem_type, uintn pages, physical_address* memory);
+        MEMBER_FN(
+            status, allocate_pages, allocation_type type, memory_type mem_type, uintn pages, physical_address* memory);
         MEMBER_FN(status, free_pages, physical_address address, uintn pages);
-        MEMBER_FN(status, get_memory_map,
-            uintn* memory_map_size, memory_descriptor* memory_map, uintn* map_key, uintn* descriptor_size, uint32* descriptor_version);
+        MEMBER_FN(status,
+            get_memory_map,
+            uintn* memory_map_size,
+            memory_descriptor* memory_map,
+            uintn* map_key,
+            uintn* descriptor_size,
+            uint32* descriptor_version);
         MEMBER_FN(status, allocate_pool, memory_type pool_type, uintn size, void** buffer);
         MEMBER_FN(status, free_pool, void* buffer);
-        MEMBER_FN(status, create_event, uint32 type, tpl notify_tpl, event_notify_t notify_function, void* notify_context, event* event_);
+        MEMBER_FN(status,
+            create_event,
+            uint32 type,
+            tpl notify_tpl,
+            event_notify_t notify_function,
+            void* notify_context,
+            event* event_);
         MEMBER_FN(status, set_timer, event event_, timer_delay type, uint64 trigger_time);
         MEMBER_FN(status, wait_for_event, uintn number_of_events, event* event, uintn* index);
         MEMBER_FN(status, signal_event, event event_);
         MEMBER_FN(status, close_event, event event_);
         MEMBER_FN(status, check_event, event event_);
-        MEMBER_FN(status, install_protocol_interface, handle* handle_, guid* protocol, interface_type interface_type_, void* interface);
-        MEMBER_FN(status, reinstall_protocol_interface, handle handle_, guid* protocol, void* old_interface, void* new_interface);
+        MEMBER_FN(status,
+            install_protocol_interface,
+            handle* handle_,
+            guid* protocol,
+            interface_type interface_type_,
+            void* interface);
+        MEMBER_FN(status,
+            reinstall_protocol_interface,
+            handle handle_,
+            guid* protocol,
+            void* old_interface,
+            void* new_interface);
         MEMBER_FN(status, uninstall_protocol_interface, handle handle_, guid* protocol, void* interface);
         MEMBER_FN(status, handle_protocol, handle* handle_, guid* protocol, void** interface);
         MEMBER_FN(status, pc_handle_protocol, handle* handle_, guid* protocol, void** interface);
         MEMBER_FN(status, register_protocol_notify, guid* protocol, event event_, void** registration);
-        MEMBER_FN(status, locate_handle,
-            locate_search_type search_type, guid* protocol, void* search_key, uintn* buffer_size, handle* buffer);
+        MEMBER_FN(status,
+            locate_handle,
+            locate_search_type search_type,
+            guid* protocol,
+            void* search_key,
+            uintn* buffer_size,
+            handle* buffer);
         MEMBER_FN(status, locate_device_path, guid* protocol, device_path** device_path_, handle* device);
         MEMBER_FN(status, install_configuration_table, guid* guid_, void* table);
         MEMBER_FN(status, load_image, handle image_handle);
@@ -677,27 +771,54 @@ namespace uefi {
         MEMBER_FN(status, exit_boot_services, handle image_handle, uintn map_key);
         MEMBER_FN(status, get_next_monotonic_count, uint64* count);
         MEMBER_FN(status, stall, uintn ms);
-        MEMBER_FN(status, set_watchdog_timer, uintn timeout, uint64 watchdog_code, uintn data_size, char16* watchdog_data);
-        MEMBER_FN(status, connect_controller,
-            handle controller_handle, handle* driver_image_handle, device_path* remaining_device_path, boolean recursive);
-        MEMBER_FN(status, disconnect_controller,
-            handle controller_handle, handle driver_image_handle, handle child_handle);
-        MEMBER_FN(status, open_protocol,
-            handle handle_, guid* protocol, void** interface, handle agent_handle, handle controller_handle, uint32 attributes);
-        MEMBER_FN(status, close_protocol, handle handle_, guid* protocol, handle agent_handle, handle controller_handle);
-        MEMBER_FN(status, open_protocol_information,
-            handle handle_, guid* protocol, open_protocol_information_entry** entry_buffer, uintn* entry_count);
+        MEMBER_FN(
+            status, set_watchdog_timer, uintn timeout, uint64 watchdog_code, uintn data_size, char16* watchdog_data);
+        MEMBER_FN(status,
+            connect_controller,
+            handle controller_handle,
+            handle* driver_image_handle,
+            device_path* remaining_device_path,
+            boolean recursive);
+        MEMBER_FN(
+            status, disconnect_controller, handle controller_handle, handle driver_image_handle, handle child_handle);
+        MEMBER_FN(status,
+            open_protocol,
+            handle handle_,
+            guid* protocol,
+            void** interface,
+            handle agent_handle,
+            handle controller_handle,
+            uint32 attributes);
+        MEMBER_FN(
+            status, close_protocol, handle handle_, guid* protocol, handle agent_handle, handle controller_handle);
+        MEMBER_FN(status,
+            open_protocol_information,
+            handle handle_,
+            guid* protocol,
+            open_protocol_information_entry** entry_buffer,
+            uintn* entry_count);
         MEMBER_FN(status, protocols_per_handle, handle handle_, guid*** protocol_buffer, uintn* protocol_buffer_count);
-        MEMBER_FN(status, locate_handle_buffer,
-            locate_search_type search_type, guid* protocol, void* search_key, uintn* handles, handle** buffer);
+        MEMBER_FN(status,
+            locate_handle_buffer,
+            locate_search_type search_type,
+            guid* protocol,
+            void* search_key,
+            uintn* handles,
+            handle** buffer);
         MEMBER_FN(status, locate_protocol, guid* protocol, void* registration, void** interface_);
         MEMBER_FN(status, install_multiple_protocol_interfaces, handle, ...);
         MEMBER_FN(status, uninstall_multiple_protocol_interfaces, handle, ...);
         MEMBER_FN(status, calculate_crc32, void* data, uintn data_size, uint32* crc32);
         MEMBER_FN(status, copy_mem, void* destination, void* source, uintn length);
         MEMBER_FN(status, set_mem, void* destination, uintn size, uint8 value);
-        MEMBER_FN(status, create_event_ex,
-            uint32 type, tpl notify_tpl, event_notify_t notify_function, const void* notify_context, const guid* event_group, event* event_);
+        MEMBER_FN(status,
+            create_event_ex,
+            uint32 type,
+            tpl notify_tpl,
+            event_notify_t notify_function,
+            const void* notify_context,
+            const guid* event_group,
+            event* event_);
     };
 
     struct runtime_services
@@ -707,19 +828,48 @@ namespace uefi {
         MEMBER_FN(status, set_time, time* time_);
         MEMBER_FN(status, get_wakeup_time, boolean* enabled, boolean* pending, time* time_);
         MEMBER_FN(status, set_wakeup_time, boolean enabled, time* time_);
-        MEMBER_FN(status, set_virtual_address_map,
-            uintn memory_map_size, uintn descriptor_size, uint32 descriptor_version, memory_descriptor* virtual_map);
+        MEMBER_FN(status,
+            set_virtual_address_map,
+            uintn memory_map_size,
+            uintn descriptor_size,
+            uint32 descriptor_version,
+            memory_descriptor* virtual_map);
         MEMBER_FN(status, convert_pointer, uintn debug_disposition_, void** address);
-        MEMBER_FN(status, get_variable, char16* variable_name, guid* vendor_guid, uint32* attributes, uintn* data_size, void* data);
+        MEMBER_FN(status,
+            get_variable,
+            char16* variable_name,
+            guid* vendor_guid,
+            uint32* attributes,
+            uintn* data_size,
+            void* data);
         MEMBER_FN(status, get_next_variable_name, uintn* variable_name_size, char16* variable_name, guid* vendor_guid);
-        MEMBER_FN(status, set_variable, char16* variable_name, guid* vendor_guid, uint32 attributes, uintn data_size, void* data);
+        MEMBER_FN(status,
+            set_variable,
+            char16* variable_name,
+            guid* vendor_guid,
+            uint32 attributes,
+            uintn data_size,
+            void* data);
         MEMBER_FN(status, get_next_high_monotonic_count, uint32* high_count);
-        MEMBER_FN(status, reset_system, reset_type reset_type_, status reset_status, uintn data_size, char16* reset_data);
-        MEMBER_FN(status, update_capsule, capsule_header** capsule_header_array, uintn capsule_count, physical_address scatter_gather_list);
-        MEMBER_FN(status, query_capsule_capabilities,
-            capsule_header** capsule_header_array, uintn capsule_count, uint64* maximum_capsule_size, reset_type* reset_type_);
-        MEMBER_FN(status, query_variable_info,
-            uint32 attributes, uint64* maximum_variable_storage_size, uint64* remaining_variable_storage_size, uint64* maximum_variable_size);
+        MEMBER_FN(
+            status, reset_system, reset_type reset_type_, status reset_status, uintn data_size, char16* reset_data);
+        MEMBER_FN(status,
+            update_capsule,
+            capsule_header** capsule_header_array,
+            uintn capsule_count,
+            physical_address scatter_gather_list);
+        MEMBER_FN(status,
+            query_capsule_capabilities,
+            capsule_header** capsule_header_array,
+            uintn capsule_count,
+            uint64* maximum_capsule_size,
+            reset_type* reset_type_);
+        MEMBER_FN(status,
+            query_variable_info,
+            uint32 attributes,
+            uint64* maximum_variable_storage_size,
+            uint64* remaining_variable_storage_size,
+            uint64* maximum_variable_size);
     };
 
     struct configuration_table
@@ -744,15 +894,17 @@ namespace uefi {
         uintn number_of_table_entries;
         configuration_table* configuration_table;
     };
+
 #pragma endregion
 
-}
+} // namespace uefi
 
 inline uefi::system_table* g_st;
 inline uefi::boot_services* g_bs;
 inline uefi::runtime_services* g_rt;
 
-namespace uefi {
+namespace uefi
+{
 
     inline void initialize_lib(uefi::system_table* sys_table)
     {
@@ -761,7 +913,7 @@ namespace uefi {
         g_rt = sys_table->runtime_services;
     }
 
-}
+} // namespace uefi
 
 using namespace uefi::types;
 

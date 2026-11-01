@@ -1,9 +1,9 @@
 #include <libc/print.h>
 
-#include "serial.h"
-#include "../cpu/x64.h"
 #include "../cpu/isr.h"
+#include "../cpu/x64.h"
 #include "../gfx/output.h"
+#include "serial.h"
 
 #define SERIAL_STDIO 0
 
@@ -27,8 +27,7 @@ namespace serial
 
     EARLY static bool InitializePort(u16 port)
     {
-        auto write_reg = [port](u16 reg, u8 data)
-        {
+        auto write_reg = [port](u16 reg, u8 data) {
             for (u32 i = 0; i < 1000; i++)
                 x64::IoDelay();
             x64::WritePort8(port + reg, data);
@@ -54,17 +53,20 @@ namespace serial
 
         // Clear DLAB and set up the rest
         write_reg(reg::line_ctrl, ( u8 )(Line::DataEight | Line::StopOne | Line::ParityNone));
-        write_reg(reg::fifo_ctrl, ( u8 )(Fifo::Enable | Fifo::ClearReceive |
-            Fifo::ClearTransmit | Fifo::TriggerLvl4));
-        write_reg(reg::modem_ctrl, ( u8 )(Modem::DataReady | Modem::RequestSend | Modem::Loopback));
+        write_reg(reg::fifo_ctrl, ( u8 )(Fifo::Enable | Fifo::ClearReceive | Fifo::ClearTransmit | Fifo::TriggerLvl4));
+        auto modem = ( u8 )(Modem::DataReady | Modem::RequestSend | Modem::Loopback);
+#if SERIAL_STDIO
+        modem |= ( u8 )Modem::AuxOutput2;
+#endif
+        write_reg(reg::modem_ctrl, modem);
 
         // Test the port by verifying that we get the same value back
-        write_reg(reg::data, 0xff);
+        write_reg(reg::data, 0xae);
 
         for (u32 i = 0; i < 1000; i++)
             x64::IoDelay();
 
-        if (x64::ReadPort8(port + reg::data) != 0xff)
+        if (x64::ReadPort8(port + reg::data) != 0xae)
         {
             Print("Serial: Port 0x%x returned an invalid response\n", port);
             return false;
@@ -81,7 +83,7 @@ namespace serial
         // TODO - Add support for finding more ports
         has_com1 = InitializePort(port::com1);
         has_com2 = InitializePort(port::com2);
-        if (!SetPort(port::com1))
+        if (!SetPort(port::com1) && !SetPort(port::com2))
             Print("Serial port debugging unavailable.\n");
     }
 
@@ -102,6 +104,9 @@ namespace serial
 
     u8 Read(u16 port, u16 reg)
     {
+        if (port == 0)
+            return 0xff;
+
         while (!(x64::ReadPort8(port + reg::line_status) & ( u8 )LineStatus::DataReady))
             x64::IoDelay();
         return x64::ReadPort8(port + reg);
@@ -109,6 +114,9 @@ namespace serial
 
     void Write(u16 port, u16 reg, u8 data)
     {
+        if (port == 0)
+            return;
+
         while (!(x64::ReadPort8(port + reg::line_status) & ( u8 )LineStatus::EmptyTransmitReg))
             x64::IoDelay();
         x64::WritePort8(port + reg, data);
@@ -126,4 +134,4 @@ namespace serial
         while (*s)
             Write(output_port, reg::data, *s++);
     }
-}
+} // namespace serial

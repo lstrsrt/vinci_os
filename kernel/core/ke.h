@@ -19,7 +19,7 @@ enum class Status
 namespace ke
 {
     using tid_t = u64;
-    using ThreadStartFunction = int(*)(u64);
+    using ThreadStartFunction = int (*)(u64);
 
     struct Thread
     {
@@ -36,8 +36,8 @@ namespace ke
 
         ec::slist_entry thread_list_entry;
         x64::Context context;
-        uptr_t user_stack;
-        uptr_t user_stack_top;
+        uptr_t user_stack_base;
+        uptr_t kernel_stack_base;
         uptr_t kernel_stack_top;
         State state;
         u64 delay;
@@ -58,19 +58,17 @@ namespace ke
         Thread* idle_thread;
         ec::slist_entry thread_list_head;
         mm::PageTable* page_table;
-        uptr_t kernel_stack;
+        uptr_t kernel_stack_top;
         uptr_t user_stack;
 
         const x64::GdtEntry* gdt;
         const x64::IdtEntry* idt;
         x64::Tss* tss;
 
-        INLINE auto GetFirstThread()
-        {
-            return this->thread_list_head.m_next;
-        }
+        INLINE auto GetFirstThread() { return this->thread_list_head.m_next; }
     };
-    static_assert(OFFSET(Core, kernel_stack) == 40, "Update cpu.asm!");
+
+    static_assert(OFFSET(Core, kernel_stack_top) == 40, "Update cpu.asm!");
     static_assert(OFFSET(Core, user_stack) == 48, "Update cpu.asm!");
 
     void InitializeCore();
@@ -90,18 +88,19 @@ namespace ke
 #pragma data_seg()
 
     Thread* CreateThread(ThreadStartFunction function, u64 arg, vaddr_t kstack = 0);
-    Thread* CreateThreadInternal(ThreadStartFunction function, u64 arg, vaddr_t kstack);
-    void CreateUserThread(void* user_function);
+    void CreateUserThread(void* user_function, u64 arg);
 
-    bool SelectNextThread();
+    EXTERN_C NO_RETURN int UserThreadEntry(u64 arg, void* user_function);
+
+    bool SelectNextThread(bool* prev_interrupt_state);
     void StartScheduler();
 
     NO_RETURN void ExitThread(int exit_code);
+    EXTERN_C NO_RETURN void _ExitThread(int exit_code);
     void Yield();
     void Delay(u64 ticks);
 
-    enum_flags(AllocFlag, u32)
-    {
+    enum_flags(AllocFlag, u32){
         None = 0,
         Uninitialized = 1 << 0, // Ignored with ALLOC_POISON
     };
@@ -124,4 +123,4 @@ namespace ke
 
     NO_RETURN void Panic(Status);
     NO_RETURN void Panic(Status, size_t, size_t = 0, size_t = 0, size_t = 0);
-}
+} // namespace ke

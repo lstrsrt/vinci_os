@@ -175,7 +175,7 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
             else if (f & FMT_BOOL)
             {
                 auto tmp_bool = ( bool )va_arg(ap, int);
-                str[len++] = tmp_bool;
+                str[len++] = tmp_bool ? '1' : '0';
             }
             else if (f & FMT_PERCENT)
             {
@@ -187,13 +187,15 @@ size_t vsnprintf(char* str, size_t n, const char* fmt, va_list ap)
             str[len++] = c;
         }
 
+        // len can exceed n here because strlcpy returns the full source length.
         if (len >= n)
         {
-            str[len - 1] = '\0';
+            str[n - 1] = '\0';
             // We don't know the full length yet so we might as well return a sentinel value
             return ec::umax_v<size_t>;
         }
     }
+    str[len] = '\0';
     return len;
 }
 

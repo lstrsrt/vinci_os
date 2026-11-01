@@ -1,21 +1,21 @@
-#include <libc/mem.h>
 #include <ec/bitmap.h>
 #include <ec/new.h>
+#include <libc/mem.h>
+#include <libc/str.h>
 
-#include "ke.h"
 #include "../hw/gfx/output.h"
 #include "../hw/timer/timer.h"
+#include "ke.h"
 
 // #define DEBUG_CTX_SWITCH
 
 #ifdef DEBUG_CTX_SWITCH
-#include "../hw/serial/serial.h"
-#define DbgPrint(x, ...) serial::Write(x, __VA_ARGS__)
+#define DbgPrint(x, ...) gfx::Print(x, __VA_ARGS__)
 #else
 #define DbgPrint(x, ...) EMPTY_STMT
 #endif
 
-EXTERN_C uptr_t kernel_stack_top;
+EXTERN_C uptr_t kernel_stack_base;
 
 namespace ke
 {
@@ -31,12 +31,18 @@ namespace ke
 
     void RegisterThread(Thread* thread)
     {
+        bool b = x64::DisableInterrupts();
         GetCore()->thread_list_head.push(&(thread->thread_list_entry));
+        if (b)
+            x64::EnableInterrupts();
     }
 
     void UnregisterThread(Thread* thread)
     {
+        bool b = x64::DisableInterrupts();
         GetCore()->thread_list_head.remove(&(thread->thread_list_entry));
+        if (b)
+            x64::EnableInterrupts();
     }
 
     void FreeThread(Thread* thread)
@@ -48,9 +54,8 @@ namespace ke
 
         thread_map.clear_bit(thread->id);
 
-        Free(( void* )thread->kernel_stack_top);
-        if (thread->user_stack_top)
-            Free(( void* )thread->user_stack_top);
+        Free(( void* )thread->kernel_stack_base);
+        // TODO: free user stack here once we have UnmapPage and FreePhysical :D
 
         delete thread;
     }
@@ -59,43 +64,34 @@ namespace ke
     {
         auto thread = GetCurrentThread();
 
-        _disable();
+        x64::DisableInterrupts();
 
         Print("Thread %llu exited with code %d\n", thread->id, exit_code);
 
         // Update state so it's ignored by the scheduler
         // and pick the next thread for execution.
         thread->state = Thread::State::Terminating;
-        SelectNextThread();
+        bool int_state;
+        SelectNextThread(&int_state);
 
         UnregisterThread(thread);
-        FreeThread(thread);
 
         // Update to the next thread.
-        thread = GetCurrentThread();
+        auto* next = GetCurrentThread();
 
-        DbgPrint("Switching to %llu\n", thread->id);
-        DbgPrint(
-            "  RSP0 0x%p RIP 0x%p RSP3 0x%p\n",
-            thread->context.rsp,
-            thread->context.rip,
-            thread->user_stack
-        );
+        DbgPrint("Switching to %llu\n", next->id);
+        DbgPrint("  RSP 0x%p RIP 0x%p KSTACK 0x%p\n", next->context.rsp, next->context.rip, next->kernel_stack_top);
 
-        // Let the next thread take over.
-        x64::LoadContext(&thread->context, thread->user_stack);
+        // Free this thread and let the next thread take over.
+        // This frees our stack so it must be done late.
+        FreeThread(thread);
+        x64::LoadContext(&next->context);
         Panic(Status::Unreachable);
     }
 
-    int UserThreadEntry(u64)
+    EXTERN_C NO_RETURN void _ExitThread(int exit_code)
     {
-        auto thread = GetCurrentThread();
-
-        // Get user code address from temporary storage
-        thread->context.rip = thread->context.rdx;
-
-        x64::LoadContext(&thread->context, thread->user_stack);
-        return 0;
+        ke::ExitThread(exit_code);
     }
 
     void KernelThreadEntry()
@@ -130,24 +126,46 @@ namespace ke
         Panic(Status::OutOfIds);
     }
 
-    Thread* CreateThreadInternal(ThreadStartFunction function, u64 arg, vaddr_t kstack)
+    Thread* CreateThreadInternal(ThreadStartFunction function, u64 arg, vaddr_t kstack, bool kernel)
     {
+        if (!kstack)
+        {
+            kstack = ( vaddr_t )Allocate(page_size);
+            kstack += page_size; // Stack starts at the top...
+        }
+
         auto thread = new Thread();
 
         AllocateThreadId(thread);
         thread->function = function;
         thread->arg = arg;
 
-        thread->kernel_stack_top = kstack - page_size;
+        thread->kernel_stack_base = kstack - page_size;
+        thread->kernel_stack_top = kstack & ~0xFull;
 
-        thread->context.rip = ( u64 )KernelThreadEntry;
-        thread->context.rsp = kstack;
-        thread->context.rflags = ( u64 )(x64::RFLAG::IF | x64::RFLAG::ALWAYS);
-        thread->context.cs = x64::GetGdtOffset(x64::GdtIndex::R0Code);
-        thread->context.ss = x64::GetGdtOffset(x64::GdtIndex::R0Data);
+        if (kernel)
+        {
+            thread->context.rip = ( u64 )KernelThreadEntry;
+            thread->context.rsp = thread->kernel_stack_top - 40;
+            thread->context.rflags = ( u64 )(x64::RFLAG::IF | x64::RFLAG::ALWAYS);
+            thread->context.cs = x64::GetGdtOffset(x64::GdtIndex::R0Code);
+            thread->context.ss = x64::GetGdtOffset(x64::GdtIndex::R0Data);
+        }
 
+        return thread;
+    }
+
+    void ReadyThread(Thread* thread)
+    {
+        DbgPrint("New thread with ID: %llu\n", thread->id);
         thread->state = Thread::State::Ready;
+        RegisterThread(thread);
+    }
 
+    Thread* CreateThread(ThreadStartFunction function, u64 arg, vaddr_t kstack)
+    {
+        auto* thread = CreateThreadInternal(function, arg, kstack, true);
+        ReadyThread(thread);
         return thread;
     }
 
@@ -156,10 +174,7 @@ namespace ke
         auto core = GetCore();
         memzero(thread_map.data(), thread_map.size());
 
-        // FIXME - can we use kernel_stack_top here?
-        // since every thread is going to have its own kernel stack,
-        // we should be able to use the boot stack for the idle loop
-        auto idle_thread = CreateThreadInternal(IdleLoop, 0, kernel_stack_top);
+        auto idle_thread = CreateThreadInternal(IdleLoop, 0, kernel_stack_base, true);
         core->idle_thread = idle_thread;
         core->current_thread = idle_thread;
     }
@@ -169,7 +184,7 @@ namespace ke
     // All user threads will be bound to a process in the future,
     // with every process being loaded from an image and having its own page table.
     //
-    void CreateUserThread(void* user_function)
+    void CreateUserThread(void* user_function, u64 arg)
     {
         paddr_t pa;
         auto& table = *GetCore()->page_table;
@@ -177,49 +192,41 @@ namespace ke
         const auto code = 0x7fff'fff0'0000;
         const auto ustack = code + page_size;
 
-        auto kthread = CreateThread(UserThreadEntry, 0);
+        auto kthread = CreateThreadInternal(nullptr, arg, 0, false);
 
         mm::AllocatePhysical(table, &pa);
         mm::MapPage(table, ustack, pa, true);
         mm::AllocatePhysical(table, &pa);
         mm::MapPage(table, code, pa, true);
 
-        // This is the start address of the actual user code.
-        // RIP is already set to UserThreadEntry so it can't be used here.
-        kthread->context.rdx = code;
-
         x64::SmapSetAc();
         memzero(( void* )ustack, page_size);
-        memcpy(( void* )code, user_function, 100);
+        Print("copying UserThreadEntry to 0x%p\n", ( void* )code);
+        memcpy(( void* )code, ( void* )&UserThreadEntry, 128);
+        Print("copying code to 0x%p\n", ( void* )(( uintptr_t )code + 128));
+        memcpy(( void* )(( uintptr_t )code + 128), user_function, 128);
         x64::SmapClearAc();
 
-        kthread->user_stack_top = ustack;
+        kthread->user_stack_base = ustack;
+        kthread->context.rcx = arg;
+        kthread->context.rdx = ( uintptr_t )code + 128;
+        kthread->context.rip = code;
         // TODO - randomize all stack offsets
-        kthread->user_stack = ustack + page_size - 32;
-    }
+        kthread->context.rsp = ustack + page_size - 40;
+        kthread->context.rflags = ( u64 )(x64::RFLAG::IF | x64::RFLAG::ALWAYS);
+        kthread->context.cs = x64::GetGdtOffset(x64::GdtIndex::R3Code) | 3;
+        kthread->context.ss = x64::GetGdtOffset(x64::GdtIndex::R3Data) | 3;
 
-    Thread* CreateThread(ThreadStartFunction function, u64 arg, vaddr_t kstack)
-    {
-        if (!kstack)
-        {
-            kstack = ( vaddr_t )Allocate(page_size);
-            kstack += page_size; // Stack starts at the top...
-        }
-
-        auto thread = CreateThreadInternal(function, arg, kstack);
-        RegisterThread(thread);
-        DbgPrint("New thread with ID: %llu\n", thread->id);
-
-        return thread;
+        ReadyThread(kthread);
     }
 
     //
     // Returns true if a new thread was selected.
     // Always returns with interrupts disabled.
     //
-    bool SelectNextThread()
+    bool SelectNextThread(bool* prev_interrupt_state)
     {
-        _disable();
+        *prev_interrupt_state = x64::DisableInterrupts();
 
         auto core = GetCore();
         if (!core->GetFirstThread()) // No threads available, leave early.
@@ -238,7 +245,7 @@ namespace ke
             // In this case, start searching from the first thread.
             DbgPrint("SelectNextThread: attempting switch from idle\n");
 
-            for (entry = core->GetFirstThread(); ; entry = entry->m_next)
+            for (entry = core->GetFirstThread();; entry = entry->m_next)
             {
                 next = CONTAINING_RECORD(entry, Thread, thread_list_entry);
 
@@ -254,14 +261,13 @@ namespace ke
                     return false;
                 }
             }
-
         }
         else /* Switching from standard thread */
         {
             DbgPrint("SelectNextThread: attempting switch from thread %llu\n", prev->id);
 
             // Start searching from the next thread
-            for (entry = prev->thread_list_entry.m_next; ; entry = entry->m_next)
+            for (entry = prev->thread_list_entry.m_next;; entry = entry->m_next)
             {
                 next = CONTAINING_RECORD(entry, Thread, thread_list_entry);
 
@@ -291,8 +297,7 @@ namespace ke
         core->current_thread = next;
 
         // Architecture-specific changes
-        core->kernel_stack = core->tss->rsp0 = next->context.rsp;
-        core->user_stack = next->user_stack;
+        core->kernel_stack_top = core->tss->rsp0 = next->kernel_stack_top;
 
         DbgPrint("SelectNextThread: switching from %llu to %llu\n", prev->id, next->id);
         return true;
@@ -301,18 +306,24 @@ namespace ke
     void Yield()
     {
         auto prev = GetCurrentThread();
+        bool int_state;
 
-        if (SelectNextThread())
+        if (SelectNextThread(&int_state))
         {
             auto next = GetCurrentThread();
 
             DbgPrint("%llu: Yielding\n", prev->id);
 
-            x64::SwitchContext(&prev->context, &next->context, next->user_stack);
+            x64::SwitchContext(&prev->context, &next->context);
         }
         else
         {
             DbgPrint("%llu: Failed to yield\n", prev->id);
+        }
+
+        if (int_state)
+        {
+            x64::EnableInterrupts();
         }
     }
 
@@ -326,4 +337,4 @@ namespace ke
 
         Yield();
     }
-}
+} // namespace ke

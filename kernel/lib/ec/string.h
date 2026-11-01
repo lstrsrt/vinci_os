@@ -35,10 +35,7 @@ namespace ec
             strlcpy(data(), cstr, length + 1);
         }
 
-        inline string(const char* cstr)
-            : string(cstr, cstr ? strlen(cstr) : 0)
-        {
-        }
+        inline string(const char* cstr) : string(cstr, cstr ? strlen(cstr) : 0) { }
 
         inline string(char c, size_t length)
         {
@@ -73,49 +70,72 @@ namespace ec
         }
 
         inline const char* chars() const { return uses_local() ? m_short.buffer : m_long.buffer; }
+
         inline char* data() { return uses_local() ? m_short.buffer : m_long.buffer; }
+
         inline u64 length() const { return uses_local() ? m_short.length : m_long.length; }
+
+        inline bool is_empty() const { return length() == 0; }
+
         inline u64 capacity() const { return uses_local() ? max_local_cap : m_long.capacity; }
 
         inline char at(size_t pos) const { return chars()[pos]; }
+
         inline char& at(size_t pos) { return data()[pos]; }
 
-        inline char back() const { return at(0); }
-        inline char& back() { return at(0); }
-        inline char front() const { return at(length() - 1); }
-        inline char& front() { return at(length() - 1); }
+        inline char front() const { return at(0); }
+
+        inline char& front() { return at(0); }
+
+        inline char back() const { return at(length() - 1); }
+
+        inline char& back() { return at(length() - 1); }
 
         using iterator = generic_iterator<char>;
+
         inline auto begin() const { return iterator(const_cast<char*>(chars())); }
+
         inline auto end() const { return iterator(const_cast<char*>(chars()) + length()); }
 
         inline char operator[](size_t pos) const { return at(pos); }
+
         inline char& operator[](size_t pos) { return at(pos); }
 
         // operator+
         // declare outside class so we can switch operand order?
 
         string& operator=(const char* cstr);
+
         inline string& operator=(const string& str)
         {
             *this = string(str);
             return *this;
         }
+
         inline string& operator=(string&& str) noexcept
         {
             if (this != &str)
             {
-                memcpy((void*)this, (const void*)&str, sizeof(str));
+                // Free our own buffer before taking over the other one
+                if (!uses_local() && m_long.buffer)
+                    delete[] m_long.buffer;
+
+                memcpy(( void* )this, ( const void* )&str, sizeof(str));
                 if (!str.uses_local())
+                {
                     exchange(str.m_long.buffer, nullptr);
+                    str.m_long.capacity = str.m_long.length = 0;
+                }
             }
             return *this;
         }
 
         inline string& operator+=(const char* cstr) { return append(cstr); }
+
         inline string& operator+=(const string& str) { return append(str.chars(), str.length()); }
 
         inline bool operator==(const char* cstr) const { return equals(cstr); }
+
         inline bool operator==(const string& str) const { return equals(str); }
 
         string substr(size_t from, size_t count) const;
@@ -125,27 +145,25 @@ namespace ec
             return ignore_case ? stricmp(chars(), cstr) : strcmp(chars(), cstr);
         }
 
-        inline bool equals(const char* cstr, bool ignore_case = false) const
-        {
-            return compare(cstr, ignore_case) == 0;
-        }
+        inline bool equals(const char* cstr, bool ignore_case = false) const { return compare(cstr, ignore_case) == 0; }
 
         inline bool equals(const string& str, bool ignore_case = false) const
         {
             if (length() != str.length()) // Try to avoid a strcmp
                 return false;
 
-            return ignore_case ?
-                (strnicmp(chars(), str.chars(), length()) == 0) :
-                (strncmp(chars(), str.chars(), length()) == 0);
+            return ignore_case ? (strnicmp(chars(), str.chars(), length()) == 0)
+                               : (strncmp(chars(), str.chars(), length()) == 0);
         }
 
         size_t count(char c, size_t from = 0, bool ignore_case = false) const;
         size_t count(const char* cstr, size_t length, size_t from = 0, bool ignore_case = false) const;
+
         inline size_t count(const char* cstr, size_t from = 0, bool ignore_case = false) const
         {
             return count(cstr, strlen(cstr), from, ignore_case);
         }
+
         inline size_t count(const string& str, size_t from = 0, bool ignore_case = false) const
         {
             return count(str.chars(), str.length(), from, ignore_case);
@@ -153,10 +171,12 @@ namespace ec
 
         size_t find(char c, size_t from = 0, bool ignore_case = false) const;
         size_t find(const char* cstr, size_t length, size_t from = 0, bool ignore_case = false) const;
+
         inline size_t find(const char* cstr, size_t from = 0, bool ignore_case = false) const
         {
             return find(cstr, strlen(cstr), from, ignore_case);
         }
+
         inline size_t find(const string& str, size_t from = 0, bool ignore_case = false) const
         {
             return find(str.chars(), str.length(), from, ignore_case);
@@ -166,6 +186,7 @@ namespace ec
         {
             return find(cstr, from, ignore_case) != npos;
         }
+
         inline bool contains(const string& str, size_t from = 0, bool ignore_case = false) const
         {
             return find(str.chars(), from, ignore_case) != npos;
@@ -178,6 +199,7 @@ namespace ec
 
             return at(0) == c;
         }
+
         inline bool starts_with(const char* cstr, size_t length, bool ignore_case = false) const
         {
             if (length > this->length())
@@ -188,10 +210,12 @@ namespace ec
 
             return !strncmp(chars(), cstr, length);
         }
+
         inline bool starts_with(const char* cstr, bool ignore_case = false) const
         {
             return starts_with(cstr, strlen(cstr), ignore_case);
         }
+
         inline bool starts_with(const string& str, bool ignore_case = false) const
         {
             return starts_with(str.chars(), str.length(), ignore_case);
@@ -200,10 +224,11 @@ namespace ec
         inline bool ends_with(const char c, bool ignore_case = false) const
         {
             if (ignore_case)
-                return tolower(c) == tolower(front());
+                return tolower(c) == tolower(back());
 
-            return c == front();
+            return c == back();
         }
+
         inline bool ends_with(const char* cstr, size_t length, bool ignore_case = false) const
         {
             const auto len = this->length();
@@ -217,8 +242,16 @@ namespace ec
 
             return !strncmp(chars() + start, cstr, length);
         }
-        inline bool ends_with(const char* cstr, bool ignore_case = false) const { return ends_with(cstr, strlen(cstr), ignore_case); }
-        inline bool ends_with(const string& str, bool ignore_case = false) { return ends_with(str.chars(), str.length(), ignore_case); }
+
+        inline bool ends_with(const char* cstr, bool ignore_case = false) const
+        {
+            return ends_with(cstr, strlen(cstr), ignore_case);
+        }
+
+        inline bool ends_with(const string& str, bool ignore_case = false)
+        {
+            return ends_with(str.chars(), str.length(), ignore_case);
+        }
 
         inline void clear()
         {
@@ -231,7 +264,7 @@ namespace ec
 
         inline string upper() const
         {
-            string ret{ *this };
+            string ret{*this};
 
             for (size_t i = 0; i < length(); i++)
                 ret[i] = ( char )toupper(at(i));
@@ -241,7 +274,7 @@ namespace ec
 
         inline string lower() const
         {
-            string ret{ *this };
+            string ret{*this};
 
             for (size_t i = 0; i < length(); i++)
                 ret[i] = ( char )tolower(ret[i]);
@@ -251,7 +284,7 @@ namespace ec
 
         inline string reversed() const
         {
-            string ret{ *this };
+            string ret{*this};
 
             strrev(ret.data());
 
@@ -282,7 +315,9 @@ namespace ec
         }
 
         string& append(const char* cstr, size_t length);
+
         inline string& append(const char* cstr) { return append(cstr, strlen(cstr)); }
+
         inline string& append(const string& str) { return append(str.chars(), str.length()); }
 
         string& push_back(char c);
@@ -303,7 +338,7 @@ namespace ec
 
         static constexpr size_t npos = umax_v<size_t>;
 
-    private:
+      private:
         bool uses_local() const { return m_short.local_flag; }
 
         inline void init(size_t length)
@@ -342,7 +377,7 @@ namespace ec
             } m_long;
         };
     };
-}
+} // namespace ec
 
 namespace ec::literals
 {
@@ -350,4 +385,4 @@ namespace ec::literals
     {
         return string(cstr, length);
     }
-}
+} // namespace ec::literals

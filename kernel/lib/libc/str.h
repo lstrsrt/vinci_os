@@ -38,25 +38,25 @@ char* strupr(char* str);
 EXTERN_C_END
 
 template<size_t n>
-char* strset(char(&str)[n], int c)
+char* strset(char (&str)[n], int c)
 {
     return strnset(str, c, n - 1);
 }
 
 template<size_t n>
-char* strrchr(char(&dst)[n], int c)
+char* strrchr(char (&dst)[n], int c)
 {
     return strrchr(dst, c, n);
 }
 
 template<size_t n>
-size_t strcpy(char(&dst)[n], const char* src)
+size_t strcpy(char (&dst)[n], const char* src)
 {
     return strlcpy(dst, src, n);
 }
 
 template<size_t n>
-size_t strcat(char(&dst)[n], const char* src)
+size_t strcat(char (&dst)[n], const char* src)
 {
     return strlcat(dst, src, n);
 }

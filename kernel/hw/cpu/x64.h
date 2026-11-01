@@ -12,10 +12,17 @@
 
 namespace x64
 {
-    EARLY void Initialize(uptr_t kernel_stack);
+    EARLY void InitializeStage1(uptr_t kernel_stack);
+    EARLY void InitializeStage2();
 
-    enum_flags(RFLAG, u64)
+    enum class Vendor
     {
+        Intel,
+        AMD,
+        Unknown,
+    };
+
+    enum_flags(RFLAG, u64){
         CF = 1 << 0,                  // Carry Flag
         ALWAYS = 1 << 1,              // Reserved (always 1)
         PF = 1 << 2,                  // Parity Flag
@@ -37,48 +44,46 @@ namespace x64
         ID = 1 << 21                  // CPUID Support
     };
 
-    enum_flags(Cr0, u64)
-    {
-        PE = 1 << 0,   // Protected Mode
-        MP = 1 << 1,   // Monitor co-processor
-        EM = 1 << 2,   // Emulation
-        TS = 1 << 3,   // Task switched
-        ET = 1 << 4,   // Extension type
-        NE = 1 << 5,   // Numeric error
-        WP = 1 << 16,  // Write protect
-        AM = 1 << 18,  // Alignment mask
-        NW = 1 << 29,  // Not-write through
-        CD = 1 << 30,  // Cache disable
-        PG = 1ULL << 31,  // Paging
+    enum_flags(Cr0, u64){
+        PE = 1 << 0,     // Protected Mode
+        MP = 1 << 1,     // Monitor co-processor
+        EM = 1 << 2,     // Emulation
+        TS = 1 << 3,     // Task switched
+        ET = 1 << 4,     // Extension type
+        NE = 1 << 5,     // Numeric error
+        WP = 1 << 16,    // Write protect
+        AM = 1 << 18,    // Alignment mask
+        NW = 1 << 29,    // Not-write through
+        CD = 1 << 30,    // Cache disable
+        PG = 1ULL << 31, // Paging
     };
 
-    enum_flags(Cr4, u64)
-    {
-        VME = 1 << 0,          // Virtual 8086 Mode Extensions
-        PVI = 1 << 1,          // Protected-mode Virtual Extensions
-        TSD = 1 << 2,          // Time Stamp Disable
-        DE = 1 << 3,           // Debugging Extensions
-        PSE = 1 << 4,          // Page Size Extensions
-        PAE = 1 << 5,          // Physical Address Extensions
-        MCE = 1 << 6,          // Machine Check Exception
-        PGE = 1 << 7,          // Page Global Enabled
-        PCE = 1 << 8,          // Performance-Monitoring Counter
-        OSFXSR = 1 << 9,       // FXSAVE and FXRSTOR
-        OSXMMEXCPT = 1 << 10,  // SSE Exceptions
-        UMIP = 1 << 11,        // User-Mode Instruction Prevention
-        LA57 = 1 << 12,        // 57-Bit Linear Addresses
-        VMXE = 1 << 13,        // Virtual Machine Extensions
-        SMXE = 1 << 14,        // Safer Mode Extensions
-        FSGSBASE = 1 << 16,    // {RD,WR}{FS,GS}BASE
-        PCIDE = 1 << 17,       // Process Context Identifiers
-        OSXSAVE = 1 << 18,     // XSAVE and Processor Extended States
-        KL = 1 << 19,          // Key Locker
-        SMEP = 1 << 20,        // Supervisor Mode Execution Protection
-        SMAP = 1 << 21,        // Supervisor Mode Access Prevention
-        PKE = 1 << 22,         // Supervisor Mode Access Prevention
-        CET = 1 << 23,         // Control-flow Enforcement Technology
-        PKS = 1 << 24,         // Protection Keys for Supervisor-Mode Pages
-        UINTR = 1 << 25,       // User Interrupts
+    enum_flags(Cr4, u64){
+        VME = 1 << 0,         // Virtual 8086 Mode Extensions
+        PVI = 1 << 1,         // Protected-mode Virtual Extensions
+        TSD = 1 << 2,         // Time Stamp Disable
+        DE = 1 << 3,          // Debugging Extensions
+        PSE = 1 << 4,         // Page Size Extensions
+        PAE = 1 << 5,         // Physical Address Extensions
+        MCE = 1 << 6,         // Machine Check Exception
+        PGE = 1 << 7,         // Page Global Enabled
+        PCE = 1 << 8,         // Performance-Monitoring Counter
+        OSFXSR = 1 << 9,      // FXSAVE and FXRSTOR
+        OSXMMEXCPT = 1 << 10, // SSE Exceptions
+        UMIP = 1 << 11,       // User-Mode Instruction Prevention
+        LA57 = 1 << 12,       // 57-Bit Linear Addresses
+        VMXE = 1 << 13,       // Virtual Machine Extensions
+        SMXE = 1 << 14,       // Safer Mode Extensions
+        FSGSBASE = 1 << 16,   // {RD,WR}{FS,GS}BASE
+        PCIDE = 1 << 17,      // Process Context Identifiers
+        OSXSAVE = 1 << 18,    // XSAVE and Processor Extended States
+        KL = 1 << 19,         // Key Locker
+        SMEP = 1 << 20,       // Supervisor Mode Execution Protection
+        SMAP = 1 << 21,       // Supervisor Mode Access Prevention
+        PKE = 1 << 22,        // Supervisor Mode Access Prevention
+        CET = 1 << 23,        // Control-flow Enforcement Technology
+        PKS = 1 << 24,        // Protection Keys for Supervisor-Mode Pages
+        UINTR = 1 << 25,      // User Interrupts
     };
 
     INLINE Cr0 ReadCr0()
@@ -103,11 +108,13 @@ namespace x64
 
     struct ProcessorInfo
     {
+        Vendor vendor;
         char vendor_string[13];
         u8 stepping;
         u8 model;
         u8 family;
         u8 cores;
+
         union
         {
             struct
@@ -115,16 +122,17 @@ namespace x64
                 bool pic_present;
                 bool using_apic; // PIC if 0
                 bool has_x2apic;
-                bool apic_nmi_pin; // LINT0/LINT1
                 bool tsc_supported;
                 bool smap_supported;
                 bool hypervisor;
             };
+
             u32 support_flags;
         };
     } inline cpu_info;
 
 #pragma pack(1)
+
     struct InterruptFrame
     {
         u64 rax, rcx, rdx, rbx, rsi, rdi;
@@ -141,11 +149,9 @@ namespace x64
         u16 limit;
         const void* base;
 
-        constexpr DescriptorTable(const void* table, u16 table_limit)
-            : limit(table_limit), base(table)
-        {
-        }
+        constexpr DescriptorTable(const void* table, u16 table_limit) : limit(table_limit), base(table) { }
     };
+
     static_assert(sizeof(DescriptorTable) == 0xa);
 
     struct Tss
@@ -167,14 +173,11 @@ namespace x64
         u16 iomap_base;
 
         constexpr Tss(u64 ist1_addr, u64 ist2_addr, u64 ist3_addr, u64 ist4_addr)
-            : ist1(ist1_addr),
-            ist2(ist2_addr),
-            ist3(ist3_addr),
-            ist4(ist4_addr),
-            iomap_base(sizeof(Tss))
+            : ist1(ist1_addr), ist2(ist2_addr), ist3(ist3_addr), ist4(ist4_addr), iomap_base(sizeof(Tss))
         {
         }
     };
+
     static_assert(sizeof(Tss) == 0x68);
 
     enum IstIndex
@@ -192,30 +195,29 @@ namespace x64
 
     alignas(page_size) inline volatile u8 int_stack_tables[IstCount][ist_size]{};
 
-    alignas(64) static Tss kernel_tss(
-        ( u64 )(int_stack_tables[0] + ist_size),
+    alignas(64) inline Tss kernel_tss(( u64 )(int_stack_tables[0] + ist_size),
         ( u64 )(int_stack_tables[1] + ist_size),
         ( u64 )(int_stack_tables[2] + ist_size),
-        ( u64 )(int_stack_tables[3] + ist_size)
-    );
+        ( u64 )(int_stack_tables[3] + ist_size));
 
     // ignored: base fields, segment limit, granularity/readable/accessed bits
 
 /* S bit */
-#define GDT_SYS_SEG     (0 << 4) // LDT/TSS/gates
-#define GDT_USER_SEG    (1 << 4) // Data/code/stack
+#define GDT_SYS_SEG (0 << 4)  // LDT/TSS/gates
+#define GDT_USER_SEG (1 << 4) // Data/code/stack
 
 /* User segment type field */
-#define GDT_READ        (1 << 1) // Use with code segments
-#define GDT_WRITE       (1 << 1) // Use with data segments
-#define GDT_EXECUTE     (1 << 3)
-#define GDT_ENTRY_DATA  GDT_USER_SEG
-#define GDT_ENTRY_CODE  GDT_USER_SEG | GDT_EXECUTE
+#define GDT_ACCESSED (1 << 0)
+#define GDT_READ (1 << 1)  // Use with code segments
+#define GDT_WRITE (1 << 1) // Use with data segments
+#define GDT_EXECUTE (1 << 3)
+#define GDT_ENTRY_DATA GDT_USER_SEG
+#define GDT_ENTRY_CODE GDT_USER_SEG | GDT_EXECUTE
 
 /* System segment type field */
-#define GDT_ENTRY_TSS   GDT_SYS_SEG | (1 << 0)
-#define GDT_32BIT_TSS   (1 << 3)
-#define GDT_AVAILABLE   (0 << 1)
+#define GDT_ENTRY_TSS GDT_SYS_SEG | (1 << 0)
+#define GDT_32BIT_TSS (1 << 3)
+#define GDT_AVAILABLE (0 << 1)
 
     union GdtEntry
     {
@@ -224,6 +226,7 @@ namespace x64
             u16 limit_low;
             u16 base_low;
             u8 base_mid;
+
             union
             {
                 struct
@@ -232,8 +235,10 @@ namespace x64
                     u8 dpl : 2;
                     u8 present : 1;
                 };
+
                 u8 access_byte;
             };
+
             union
             {
                 struct
@@ -244,23 +249,23 @@ namespace x64
                     u8 operation_size : 1;
                     u8 granularity : 1;
                 };
+
                 u8 granularity_byte;
             };
+
             u8 base_high;
         };
+
         u64 bits{};
 
         constexpr GdtEntry() = default;
 
-        explicit constexpr GdtEntry(u8 dpl, u8 type, bool long_mode = true)
-            : limit_low(ec::umax_v<u16>),
-            base_low(0),
-            base_mid(0),
-            base_high(0)
+        explicit constexpr GdtEntry(u8 dpl, u8 type, bool long_mode = true, bool present = true)
+            : limit_low(ec::umax_v<u16>), base_low(0), base_mid(0), base_high(0)
         {
             this->type = type;
             this->dpl = dpl;
-            this->present = TRUE;
+            this->present = present;
             this->granularity = TRUE;
 
             // Not set if this is a data segment
@@ -270,10 +275,7 @@ namespace x64
             this->operation_size = this->long_mode ? FALSE : TRUE;
         }
 
-        static constexpr GdtEntry Null()
-        {
-            return GdtEntry();
-        }
+        static constexpr GdtEntry Null() { return GdtEntry(); }
 
         static GdtEntry TssLow(const Tss* tss)
         {
@@ -298,9 +300,10 @@ namespace x64
             return entry;
         }
     };
+
     static_assert(sizeof(GdtEntry) == 0x8);
 
-    alignas(64) extern const ec::array<GdtEntry, 8> gdt;
+    alignas(page_size) extern const ec::array<GdtEntry, 8> gdt;
 
     enum class GdtIndex
     {
@@ -329,6 +332,7 @@ namespace x64
     {
         u16 isr_low;
         u16 segment_selector;
+
         union
         {
             struct
@@ -340,16 +344,15 @@ namespace x64
                 u16 dpl : 2;
                 u16 present : 1;
             };
+
             u16 flags;
         };
+
         u16 isr_mid;
         u32 isr_high;
         u32 reserved1;
 
-        IdtEntry(Isr function, u32 dpl, u8 ist = 0)
-        {
-            Set(function, dpl, ist);
-        }
+        IdtEntry(Isr function, u32 dpl, u8 ist = 0) { Set(function, dpl, ist); }
 
         inline void Set(Isr function, u32 dpl, u8 ist = 0)
         {
@@ -366,9 +369,10 @@ namespace x64
             this->present = TRUE;
         }
     };
+
     static_assert(sizeof(IdtEntry) == 0x10);
 
-    alignas(64) extern ec::array<IdtEntry, 256> idt;
+    alignas(page_size) extern ec::array<IdtEntry, 256> idt;
     static constexpr u64 max_idt_entry = idt.size();
 
 #define TABLE_GDT 0
@@ -382,8 +386,10 @@ namespace x64
             u16 table : 1;
             u16 index : 13;
         };
+
         u16 bits;
     };
+
     static_assert(sizeof(SegmentSelector) == sizeof(u16));
 
     struct SyscallFrame
@@ -393,6 +399,7 @@ namespace x64
         u64 rax, rdx, rcx;
         u64 r8, r9, r10, r11;
     };
+
     static_assert(sizeof(SyscallFrame) == 0x50);
 #pragma pack()
 
@@ -401,10 +408,10 @@ namespace x64
     /* Implemented in assembly (see cpu.asm) */
     void ReloadSegments(u16 code_selector, u16 data_selector);
     void LoadTr(u16 offset);
-    void Ring3Function();
+    int Ring3Function(u64 arg);
     void SyscallEntry();
-    void LoadContext(Context*, uptr_t user_stack);
-    void SwitchContext(Context* prev, Context* next, uptr_t user_stack);
+    void LoadContext(Context*);
+    void SwitchContext(Context* prev, Context* next);
 
     // C++ handler
     u64 SyscallCxx(SyscallFrame* frame, u64 sys_no);
@@ -525,4 +532,4 @@ namespace x64
         __invlpg(addr);
         // TODO - make MP compatible with APIC IPIs
     }
-}
+} // namespace x64

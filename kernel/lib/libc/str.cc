@@ -23,16 +23,15 @@ size_t strlen(const char* str)
 size_t strnlen(const char* str, size_t max)
 {
     size_t len = 0;
-    while (len < max) {
-        if (str[len++])
-            break;
-    }
+    while (len < max && str[len])
+        len++;
     return len;
 }
 
 i32 strcmp(const char* str1, const char* str2)
 {
-    for (; *str1 == *str2; ++str1, ++str2) {
+    for (; *str1 == *str2; ++str1, ++str2)
+    {
         if (*str1 == '\0')
             return 0;
     }
@@ -44,8 +43,10 @@ i32 stricmp(const char* str1, const char* str2)
     size_t len1 = strlen(str1);
     u8 c1 = 0, c2 = 0;
 
-    while (len1-- && *str1) {
-        if (*str1 != *str2) {
+    while (len1-- && *str1)
+    {
+        if (*str1 != *str2)
+        {
             c1 = tolower(*str1);
             c2 = tolower(*str2);
             if (c1 != c2)
@@ -59,13 +60,14 @@ i32 stricmp(const char* str1, const char* str2)
 
 i32 strncmp(const char* str1, const char* str2, size_t n)
 {
-    const u8 *c1 = (const u8 *)str1;
-    const u8 *c2 = (const u8 *)str2;
+    const u8* c1 = ( const u8* )str1;
+    const u8* c2 = ( const u8* )str2;
     u8 ch = 0;
     i32 d = 0;
 
-    while (n--) {
-        d = (i32)(ch = *c1++) - (i32)*c2++;
+    while (n--)
+    {
+        d = ( i32 )(ch = *c1++) - ( i32 )*c2++;
         if (d || !ch)
             break;
     }
@@ -80,8 +82,10 @@ i32 strnicmp(const char* str1, const char* str2, size_t n)
 
     u8 c1 = 0, c2 = 0;
 
-    while (n-- && *str1) {
-        if (*str1 != *str2) {
+    while (n-- && *str1)
+    {
+        if (*str1 != *str2)
+        {
             c1 = tolower(*str1);
             c2 = tolower(*str2);
             if (c1 != c2)
@@ -103,11 +107,13 @@ char* strstr(const char* haystack, const char* needle)
 
     auto h = ( char* )haystack;
 
-    while (*h) {
+    while (*h)
+    {
         auto s1 = h;
         auto s2 = needle;
 
-        while (*s1 && *s2) {
+        while (*s1 && *s2)
+        {
             if (*s1 - *s2)
                 break;
             s1++, s2++;
@@ -130,7 +136,7 @@ char* stristr(const char* haystack, const char* needle)
     if (nlen > hlen)
         return nullptr;
 
-    auto h = (char*)haystack;
+    auto h = ( char* )haystack;
 
     while (*h)
     {
@@ -157,7 +163,8 @@ char* strchr(const char* dst, char c)
 {
     auto d = ( char* )dst;
 
-    while (*d) {
+    while (*d)
+    {
         if (*d == c)
             return d;
         d++;
@@ -170,10 +177,12 @@ char* strrchr(const char* dst, char c)
 {
     char* s = nullptr;
 
-    do {
+    do
+    {
         if (*dst == c)
             s = const_cast<char*>(dst);
-    } while (*dst++);
+    }
+    while (*dst++);
 
     return s;
 }
@@ -183,14 +192,17 @@ size_t strlcpy(char* dst, const char* src, size_t n)
     const char* orig_src = src;
     size_t left = n;
 
-    if (left) {
-        while (--left) {
+    if (left)
+    {
+        while (--left)
+        {
             if ((*dst++ = *src++) == '\0')
                 break;
         }
     }
 
-    if (!left) {
+    if (!left)
+    {
         if (n)
             *dst = '\0';
         while (*src++)
@@ -208,9 +220,12 @@ size_t strlcat(char* dst, const char* src, size_t n)
     if (dlen == n)
         return n + slen;
 
-    if (slen < n - dlen) {
+    if (slen < n - dlen)
+    {
         memcpy(dst + dlen, src, slen + 1);
-    } else {
+    }
+    else
+    {
         memcpy(dst + dlen, src, n - dlen - 1);
         dst[n - 1] = '\0';
     }
@@ -231,8 +246,12 @@ char* strnset(char* dst, int c, size_t n)
 
 char* strrev(char* str)
 {
+    const size_t len = strlen(str);
+    if (len < 2)
+        return str;
+
     size_t i = 0;
-    size_t j = strlen(str) - 1;
+    size_t j = len - 1;
 
     while (i < j)
     {

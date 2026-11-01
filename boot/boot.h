@@ -1,13 +1,11 @@
 #pragma once
 
 /*
-*  Main include file for the bootloader and kernel entry point.
-*  gnu-efi headers are only included to support the ACPI headers.
-*/
+ *  Main include file for the bootloader and kernel entry point.
+ */
 
-#include "cpp-uefi.hh"
 #include "../kernel/common/acpi.h"
-#include "../kernel/common/va.h"
+#include "cpp-uefi.hh"
 
 struct MemoryMap
 {
@@ -21,6 +19,7 @@ struct DisplayInfo
 {
     uintn frame_buffer;
     uintn frame_buffer_size;
+    uintn back_buffer; // height * pitch bytes of RAM for the kernel console
     uint32 width;
     uint32 height;
     uint32 pitch;
@@ -35,7 +34,7 @@ struct KernelData
 
 struct LoaderBlock
 {
-    alignas(page_size) acpi::Madt* madt_header;
+    acpi::Madt* madt_header;
     boolean i8042;
     uint64 hpet;
     uefi::configuration_table* config_table;

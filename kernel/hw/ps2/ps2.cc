@@ -1,39 +1,43 @@
 #include <ec/util.h>
 #include <libc/str.h>
 
-#include "ps2.h"
-#include "keyboard.h"
-#include "../cpu/x64.h"
 #include "../cpu/isr.h"
+#include "../cpu/x64.h"
 #include "../gfx/output.h"
+#include "keyboard.h"
+#include "ps2.h"
 
 namespace ps2
 {
     static DeviceType DetectDevice(bool (*write_fn)(u8 cmd))
     {
-        //if (write_fn(cmd::reset))
+        // if (write_fn(cmd::reset))
         //{
-        //    u8 reply;
-        //    Read(port::data, reply);
-        //    if (reply == reply::device_test_passed
-        //        && write_fn(cmd::get_id))
-        //    {
-        //        u8 h, l;
-        //        Read(port::data, h);
-        //        Read(port::data, l);
-        //        return ( DeviceType )MAKE16(h, l);
-        //    }
-        //}
-        //return DeviceType::Invalid;
+        //     u8 reply;
+        //     Read(port::data, reply);
+        //     if (reply == reply::device_test_passed
+        //         && write_fn(cmd::get_id))
+        //     {
+        //         u8 h, l;
+        //         Read(port::data, h);
+        //         Read(port::data, l);
+        //         return ( DeviceType )MAKE16(h, l);
+        //     }
+        // }
+        // return DeviceType::Invalid;
 
-        if (write_fn(cmd::reset_no_scan)
-            && write_fn(cmd::get_id))
+        if (write_fn(cmd::reset_no_scan) && write_fn(cmd::get_id))
         {
             u8 h, l;
             Read(port::data, h);
             Read(port::data, l);
             if (write_fn(cmd::reset))
-                return ( DeviceType )MAKE16(h, l);
+            {
+                u8 x;
+                Read(port::data, x);
+                if (x == reply::device_test_passed)
+                    return ( DeviceType )MAKE16(h, l);
+            }
         }
         return DeviceType::Invalid;
     }
@@ -41,11 +45,13 @@ namespace ps2
     static bool CheckStatus(bool writable)
     {
         auto status = x64::ReadPort8(port::ctrl);
-        for (i32 i = 0; i < 10; i++)
+        for (i32 i = 0; i < 5000; i++)
         {
             if (writable ? status & StatusFlag::InFull : !(status & StatusFlag::OutFull))
                 status = x64::ReadPort8(port::ctrl);
-            else return true;
+            else
+                return true;
+            x64::IoDelay();
         }
         return false;
     }
@@ -165,6 +171,5 @@ namespace ps2
 
     void IsrMouse()
     {
-
     }
-}
+} // namespace ps2

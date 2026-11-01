@@ -1,17 +1,16 @@
-#include <libc/mem.h>
 #include <ec/const.h>
+#include <libc/mem.h>
 
-#include "x64.h"
+#include "../../core/ke.h"
+#include "../timer/timer.h"
 #include "isr.h"
 #include "msr.h"
-#include "../timer/timer.h"
-#include "../../core/ke.h"
+#include "x64.h"
 
 // #define DEBUG_CTX_SWITCH
 
 #ifdef DEBUG_CTX_SWITCH
-#include "../serial/serial.h"
-#define DbgPrint(x, ...) serial::Write(x, __VA_ARGS__)
+#define DbgPrint(x, ...) gfx::Print(x, __VA_ARGS__)
 #else
 #define DbgPrint(x, ...) EMPTY_STMT
 #endif
@@ -26,7 +25,8 @@ namespace x64
             apic::ConnectRedirEntry(irq);
     }
 
-    static constexpr const char* exception_strings[32]{
+    // clang-format off
+    static constexpr ec::array exception_strings{
         "Division By Zero",
         "Debug",
         "Non Maskable Interrupt",
@@ -50,7 +50,7 @@ namespace x64
         "Machine Check",
         "SIMD Fault",
         "Assertion Failure",
-        "Reserved 21",
+        "Control Protection Exception",
         "Reserved 22",
         "Reserved 23",
 
@@ -58,11 +58,12 @@ namespace x64
         "Reserved 25",
         "Reserved 26",
         "Reserved 27",
-        "Reserved 28",
-        "Reserved 29",
-        "Reserved 30",
+        "Hypervisor Injection Exception",
+        "VMM Communication Exception",
+        "Security Exception",
         "Reserved 31"
     };
+    // clang-format on
 
     EXTERN_C u64 spurious_irqs = 0;
 
@@ -75,25 +76,26 @@ namespace x64
                 auto present = frame->error_code & 1 ? "present" : "not present";
                 auto op = frame->error_code & 2 ? "write" : "read";
                 auto ring = frame->error_code & 4 ? "ring 3" : "ring 0";
-                Print(
-                    "Page fault: 0x%p (%s, %s, %s) at IP 0x%p\n",
-                    __readcr2(),
-                    present,
-                    op,
-                    ring,
-                    frame->rip
-                );
+                Print("Page fault: 0x%p (%s, %s, %s) at IP 0x%p\n", __readcr2(), present, op, ring, frame->rip);
             }
             else
             {
-                Print(
-                    "Interrupt %u (0x%llx) (%s) at IP 0x%p\n",
-                    int_no,
-                    frame->error_code,
-                    exception_strings[int_no],
-                    frame->rip
-                );
+                Print("Interrupt %u (0x%llx) (%s) at IP 0x%p\n", int_no, frame->error_code, exception_strings[int_no],
+                    frame->rip);
             }
+
+            if ((frame->cs & 3) && int_no != 2 && int_no != 18)
+            {
+                Print("exception came from user mode\n");
+                if (int_no == 3)
+                    Print("breakpoints are currently unsupported\n");
+                ke::ExitThread(1);
+            }
+
+            // Returning from a fault re-runs the faulting instruction forever.
+            // Only debug, NMI and breakpoint can safely continue.
+            if (int_no != 1 && int_no != 2 && int_no != 3)
+                Halt();
         }
         else if (int_no < irq_base + irq_count)
         {
@@ -103,8 +105,9 @@ namespace x64
                 if (irq == 0 && (timer::ticks % 10) == 0 && ke::schedule)
                 {
                     auto prev = ke::GetCurrentThread();
+                    bool int_state;
 
-                    if (ke::SelectNextThread())
+                    if (ke::SelectNextThread(&int_state))
                     {
                         auto next = ke::GetCurrentThread();
 
@@ -114,17 +117,13 @@ namespace x64
                         // Switch to new context
                         *frame = next->context;
 
-                        DbgPrint(
-                            "Thread switch\n"
-                            "  From id %llu to id %llu\n"
-                            "  RSP0: 0x%p RSP3: 0x%p\n"
-                            "  Set new RSP to 0x%p\n"
-                            "  TSS0 RSP is 0x%p\n",
-                            prev->id, next->id,
-                            next->context.rsp, next->user_stack,
-                            frame->rsp,
-                            ke::GetCore()->tss->rsp0
-                        );
+                        DbgPrint("Thread switch\n"
+                                 "  From id %llu to id %llu\n"
+                                 "  RSP: 0x%p KSTACK: 0x%p\n"
+                                 "  Set new RSP to 0x%p\n"
+                                 "  TSS0 RSP is 0x%p\n",
+                            prev->id, next->id, next->context.rsp, next->kernel_stack_top, frame->rsp,
+                            ke::GetCore()->tss->rsp0);
                     }
                 }
 
@@ -138,21 +137,29 @@ namespace x64
                 spurious_irqs++;
             }
         }
+        else if (cpu_info.using_apic && int_no == apic::error_vec)
+        {
+            using namespace apic;
+            WriteLocal(LocalReg::ESR, 0);
+            u32 esr = ReadLocal(LocalReg::ESR);
+            Print("APIC error: ESR 0x%x\n", esr);
+            SendEoi(0);
+        }
         else
         {
             Print("IsrCommon: Unexpected interrupt %u.\n", int_no);
             Halt();
         }
     }
-}
+} // namespace x64
 
 namespace apic
 {
-    static u32 max_irq;
+    static u32 redir_entry_count;
 
     void UpdateLvtEntry(LocalReg reg, u8 vector, Delivery type, bool enable)
     {
-        if (vector < 16)
+        if (vector < 16 && type != Delivery::Nmi)
             return;
 
         LvtEntry entry;
@@ -163,11 +170,14 @@ namespace apic
         entry.delivery = type;
         /* "When the delivery mode is NMI, SMI, or INIT, the trigger mode is always edge sensitive."
            "Software should always set the trigger mode in the LVT LINT1 register to 0 (edge sensitive)."
-           Intel SDM 3A, pg 376 */
-        entry.trigger =
-            (type == Delivery::Nmi || type == Delivery::Smi || type == Delivery::Init)
-            || (reg == LocalReg::LINT1)
-            ? Trigger::Edge : Trigger::Level;
+           Intel SDM 3A, Local Vector Table */
+        if (reg == LocalReg::LINT0 || reg == LocalReg::LINT1)
+        {
+            entry.trigger
+                = (type == Delivery::Nmi || type == Delivery::Smi || type == Delivery::Init) || (reg == LocalReg::LINT1)
+                      ? Trigger::Edge
+                      : Trigger::Level;
+        }
 
         WriteLocal(reg, entry.bits);
     }
@@ -186,30 +196,29 @@ namespace apic
     static void WriteRedirEntry(u32 gsi, IoRedirectionEntry entry)
     {
         u32 offset = ( u32 )IoReg::REDIR + (gsi * 2);
-        WriteIo(offset, entry.low32);
         WriteIo(offset + 1, entry.high32);
+        WriteIo(offset, entry.low32);
     }
 
-    void ConnectRedirEntry(u8 irq, u8 apic_id, bool enable)
+    void ConnectRedirEntry(u8 irq, u32 apic_id, bool enable)
     {
         u32 gsi = irq;
-        auto polarity = Polarity::ActiveLow;
-        auto trigger = Trigger::Level;
+        auto polarity = Polarity::ActiveHigh;
+        auto trigger = Trigger::Edge;
 
         if (irq < int_src_overrides.size())
         {
             gsi = int_src_overrides[irq].gsi;
             auto flags = int_src_overrides[irq].flags;
-            if ((flags & 0b11) == 0b01)
-                polarity = Polarity::ActiveHigh;
-            if ((flags & 0b1100) == 0b0100)
-                trigger = Trigger::Edge;
+            if ((flags & 0b11) == 0b11)
+                polarity = Polarity::ActiveLow;
+            if ((flags & 0b1100) == 0b1100)
+                trigger = Trigger::Level;
         }
+        if (gsi >= redir_entry_count)
+            return;
 
         auto entry = ReadRedirEntry(gsi);
-
-        Print("irq %u gsi %u: 0x%x 0x%x\n", irq, gsi, entry.high32, entry.low32);
-
         u32 vector = irq + x64::irq_base;
         if (vector > 254)
             return;
@@ -219,16 +228,28 @@ namespace apic
         entry.trigger = trigger;
         entry.polarity = polarity;
         entry.delivery = Delivery::Fixed;
-        entry.dst.physical.apic_id = apic_id & 0xf;
+        entry.dst_apic_id = apic_id;
 
         Print("irq %u gsi %u: 0x%x 0x%x\n", irq, gsi, entry.high32, entry.low32);
 
         WriteRedirEntry(gsi, entry);
     }
 
+    void DumpRedirEntries()
+    {
+        for (u32 gsi = 0; gsi < redir_entry_count; gsi++)
+        {
+            auto redir_entry = ReadRedirEntry(gsi);
+            Print("Entry %u 0x%x 0x%x\n", gsi, redir_entry.low32, redir_entry.high32);
+        }
+    }
+
     void SetRedirEntryState(u8 irq, bool enable)
     {
         auto gsi = irq < int_src_overrides.size() ? int_src_overrides[irq].gsi : irq;
+        if (gsi >= redir_entry_count)
+            return;
+
         auto entry = ReadRedirEntry(gsi);
 
         entry.disabled = !enable;
@@ -238,44 +259,71 @@ namespace apic
 
     void InitializeController()
     {
-        max_irq = EXTRACT32(ReadIo(IoReg::VER), 16, 24) + 1;
+        using enum x64::MsrApicBase;
+        auto msr_apic = ( x64::MsrApicBase )ReadMsr(x64::Msr::APIC_BASE);
+        Print("MSR_APIC_BASE: 0x%llx\n", msr_apic);
 
-        // Mask all interrupts
-        //
-        // should already be masked?
-        // for (u8 irq = 0; irq < max_irq; irq++)
-        //     SetRedirEntryState(irq, OFF);
-
-        // This also maps spurious interrupts to vector 255.
-        MaskInterrupts();
-
-        /*for (u32 i = 0; i < max_irq; i++)
+        if (!!(msr_apic & EXTD))
         {
-            auto reg = 16 + (2 * i);
-            auto low = ReadIo(reg);
-            auto high = ReadIo(reg + 1);
-            Print("Entry %u 0x%x 0x%x\n", i, low, high);
-        }*/
-
-        // TODO - set error int vector
-
-        Print("VER: 0x%x\n", ReadLocal(LocalReg::VER));
-        Print("ESR: 0x%x\n", ReadLocal(LocalReg::ESR));
-        Print("TPR: 0x%x\n", ReadLocal(LocalReg::TPR));
-        Print("ERR_LVTR: 0x%x\n", ReadLocal(LocalReg::ERR_LVTR));
-
-        u64 msr_apic = ReadMsr(x64::Msr::APIC_BASE);
-        // Print("MSR_APIC_BASE: 0x%llx\n", msr_apic);
-
-        if (!(msr_apic & APIC_GLOBAL_ENABLE))
-        {
-            Print("APIC was disabled in APIC_BASE MSR -- enabling now.\n");
-            WriteMsr(x64::Msr::APIC_BASE, msr_apic | APIC_BSP | APIC_GLOBAL_ENABLE);
+            Print("x2APIC enabled in APIC_BASE MSR -- disabling now.\n");
+            msr_apic &= ~(EXTD | GLOBAL_ENABLE);
+            WriteMsr(x64::Msr::APIC_BASE, msr_apic);
         }
 
-        WriteLocal(LocalReg::TPR, 0);
+        if (!(msr_apic & GLOBAL_ENABLE))
+        {
+            Print("APIC was disabled in APIC_BASE MSR -- enabling now.\n");
+            msr_apic |= BSP | GLOBAL_ENABLE;
+            WriteMsr(x64::Msr::APIC_BASE, msr_apic);
+        }
+
+        // Enable APIC in SIVR so we can set LVT entries.
+        // Interrupts are still off after this call since IF=0 and IO APIC entries are masked.
+        WriteLocal(LocalReg::SIVR, ( u32 )SivrFlag::APIC_ENABLE | spurious_int_vec);
+
+        // Clear stale errors
+        WriteLocal(LocalReg::ESR, 0);
+        Print("VER: 0x%x ESR: 0x%x TPR: 0x%x\n", ReadLocal(LocalReg::VER), ReadLocal(LocalReg::ESR),
+            ReadLocal(LocalReg::TPR));
+        WriteLocal(LocalReg::ERR_LVTR, error_vec);
+        Print("ERR_LVTR: 0x%x\n", ReadLocal(LocalReg::ERR_LVTR));
+        for (u32 tries = 0; tries < 256; ++tries)
+        {
+            bool any = false;
+            for (u32 i = 0; i < 8; ++i)
+                any |= ReadLocal(( LocalReg )(( u32 )LocalReg::ISR + i * 0x10)) != 0;
+            if (!any)
+                break;
+            SendEoi(0);
+        }
+
+        // Configure LINT pins
+        WriteLocal(LocalReg::LINT0, 1 << 16 /* mask */);
+        UpdateLvtEntry(LocalReg::LINT1, 2, Delivery::Nmi, ON);
+
+        redir_entry_count = EXTRACT32(ReadIo(IoReg::VER), 16, 24) + 1;
+
+        // Mask other LVT entries
+        const u32 max_lvt = EXTRACT32(ReadLocal(LocalReg::VER), 16, 24);
+        WriteLocal(LocalReg::TMR_LVTR, ( u32 )LvtFlag::MASK);
+        if (max_lvt >= 4)
+            WriteLocal(LocalReg::PC_LVTR, ( u32 )LvtFlag::MASK);
+        if (max_lvt >= 5)
+            WriteLocal(LocalReg::THRM_LVTR, ( u32 )LvtFlag::MASK);
+        if (max_lvt >= 6)
+            WriteLocal(LocalReg::CMCI, ( u32 )LvtFlag::MASK);
+
+        // Mask all interrupts
+        for (u32 gsi = 0; gsi < redir_entry_count; gsi++)
+        {
+            auto redir_entry = ReadRedirEntry(gsi);
+            redir_entry.disabled = true;
+            WriteRedirEntry(gsi, redir_entry);
+        }
+
+        MaskInterrupts();
     }
-}
+} // namespace apic
 
 namespace pic
 {
@@ -288,7 +336,7 @@ namespace pic
     {
         OperationCmdWord ocw;
         ocw.bits = 0;
-        ocw.ocw3.sbo = 1; // OCW3 (not 2)
+        ocw.ocw3.sbo = 1;       // OCW3 (not 2)
         ocw.ocw3.read_type = 3; // ISR
 
         Write(port, ocw.bits);
@@ -352,7 +400,7 @@ namespace pic
             OperationCmdWord ocw;
             ocw.bits = 0;
             ocw.ocw2.eoi_mode = 3; // Specific
-            ocw.ocw2.irq = 2; // Cascade
+            ocw.ocw2.irq = 2;      // Cascade
 
             Write(port::ctrl0, ocw.bits);
             return false;
@@ -371,4 +419,4 @@ namespace pic
             Write(port::ctrl1, ocw.bits);
         Write(port::ctrl0, ocw.bits);
     }
-}
+} // namespace pic

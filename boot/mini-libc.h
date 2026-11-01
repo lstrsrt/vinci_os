@@ -3,6 +3,7 @@
 #include <stdarg.h>
 
 #include "../kernel/lib/base.h"
+#include "../kernel/lib/ec/concepts.h"
 
 #ifdef COMPILER_MSVC
 #pragma function(memcmp)
@@ -13,7 +14,7 @@
 #ifndef COMPILER_MSVC
 inline
 #endif
-int memcmp(const void* buf1, const void* buf2, size_t n)
+    int memcmp(const void* buf1, const void* buf2, size_t n)
 {
     const u8* a = ( const u8* )buf1;
     const u8* b = ( const u8* )buf2;
@@ -27,12 +28,10 @@ int memcmp(const void* buf1, const void* buf2, size_t n)
     return 0;
 }
 
-#define memcmp __builtin_memcmp
-
 #ifndef COMPILER_MSVC
 inline
 #endif
-void* memcpy(void* dst, const void* src, size_t n)
+    void* memcpy(void* dst, const void* src, size_t n)
 {
     u8* d = ( u8* )dst;
     const u8* s = ( const u8* )src;
@@ -46,7 +45,7 @@ void* memcpy(void* dst, const void* src, size_t n)
 #ifndef COMPILER_MSVC
 inline
 #endif
-void* memset(void* dst, u32 val, size_t n)
+    void* memset(void* dst, u32 val, size_t n)
 {
     u8* d = ( u8* )dst;
 
@@ -58,12 +57,13 @@ void* memset(void* dst, u32 val, size_t n)
 
 constexpr i32 strncmp(const char* str1, const char* str2, size_t n)
 {
-    const u8 *c1 = ( const u8* )str1;
-    const u8 *c2 = ( const u8* )str2;
+    const u8* c1 = ( const u8* )str1;
+    const u8* c2 = ( const u8* )str2;
     u8 ch = 0;
     i32 d = 0;
 
-    while (n--) {
+    while (n--)
+    {
         d = ( i32 )(ch = *c1++) - ( i32 )*c2++;
         if (d || !ch)
             break;
@@ -72,17 +72,7 @@ constexpr i32 strncmp(const char* str1, const char* str2, size_t n)
     return d;
 }
 
-constexpr size_t strlen16(const char16_t* s)
-{
-    char16_t* start = const_cast<char16_t*>(s);
-
-    while (*s != 0)
-        s++;
-
-    return start - s;
-}
-
-static size_t strlcpy16(char16_t* dst, const char16_t* src, size_t n)
+inline size_t strlcpy16(char16_t* dst, const char16_t* src, size_t n)
 {
     const char16_t* orig_src = src;
     size_t left = n;
@@ -107,83 +97,14 @@ static size_t strlcpy16(char16_t* dst, const char16_t* src, size_t n)
     return src - orig_src - 1;
 }
 
-inline size_t strcpy16(char16_t* dst, const char16_t* src)
+template<class T>
+inline char16_t* itow(T val, char16_t* str, int32_t radix = 10, bool sign = true)
 {
-    return strlcpy16(dst, src, strlen16(src) + 1);
-}
+    static const char16_t table[] = {u"0123456789abcdefghijklmnopqrstuvwxyz"};
 
-// Adapted from https://github.com/RoelofBerg/Utf8Ucs2Converter/
-
-static bool utf8_to_ucs2_char(char16_t* ucs2, const char8_t* utf8, size_t& utf8_len)
-{
-    auto* unit = ( const unsigned char* )utf8;
-
-    *ucs2 = u'?';
-    utf8_len = 1;
-
-    if (unit[0] < 0x80)
-    {
-        *ucs2 = ( char16_t )unit[0];
-    }
-    else if ((unit[0] & 0xe0) == 0xc0)
-    {
-        if ((unit[1] & 0xc0) != 0x80)
-            return false;
-        utf8_len = 2;
-        *ucs2 = ( char16_t )((unit[0] & 0x1f) << 6 | (unit[1] & 0x3f));
-    }
-    else if ((unit[0] & 0xf0) == 0xe0)
-    {
-        if (((unit[1] & 0xc0) != 0x80) || ((unit[2] & 0xc0) != 0x80))
-            return false;
-        utf8_len = 3;
-        *ucs2 = ( char16_t )((unit[0] & 0x0f) << 12 | (unit[1] & 0x3f) << 6 | (unit[2] & 0x3f));
-    }
-    // From here on, the character exceeds the UCS-2 range
-    else if ((unit[0] & 0xf8) == 0xf0)
-    {
-        utf8_len = 4;
-        return false;
-    }
-    else if ((unit[0] & 0xfc) == 0xf8)
-    {
-        utf8_len = 5;
-        return false;
-    }
-    else if ((unit[0] & 0xfe) == 0xfc)
-    {
-        utf8_len = 6;
-        return false;
-    }
-    else
-    {
-        return false;
-    }
-    return true;
-}
-
-inline bool utf8_to_ucs2(char16_t* ucs2, size_t ucs2_len, const char8_t* utf8, size_t utf8_len)
-{
-    for (size_t i = 0, j = 0; i < ucs2_len && j < utf8_len; )
-    {
-        size_t len = 1;
-        if (!utf8_to_ucs2_char(ucs2 + i, utf8 + j, len))
-            return false;
-        j += len; // The UTF-8 string has to be advanced by the amount of code units
-        i++; // The UCS-2 string is only advanced by 1 because it only uses 1 unit per code point
-    }
-    return true;
-}
-
-static char16_t* i64tow(int64_t val, char16_t* str, int32_t radix = 10, bool sign = true)
-{
-    static const char16_t table[] = {
-        u"0123456789abcdefghijklmnopqrstuvwxyz"
-    };
-
-    uint64_t uval = ( uint64_t )val;
+    auto uval = static_cast<ec::unsigned_t<T>>(val);
     bool negative = sign && val < 0;
-    char16_t buffer[64 + sizeof('\0')];
+    char16_t buffer[(sizeof(T) * 8) + sizeof('-') + sizeof('\0')];
 
     if (radix < 2)
         radix = 2;
@@ -200,56 +121,21 @@ static char16_t* i64tow(int64_t val, char16_t* str, int32_t radix = 10, bool sig
     {
         *--pos = table[uval % radix];
         uval /= radix;
-    } while (uval);
+    }
+    while (uval);
 
     if (negative)
         *--pos = '-';
 
-    auto len = (end - pos) * sizeof(char16_t);
-    memcpy(( void* )str, ( const void* )pos, len);
-    str[len] = '\0';
+    auto count = end - pos;
+    memcpy(str, pos, count * sizeof(char16_t));
+    str[count] = '\0';
 
     return str;
 }
 
-static char16_t* itow(int32_t val, char16_t* str, int32_t radix = 10, bool sign = true)
+namespace
 {
-    static const char16_t table[] = {
-        u"0123456789abcdefghijklmnopqrstuvwxyz"
-    };
-
-    uint32_t uval = ( uint32_t )val;
-    bool negative = sign && val < 0;
-    char16_t buffer[32 + sizeof('\0')];
-
-    if (radix < 2)
-        radix = 2;
-    else if (radix > 36)
-        radix = 36;
-
-    if (negative)
-        uval = 0 - uval;
-
-    auto end = &buffer[ARRAY_SIZE(buffer) - 1];
-    auto pos = end;
-
-    do
-    {
-        *--pos = table[uval % radix];
-        uval /= radix;
-    } while (uval);
-
-    if (negative)
-        *--pos = '-';
-
-    auto len = (end - pos) * sizeof(char16_t);
-    memcpy(( void* )str, ( const void* )pos, len);
-    str[len] = '\0';
-
-    return str;
-}
-
-namespace {
 
     enum Fmt
     {
@@ -275,12 +161,16 @@ namespace {
                 return SPEC_LLONG | SPEC_HEX;
             if (*fmt == 'u')
                 return SPEC_LLONG | SPEC_UNSIGNED;
+            if (*fmt == 'd')
+                return SPEC_LLONG | SPEC_INT;
             return SPEC_LLONG;
         }
         if (*--fmt == 'u')
             return SPEC_LONG | SPEC_UNSIGNED;
         if (*fmt == 'x')
             return SPEC_LONG | SPEC_HEX;
+        if (*fmt == 'd')
+            return SPEC_LONG | SPEC_INT;
         return SPEC_LONG;
     }
 
@@ -288,35 +178,50 @@ namespace {
     {
         switch (*fmt++)
         {
-        case '%': return SPEC_PERCENT;
-        case 'c': return SPEC_CHAR;
-        case 's': return SPEC_STRING;
-        case 'b': return SPEC_BOOL;
-        case 'd': return SPEC_INT;
-        case 'u': return SPEC_UNSIGNED;
-        case 'x': return SPEC_HEX;
-        case 'p': return SPEC_POINTER;
-        case 'l': return ( Fmt )parse_l(fmt);
+        case '%':
+            return SPEC_PERCENT;
+        case 'c':
+            return SPEC_CHAR;
+        case 's':
+            return SPEC_STRING;
+        case 'b':
+            return SPEC_BOOL;
+        case 'd':
+            return SPEC_INT;
+        case 'u':
+            return SPEC_UNSIGNED;
+        case 'x':
+            return SPEC_HEX;
+        case 'p':
+            return SPEC_POINTER;
+        case 'l':
+            return ( Fmt )parse_l(fmt);
         }
         return SPEC_NONE;
     }
 
-}
+} // namespace
 
-static size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list ap)
+inline size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list ap)
 {
+    if (n == 0)
+        return 0;
+
     size_t len{};
-    while (auto c = *fmt++)
+    char16_t c;
+    while (len < n && (c = *fmt++))
     {
         if (c == '%')
         {
             auto f = parse(fmt);
+            if (f == SPEC_NONE)
+                continue;
             int skip = 1;
             if (f & (SPEC_LONG | SPEC_LLONG))
             {
                 if (f & SPEC_LLONG)
                     skip++;
-                if (f & (SPEC_UNSIGNED | SPEC_HEX))
+                if (f & (SPEC_UNSIGNED | SPEC_HEX | SPEC_INT))
                     skip++;
             }
             fmt += skip;
@@ -324,11 +229,11 @@ static size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list a
                 f = ( Fmt )(SPEC_UNSIGNED | SPEC_LLONG | SPEC_HEX);
             if (f & (SPEC_INT | SPEC_UNSIGNED | SPEC_LONG | SPEC_LLONG | SPEC_HEX))
             {
-                char16_t buf[64]{};
+                char16_t buf[64];
                 if (f & SPEC_LLONG)
                 {
                     auto tmp_llong = va_arg(ap, long long);
-                    i64tow(tmp_llong, buf, (f & SPEC_HEX) ? 16 : 10, !(f & (SPEC_UNSIGNED | SPEC_HEX)));
+                    itow(tmp_llong, buf, (f & SPEC_HEX) ? 16 : 10, !(f & (SPEC_UNSIGNED | SPEC_HEX)));
                 }
                 else
                 {
@@ -350,7 +255,7 @@ static size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list a
             else if (f & SPEC_BOOL)
             {
                 auto tmp_bool = ( bool )va_arg(ap, int);
-                str[len++] = tmp_bool;
+                str[len++] = tmp_bool ? u'1' : u'0';
             }
             else if (f & SPEC_PERCENT)
             {
@@ -362,5 +267,8 @@ static size_t vwsnprintf(char16_t* str, size_t n, const char16_t* fmt, va_list a
             str[len++] = c;
         }
     }
+    if (len > n)
+        len = n;
+    str[len] = '\0';
     return len;
 }
