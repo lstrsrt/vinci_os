@@ -29,7 +29,7 @@ BraceWrapping:
   BeforeElse: true
   BeforeLambdaBody: false
   BeforeWhile: true
-IndentCaseLabels: true
+IndentCaseLabels: false
 IndentRequiresClause: false
 InsertNewlineAtEOF: true
 LineEnding: LF

@@ -1,11 +1,23 @@
 #include "str.h"
-#include "mem.h"
 #include "../ec/util.h"
+#include "mem.h"
 
 EXTERN_C_START
 
 #ifdef COMPILER_MSVC
 #pragma function(strcmp)
+#pragma function(strncmp)
+#pragma function(strlen)
+
+size_t strlen(const char* str)
+{
+    size_t i = 0;
+    while (str[i])
+        i++;
+    return i;
+}
+#else
+#define strlen __builtin_strlen
 #endif
 
 size_t strnlen(const char* str, size_t max)

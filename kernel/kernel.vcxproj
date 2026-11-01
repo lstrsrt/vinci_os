@@ -21,12 +21,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -62,7 +62,7 @@
       <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>__KERNEL__;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <SupportJustMyCode>false</SupportJustMyCode>
@@ -104,7 +104,7 @@
       <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>__KERNEL__;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ExceptionHandling>false</ExceptionHandling>
@@ -137,13 +137,13 @@
   <ItemGroup>
     <ClCompile Include="core\alloc.cc" />
     <ClCompile Include="core\init.cc" />
-    <ClCompile Include="core\gfx\output.cc" />
     <ClCompile Include="core\panic.cc" />
     <ClCompile Include="core\thread.cc" />
     <ClCompile Include="hw\acpi\acpi.cc" />
     <ClCompile Include="hw\cmos\cmos.cc" />
     <ClCompile Include="hw\cpu\intctrl.cc" />
     <ClCompile Include="hw\cpu\x64.cc" />
+    <ClCompile Include="hw\gfx\output.cc" />
     <ClCompile Include="hw\ps2\keyboard.cc" />
     <ClCompile Include="hw\ps2\ps2.cc" />
     <ClCompile Include="hw\serial\serial.cc" />
@@ -160,9 +160,6 @@
     <ClInclude Include="common\mm.h" />
     <ClInclude Include="common\pe64.h" />
     <ClInclude Include="common\va.h" />
-    <ClInclude Include="core\gfx\font.h" />
-    <ClInclude Include="core\gfx\output.h" />
-    <ClInclude Include="core\gfx\ssfn.h" />
     <ClInclude Include="core\ke.h" />
     <ClInclude Include="hw\acpi\acpi.h" />
     <ClInclude Include="hw\cmos\cmos.h" />
@@ -172,6 +169,9 @@
     <ClInclude Include="hw\cpu\msr.h" />
     <ClInclude Include="hw\cpu\wrapper.h" />
     <ClInclude Include="hw\cpu\x64.h" />
+    <ClInclude Include="hw\gfx\font.h" />
+    <ClInclude Include="hw\gfx\output.h" />
+    <ClInclude Include="hw\gfx\ssfn.h" />
     <ClInclude Include="hw\ps2\keyboard.h" />
     <ClInclude Include="hw\ps2\ps2.h" />
     <ClInclude Include="hw\serial\serial.h" />

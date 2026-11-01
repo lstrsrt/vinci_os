@@ -16,8 +16,9 @@ constexpr size_t strlen(const char* str)
         i++;
     return i;
 }
-#endif
+
 #define strlen __builtin_strlen
+#endif
 size_t strnlen(const char* str, size_t max);
 i32 strcmp(const char* str1, const char* str2);
 i32 stricmp(const char* str1, const char* str2);

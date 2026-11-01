@@ -21,13 +21,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -67,7 +67,7 @@
       <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>__BLDR__;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <SupportJustMyCode>false</SupportJustMyCode>
@@ -106,7 +106,7 @@
       <SDLCheck>false</SDLCheck>
       <PreprocessorDefinitions>__BLDR__;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
@@ -136,23 +136,6 @@
   <ItemGroup>
     <ClInclude Include="boot.h" />
     <ClInclude Include="cpp-uefi.hh" />
-    <ClInclude Include="efi\efi-bs.h" />
-    <ClInclude Include="efi\efi-ct.h" />
-    <ClInclude Include="efi\efi-rs.h" />
-    <ClInclude Include="efi\efi-st.h" />
-    <ClInclude Include="efi\efi-time.h" />
-    <ClInclude Include="efi\efi.h" />
-    <ClInclude Include="efi\protocol\efi-acpitp.h" />
-    <ClInclude Include="efi\protocol\efi-dpp.h" />
-    <ClInclude Include="efi\protocol\efi-fp.h" />
-    <ClInclude Include="efi\protocol\efi-gop.h" />
-    <ClInclude Include="efi\protocol\efi-lidpp.h" />
-    <ClInclude Include="efi\protocol\efi-lip.h" />
-    <ClInclude Include="efi\protocol\efi-pbcp.h" />
-    <ClInclude Include="efi\protocol\efi-sfsp.h" />
-    <ClInclude Include="efi\protocol\efi-stip.h" />
-    <ClInclude Include="efi\protocol\efi-stop.h" />
-    <ClInclude Include="efi\protocol\efi-vmpp.h" />
     <ClInclude Include="mini-libc.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
