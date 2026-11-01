@@ -109,7 +109,7 @@ UserThreadEntry:
     ud2
 
 ;
-; NO_RETURN int Ring3Function(u64 arg)
+; int Ring3Function(u64 arg)
 ;
 ; Sample function to demonstrate entering ring 3.
 ;

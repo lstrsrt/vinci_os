@@ -7,7 +7,7 @@
 #include "msr.h"
 #include "x64.h"
 
-#pragma section("PROTDATA", read)
+#pragma section("PROTDATA", read, write)
 
 namespace x64
 {
